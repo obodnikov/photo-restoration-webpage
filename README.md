@@ -43,7 +43,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 ## Tech Stack
 
 **Backend:**
-- Python 3.11+
+- Python 3.13+ (latest stable)
 - FastAPI (async REST API)
 - SQLAlchemy (async ORM)
 - SQLite (database)
@@ -68,7 +68,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 - HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
 
 **For local development:**
-- Python 3.11+
+- Python 3.13+ (recommended for best performance)
 - Node.js 22+ (LTS, minimum: 22.12)
 - npm or yarn
 

@@ -5,7 +5,7 @@
 A web application for restoring old scanned photos using HuggingFace AI models with a clean, sqowe-branded interface.
 
 **Tech Stack:**
-- **Backend:** FastAPI (Python 3.11+)
+- **Backend:** FastAPI (Python 3.13+)
 - **Frontend:** Vite + React + TypeScript
 - **Deployment:** Docker + Docker Compose + nginx reverse proxy
 - **AI Models:** HuggingFace Inference API
@@ -49,7 +49,7 @@ A web application for restoring old scanned photos using HuggingFace AI models w
   - [x] Create design token CSS variables (colors, typography)
 
 **Docker & DevOps:**
-- [x] Create `backend/Dockerfile` (Python 3.11-slim)
+- [x] Create `backend/Dockerfile` (Python 3.13-slim)
 - [x] Create `frontend/Dockerfile` (multi-stage: build + nginx serve)
 - [x] Create `nginx/nginx.conf` for reverse proxy
 - [x] Create `docker-compose.yml` with services:
