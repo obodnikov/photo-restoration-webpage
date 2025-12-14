@@ -2,16 +2,36 @@
 
 AI-powered web application for restoring old scanned photos using HuggingFace models. Built with FastAPI backend, React frontend, and deployed with Docker and nginx reverse proxy.
 
+## Project Status
+
+**Version:** 0.2.0
+**Current Phase:** Phase 1 - MVP (In Progress)
+**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅
+
 ## Features
 
-### Phase 1 (MVP - Current)
-- ✅ Token-based authentication
-- ✅ Multiple AI model selection (3 models configured)
-- ✅ Local image upload and processing
-- ✅ Before/After image comparison
-- ✅ Session-based history
-- ✅ Image download
-- ✅ sqowe brand design
+### Phase 1.1 - Infrastructure ✅ COMPLETE
+- ✅ FastAPI backend with async support
+- ✅ React + TypeScript frontend with Vite
+- ✅ Docker deployment with nginx reverse proxy
+- ✅ sqowe brand design system
+- ✅ Health check endpoints
+
+### Phase 1.2 - Authentication ✅ COMPLETE
+- ✅ JWT token-based authentication
+- ✅ Login system with sqowe branding
+- ✅ Protected routes
+- ✅ Auth state management (Zustand)
+- ✅ Token persistence in localStorage
+- ✅ Auto-logout on token expiration
+- ✅ "Remember Me" functionality (7 days)
+
+### Phase 1.3+ - In Progress
+- ⏳ AI Models configuration
+- ⏳ HuggingFace Inference integration
+- ⏳ Image upload and processing
+- ⏳ Before/After comparison
+- ⏳ Session-based history
 
 ### Planned Features
 - **Phase 2**: Model pipelines, batch processing, additional models
