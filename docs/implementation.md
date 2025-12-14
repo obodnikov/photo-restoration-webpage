@@ -71,6 +71,52 @@ The backend has been updated to use Python 3.13 with compatible dependency versi
 
 See [backend/requirements.txt](../backend/requirements.txt) for the complete list.
 
+#### TypeScript Compilation Testing
+
+**IMPORTANT: Definition of Done (DoD) for TypeScript code changes**
+
+Before committing any TypeScript code changes, you MUST run the TypeScript compilation test to ensure there are no type errors.
+
+**Run the test:**
+
+```bash
+# From the frontend directory
+cd frontend
+npm run test:typecheck
+
+# Or use the typecheck command
+npm run typecheck
+```
+
+**What this does:**
+- Runs TypeScript compiler in check-only mode (`tsc --noEmit`)
+- Validates all TypeScript files without generating output
+- Reports any type errors or compilation issues
+- Must pass with zero errors before code is committed
+
+**Example output (success):**
+```
+> photo-restoration-frontend@1.0.0 test:typecheck
+> tsc --noEmit && echo 'TypeScript compilation successful!'
+
+TypeScript compilation successful!
+```
+
+**Example output (failure):**
+```
+src/services/apiClient.ts(67,5): error TS7053: Element implicitly has an 'any' type...
+```
+
+**When to run:**
+- Before every commit
+- After modifying any `.ts` or `.tsx` file
+- As part of CI/CD pipeline
+- Before creating a pull request
+
+**Integration with Docker:**
+
+The Docker build process already includes TypeScript compilation as part of `npm run build`. However, running the test locally before building saves time by catching errors early.
+
 ### Docker Compose (Recommended)
 
 The application uses Docker Compose for orchestration. See [README.md](../README.md) for quick start.
