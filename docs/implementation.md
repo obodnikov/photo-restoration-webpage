@@ -52,9 +52,35 @@ docker build -t obodnikov/photo-restoration-backend:0.1.2 ./backend
 ```
 
 **Frontend:**
+
+The frontend supports build-time configuration via build arguments. Choose the appropriate build command based on your deployment scenario:
+
+**Scenario 1: With nginx reverse proxy (default, recommended)**
 ```bash
 docker build -t obodnikov/photo-restoration-frontend:0.1.2 ./frontend
 ```
+
+**Scenario 2: Direct connection to backend container (Docker network)**
+```bash
+docker build \
+  --build-arg VITE_API_BASE_URL=http://backend:8000/api/v1 \
+  -t obodnikov/photo-restoration-frontend:0.1.2 \
+  ./frontend
+```
+
+**Scenario 3: Direct connection to backend on external host**
+```bash
+# Replace with your backend server IP/hostname
+docker build \
+  --build-arg VITE_API_BASE_URL=http://192.168.1.10:8000/api/v1 \
+  -t obodnikov/photo-restoration-frontend:0.1.2 \
+  ./frontend
+```
+
+**All available build arguments:**
+- `VITE_API_BASE_URL` - Backend API URL (default: `/api/v1`)
+- `VITE_APP_NAME` - Application name (default: `"Photo Restoration"`)
+- `VITE_APP_VERSION` - Application version (default: `"1.0.0"`)
 
 **nginx:**
 ```bash
@@ -185,16 +211,37 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### Individual Docker Run Commands
 
-If you prefer to run containers individually without Docker Compose:
+If you prefer to run containers individually without Docker Compose, choose the deployment scenario that matches your setup:
 
-#### 1. Create Network
+**Quick Decision Guide:**
+- **Scenario A (nginx)**: Production deployment, need SSL/TLS, caching, security headers → Use this
+- **Scenario B (direct)**: Simple deployment, single server, development → Use this
+- **Scenario C (external)**: Multi-server setup, backend on different machine → Use this
 
+---
+
+#### Deployment Scenario A: With nginx Reverse Proxy (Recommended)
+
+This is the recommended production setup. nginx handles routing, SSL/TLS, caching, and security headers.
+
+**1. Create Network**
 ```bash
 docker network create photo-restoration-network
 ```
 
-#### 2. Run Backend
+**2. Build Images**
+```bash
+# Backend
+docker build -t photo-restoration-backend:latest ./backend
 
+# Frontend (with default relative path for nginx)
+docker build -t photo-restoration-frontend:latest ./frontend
+
+# nginx
+docker build -t photo-restoration-nginx:latest ./nginx
+```
+
+**3. Run Backend**
 ```bash
 docker run -d \
   --name photo-restoration-backend \
@@ -210,13 +257,17 @@ docker run -d \
   photo-restoration-backend:latest
 ```
 
-**Build backend image first:**
+**4. Wait for Backend Health Check**
 ```bash
-docker build -t photo-restoration-backend:latest ./backend
+# Wait for backend to be healthy (may take 10-30 seconds)
+until docker exec photo-restoration-backend python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5.0)" 2>/dev/null; do
+  echo "Waiting for backend to be healthy..."
+  sleep 2
+done
+echo "Backend is healthy!"
 ```
 
-#### 3. Run Frontend
-
+**5. Run Frontend**
 ```bash
 docker run -d \
   --name photo-restoration-frontend \
@@ -225,13 +276,7 @@ docker run -d \
   photo-restoration-frontend:latest
 ```
 
-**Build frontend image first:**
-```bash
-docker build -t photo-restoration-frontend:latest ./frontend
-```
-
-#### 4. Run nginx Reverse Proxy
-
+**6. Run nginx Reverse Proxy**
 ```bash
 docker run -d \
   --name photo-restoration-nginx \
@@ -242,10 +287,110 @@ docker run -d \
   photo-restoration-nginx:latest
 ```
 
-**Build nginx image first:**
+**7. Verify Deployment**
 ```bash
-docker build -t photo-restoration-nginx:latest ./nginx
+# Check all containers are running
+docker ps --filter "name=photo-restoration"
+
+# Check nginx can reach backend
+curl http://localhost/health
+
+# Check logs if there are issues
+docker logs photo-restoration-nginx
 ```
+
+---
+
+#### Deployment Scenario B: Direct Frontend-to-Backend (Without nginx)
+
+In this setup, frontend connects directly to backend. Useful for development or simple deployments.
+
+**1. Create Network**
+```bash
+docker network create photo-restoration-network
+```
+
+**2. Build Images**
+```bash
+# Backend
+docker build -t photo-restoration-backend:latest ./backend
+
+# Frontend (configured to connect directly to backend)
+docker build \
+  --build-arg VITE_API_BASE_URL=http://backend:8000/api/v1 \
+  -t photo-restoration-frontend:latest \
+  ./frontend
+```
+
+**3. Run Backend**
+```bash
+docker run -d \
+  --name photo-restoration-backend \
+  --network photo-restoration-network \
+  -v photo-restoration-data:/data \
+  -e HF_API_KEY=your_huggingface_api_key \
+  -e SECRET_KEY=your_secret_key_min_32_chars \
+  -e AUTH_USERNAME=admin \
+  -e AUTH_PASSWORD=changeme \
+  -e DEBUG=false \
+  -e DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db \
+  -e CORS_ORIGINS='["http://localhost","http://localhost:3000"]' \
+  -p 8000:8000 \
+  --restart unless-stopped \
+  photo-restoration-backend:latest
+```
+
+**Important:** When not using nginx, you must:
+- Expose backend port (`-p 8000:8000`)
+- Configure CORS to allow frontend origin in backend `.env`
+
+**4. Run Frontend**
+```bash
+docker run -d \
+  --name photo-restoration-frontend \
+  --network photo-restoration-network \
+  -p 80:80 \
+  --restart unless-stopped \
+  photo-restoration-frontend:latest
+```
+
+**5. Verify Deployment**
+```bash
+# Check containers
+docker ps --filter "name=photo-restoration"
+
+# Test backend directly
+curl http://localhost:8000/health
+
+# Test frontend
+curl http://localhost/
+```
+
+---
+
+#### Deployment Scenario C: External Backend Server
+
+Frontend connects to backend on a different server/host.
+
+**1. Build Frontend with External Backend URL**
+```bash
+# Replace with your actual backend server address
+docker build \
+  --build-arg VITE_API_BASE_URL=http://192.168.1.10:8000/api/v1 \
+  -t photo-restoration-frontend:latest \
+  ./frontend
+```
+
+**2. Run Frontend**
+```bash
+docker run -d \
+  --name photo-restoration-frontend \
+  -p 80:80 \
+  --restart unless-stopped \
+  photo-restoration-frontend:latest
+```
+
+**Note:** Backend must be configured with appropriate CORS settings to allow requests from the frontend's origin.
 
 ### Docker Run with Environment File
 

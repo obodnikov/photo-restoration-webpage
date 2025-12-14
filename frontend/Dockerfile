@@ -14,7 +14,19 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Build arguments for environment variables
+# These are available during build time only
+ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_APP_NAME="Photo Restoration"
+ARG VITE_APP_VERSION="1.0.0"
+
+# Set as environment variables for the build process
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_APP_NAME=${VITE_APP_NAME}
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+
 # Build the application
+# Vite will embed these environment variables into the build
 RUN npm run build
 
 # Production stage - serve with nginx
