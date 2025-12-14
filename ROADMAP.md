@@ -113,65 +113,108 @@ A web application for restoring old scanned photos using HuggingFace AI models w
 **Completed:** December 14, 2024
 
 **Tests for Phase 1.2:**
-- [x] Backend: Basic config tests (`backend/tests/test_config.py`)
-- [ ] Backend: Health check tests (`backend/tests/test_health.py`)
-  - [ ] `/health` returns 200 with correct JSON
-  - [ ] `/api/health` (if exists) returns backend status
-  - [ ] App startup validation (missing HF_API_KEY, short SECRET_KEY)
-  - [ ] MODELS_CONFIG parsing tests (valid/invalid JSON)
-- [ ] Backend: Auth tests (`backend/tests/api/v1/test_auth.py`)
-  - [ ] POST `/api/v1/auth/login` with valid credentials → 200 + token
-  - [ ] POST `/api/v1/auth/login` with invalid username → 401
-  - [ ] POST `/api/v1/auth/login` with invalid password → 401
-  - [ ] POST `/api/v1/auth/login` with remember_me=True → 7 days expiration
-  - [ ] POST `/api/v1/auth/login` with remember_me=False → 24h expiration
-  - [ ] POST `/api/v1/auth/validate` with valid token → 200
-  - [ ] POST `/api/v1/auth/validate` with expired token → 401
-  - [ ] POST `/api/v1/auth/validate` with malformed token → 401
-  - [ ] GET `/api/v1/auth/me` with valid token → returns username
-  - [ ] GET `/api/v1/auth/me` without token → 401
-- [ ] Backend: Security utilities tests (`backend/tests/services/test_security.py`)
-  - [ ] `verify_password()` with matching password → True
-  - [ ] `verify_password()` with wrong password → False
-  - [ ] `get_password_hash()` creates valid bcrypt hash
-  - [ ] `create_access_token()` with custom expires_delta
-  - [ ] `create_access_token()` with default expiration
-  - [ ] `verify_token()` with valid token → returns payload
-  - [ ] `verify_token()` with expired token → None
-  - [ ] `verify_token()` with invalid signature → None
-  - [ ] `authenticate_user()` with valid credentials → user dict
-  - [ ] `authenticate_user()` with invalid credentials → None
-- [ ] Backend: Test infrastructure
-  - [ ] Create `backend/tests/conftest.py` with shared fixtures
-  - [ ] Create `backend/.env.test` for test environment
-  - [ ] Add `pytest.ini` configuration
-  - [ ] Add `pytest-cov` for coverage reporting
-- [ ] Frontend: Test configuration
-  - [ ] Create `frontend/vitest.config.ts`
-  - [ ] Create `frontend/src/__tests__/setup.ts`
-  - [ ] Add test utilities in `frontend/src/test-utils/`
-- [ ] Frontend: Auth store tests (`frontend/src/__tests__/authStore.test.tsx`)
-  - [ ] `setToken()` updates state and localStorage
-  - [ ] `clearToken()` removes token
-  - [ ] Token persists after page reload
-  - [ ] Remember Me sets correct expiration
-  - [ ] Auto-logout on token expiration
-- [ ] Frontend: Auth component tests (`frontend/src/__tests__/auth.test.tsx`)
-  - [ ] LoginForm renders with username/password fields
-  - [ ] LoginForm renders "Remember Me" checkbox
-  - [ ] LoginForm submits valid credentials → stores token
-  - [ ] LoginForm shows error on invalid credentials
-  - [ ] LoginForm redirects after successful login
-  - [ ] useAuth hook: login() stores token
-  - [ ] useAuth hook: logout() clears token
-  - [ ] useAuth hook: isAuthenticated reflects token state
-  - [ ] ProtectedRoute redirects to /login when no token
-  - [ ] ProtectedRoute renders children when authenticated
-  - [ ] Auto-logout shows expiration message
-- [ ] Frontend: API client tests (`frontend/src/__tests__/apiClient.test.tsx`)
-  - [ ] Auto-injects auth token from store
-  - [ ] Handles 401 responses (redirects to login)
-  - [ ] Request/response type safety
+- [x] Backend: Basic config tests (`backend/tests/test_config.py`) - 21 tests ✅
+- [x] Backend: Health check tests (`backend/tests/test_health.py`) - 21 tests ✅
+  - [x] `/health` returns 200 with correct JSON
+  - [x] Root endpoint returns API info
+  - [x] App startup validation (HF_API_KEY, SECRET_KEY, directories)
+  - [x] MODELS_CONFIG parsing tests (valid/invalid JSON, get by ID)
+  - [x] Security configuration tests (SECRET_KEY validation, debug mode)
+- [x] Backend: Auth tests (`backend/tests/api/v1/test_auth.py`) - 24 tests ✅
+  - [x] POST `/api/v1/auth/login` with valid credentials → 200 + token
+  - [x] POST `/api/v1/auth/login` with invalid username → 401
+  - [x] POST `/api/v1/auth/login` with invalid password → 401
+  - [x] POST `/api/v1/auth/login` with remember_me=True → 7 days expiration
+  - [x] POST `/api/v1/auth/login` with remember_me=False → 24h expiration
+  - [x] POST `/api/v1/auth/login` with missing/empty credentials → 422/401
+  - [x] POST `/api/v1/auth/validate` with valid token → 200
+  - [x] POST `/api/v1/auth/validate` with expired token → 401
+  - [x] POST `/api/v1/auth/validate` with malformed token → 401
+  - [x] POST `/api/v1/auth/validate` without token → 403
+  - [x] GET `/api/v1/auth/me` with valid token → returns username
+  - [x] GET `/api/v1/auth/me` without token → 403
+  - [x] GET `/api/v1/auth/me` with expired/invalid token → 401
+  - [x] Full authentication flows (login → validate → get_me)
+  - [x] Multiple logins generate different tokens
+  - [x] Security tests (no user existence leakage, password not logged, token forgery)
+- [x] Backend: Security utilities tests (`backend/tests/services/test_security.py`) - 29 tests ✅
+  - [x] `verify_password()` with matching password → True
+  - [x] `verify_password()` with wrong password → False
+  - [x] `verify_password()` case sensitivity and empty password handling
+  - [x] `get_password_hash()` creates valid bcrypt hash
+  - [x] `get_password_hash()` different salts each time
+  - [x] `create_access_token()` with custom expires_delta
+  - [x] `create_access_token()` with default expiration
+  - [x] `create_access_token()` preserves additional data and is deterministic in tests
+  - [x] `verify_token()` with valid token → returns payload
+  - [x] `verify_token()` with expired token → None
+  - [x] `verify_token()` with invalid signature/malformed/wrong algorithm → None
+  - [x] `authenticate_user()` with valid credentials → user dict
+  - [x] `authenticate_user()` with invalid username/password → None
+  - [x] `authenticate_user()` case sensitivity and empty credentials
+  - [x] Edge cases: special characters, long passwords (bcrypt 72-byte limit), token subjects
+- [x] Backend: Test infrastructure ✅
+  - [x] Create `backend/tests/conftest.py` with 12 shared fixtures
+  - [x] Create `backend/conftest.py` for environment loading and module reloading
+  - [x] Create `backend/.env.test` for test environment (committed to git)
+  - [x] Add `pytest.ini` configuration with markers and settings
+  - [x] Add `pytest-cov` for coverage reporting (99% coverage achieved)
+  - [x] Fix bcrypt compatibility (pin bcrypt<5.0.0 for passlib 1.7.4)
+
+**Backend Test Summary:** 82 tests, 100% passing, 99% code coverage ✅
+
+- [x] Frontend: Test configuration ✅
+  - [x] Create `frontend/vitest.config.ts`
+  - [x] Create `frontend/src/__tests__/setup.ts`
+  - [x] Add test utilities in `frontend/src/test-utils/`
+  - [x] Install test dependencies (@testing-library/react, @testing-library/jest-dom, @testing-library/user-event, jsdom)
+- [x] Frontend: Auth store tests (`frontend/src/__tests__/authStore.test.ts`) - 18 tests ✅
+  - [x] `setAuth()` updates state and localStorage
+  - [x] `setAuth()` calculates correct expiration time
+  - [x] `clearAuth()` removes token from state and localStorage
+  - [x] Token persists after page reload (via initializeAuthStore)
+  - [x] Expired tokens are not restored on init
+  - [x] Incomplete localStorage data is cleared on init
+  - [x] Remember Me sets 24-hour expiration (regular login)
+  - [x] Remember Me sets 7-day expiration (remember_me=true)
+  - [x] `checkTokenExpiry()` returns false for valid token
+  - [x] `checkTokenExpiry()` clears auth for expired token
+  - [x] `isTokenExpired()` correctly identifies expired tokens
+  - [x] Auto-logout on token expiration (periodic check with setInterval)
+- [x] Frontend: Auth component tests (`frontend/src/__tests__/auth.test.tsx`) - 17 tests ✅
+  - [x] LoginForm renders with username/password fields
+  - [x] LoginForm renders "Remember Me" checkbox
+  - [x] LoginForm disables submit button when fields are empty
+  - [x] LoginForm enables submit button when fields are filled
+  - [x] LoginForm submits valid credentials → stores token
+  - [x] LoginForm shows error on invalid credentials
+  - [x] LoginForm shows loading state during login
+  - [x] LoginForm redirects to home after successful login
+  - [x] LoginForm sends remember_me=true when checkbox is checked
+  - [x] LoginForm sends remember_me=false when checkbox is not checked
+  - [x] useAuth hook: isAuthenticated reflects token state
+  - [x] useAuth hook: login() stores token and updates state
+  - [x] useAuth hook: logout() clears token
+  - [x] useAuth hook: logout() navigates to login page
+  - [x] useAuth hook: shows error when login fails
+  - [x] useAuth hook: shows loading state during login
+- [x] Frontend: API client tests (`frontend/src/__tests__/apiClient.test.ts`) - 20 tests ✅
+  - [x] Auto-injects Authorization header when token exists
+  - [x] Redirects to login when no token exists for protected endpoint
+  - [x] Allows requests without token when requiresAuth=false
+  - [x] Redirects to login when token is expired
+  - [x] Handles 401 responses (clears auth and redirects to login)
+  - [x] Returns typed responses from GET/POST/PUT/DELETE requests
+  - [x] Makes correct HTTP method calls (GET, POST, PUT, DELETE)
+  - [x] POST/PUT requests include JSON body
+  - [x] Throws ApiError for HTTP errors with correct status codes
+  - [x] Extracts error messages from response body
+  - [x] Handles network errors gracefully
+  - [x] Includes Content-Type header
+  - [x] Merges custom headers with default headers
+  - [x] Constructs correct URLs with base path
+
+**Frontend Test Summary:** 55 tests, 100% passing ✅
 
 ---
 
