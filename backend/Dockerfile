@@ -1,5 +1,5 @@
 # Multi-stage build for Python FastAPI backend
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 # Set working directory
 WORKDIR /app
