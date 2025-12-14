@@ -117,6 +117,58 @@ src/services/apiClient.ts(67,5): error TS7053: Element implicitly has an 'any' t
 
 The Docker build process already includes TypeScript compilation as part of `npm run build`. However, running the test locally before building saves time by catching errors early.
 
+#### Environment Variable Format Requirements
+
+**IMPORTANT:** The backend configuration requires JSON array format for list and set fields.
+
+**Affected Variables:**
+- `CORS_ORIGINS` - List of allowed CORS origins
+- `ALLOWED_EXTENSIONS` - Set of allowed file extensions
+
+**Required Format:**
+
+```bash
+# Correct (JSON array format)
+CORS_ORIGINS=["http://localhost:3000","http://localhost"]
+ALLOWED_EXTENSIONS=[".jpg",".jpeg",".png"]
+
+# Incorrect (comma-separated - will fail)
+CORS_ORIGINS=http://localhost:3000,http://localhost
+ALLOWED_EXTENSIONS=.jpg,.jpeg,.png
+```
+
+**Why JSON Format?**
+
+The backend uses `pydantic-settings` 2.7.1, which automatically parses list/set environment variables as JSON. This ensures:
+- Type safety and validation
+- Consistent parsing across all environments
+- No ambiguity with commas in URLs or values
+- Native Python data structures
+
+**Migration from Older Versions:**
+
+If you're upgrading from a version that used comma-separated format:
+
+1. Update your `.env` file:
+   ```bash
+   # Old format
+   CORS_ORIGINS=http://localhost:3000,http://localhost,http://example.com
+
+   # New format
+   CORS_ORIGINS=["http://localhost:3000","http://localhost","http://example.com"]
+   ```
+
+2. Rebuild your containers:
+   ```bash
+   docker-compose down
+   docker-compose up --build
+   ```
+
+3. Verify the configuration:
+   ```bash
+   docker logs photo-restoration-backend | grep "CORS"
+   ```
+
 ### Docker Compose (Recommended)
 
 The application uses Docker Compose for orchestration. See [README.md](../README.md) for quick start.
@@ -600,8 +652,9 @@ APP_VERSION="1.0.0"
 HOST=0.0.0.0
 PORT=8000
 
-# CORS - Update with your domain
-CORS_ORIGINS=https://photo-restoration.yourdomain.com
+# CORS - Update with your domain (JSON array format required)
+# Example: CORS_ORIGINS=["https://photo-restoration.yourdomain.com","https://www.yourdomain.com"]
+CORS_ORIGINS=["https://photo-restoration.yourdomain.com"]
 
 # Security - CHANGE THESE!
 SECRET_KEY=GENERATE_A_STRONG_RANDOM_KEY_AT_LEAST_32_CHARACTERS_LONG
@@ -623,6 +676,8 @@ DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db
 UPLOAD_DIR=/data/uploads
 PROCESSED_DIR=/data/processed
 MAX_UPLOAD_SIZE=10485760
+# Allowed file extensions (JSON array format required)
+ALLOWED_EXTENSIONS=[".jpg",".jpeg",".png"]
 
 # Session
 SESSION_CLEANUP_HOURS=24

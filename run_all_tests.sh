@@ -158,14 +158,14 @@ run_test "CORS JSON Format" \
     photo-restoration-backend:test \
     python -c 'from app.core.config import settings; assert \"http://example.com\" in settings.cors_origins; print(\"CORS JSON format works:\", settings.cors_origins)'"
 
-log_info "Testing CORS comma-separated format (backward compatibility)..."
-run_test "CORS Comma-Separated Format" \
+log_info "Testing CORS with multiple origins (JSON array format)..."
+run_test "CORS Multiple Origins JSON Format" \
     "docker run --rm \
-    -e CORS_ORIGINS='http://test1.com,http://test2.com' \
+    -e CORS_ORIGINS='[\"http://test1.com\",\"http://test2.com\",\"https://test3.com\"]' \
     -e SECRET_KEY=test_secret_key_at_least_32_characters_long_12345 \
     -e HF_API_KEY=test_key \
     photo-restoration-backend:test \
-    python -c 'from app.core.config import settings; assert \"http://test1.com\" in settings.cors_origins; print(\"CORS comma-separated format works:\", settings.cors_origins)'"
+    python -c 'from app.core.config import settings; assert \"http://test1.com\" in settings.cors_origins; assert \"http://test2.com\" in settings.cors_origins; assert \"https://test3.com\" in settings.cors_origins; print(\"CORS JSON array format works:\", settings.cors_origins)'"
 
 # Cleanup
 log_section "Cleanup"

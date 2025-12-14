@@ -96,6 +96,9 @@ Edit `backend/.env` and set:
   - Must be unique and random for security
 - `AUTH_USERNAME` - Admin username (default: `admin`)
 - `AUTH_PASSWORD` - Admin password (**change from default!**)
+- `CORS_ORIGINS` - **IMPORTANT**: Must be in JSON array format
+  - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
+  - For production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
 
 **Frontend:**
 ```bash
@@ -239,6 +242,11 @@ Key variables:
   - **Note**: Changing this key will log out all users
   - See [docs/implementation.md](docs/implementation.md#understanding-secret_key) for detailed explanation
 - `AUTH_USERNAME` / `AUTH_PASSWORD` - Admin credentials (change from defaults!)
+- `CORS_ORIGINS` - **IMPORTANT**: Must be in JSON array format
+  - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
+  - Production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
+- `ALLOWED_EXTENSIONS` - Allowed file extensions (JSON array format)
+  - Default: `ALLOWED_EXTENSIONS=[".jpg",".jpeg",".png"]`
 - `MODELS_CONFIG` - JSON configuration of available AI models
 - `DATABASE_URL` - SQLite database path
 - `MAX_UPLOAD_SIZE` - Maximum file upload size (default: 10MB)
