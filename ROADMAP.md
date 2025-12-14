@@ -5,7 +5,7 @@
 A web application for restoring old scanned photos using HuggingFace AI models with a clean, sqowe-branded interface.
 
 **Tech Stack:**
-- **Backend:** FastAPI (Python 3.11+)
+- **Backend:** FastAPI (Python 3.13+)
 - **Frontend:** Vite + React + TypeScript
 - **Deployment:** Docker + Docker Compose + nginx reverse proxy
 - **AI Models:** HuggingFace Inference API
@@ -49,7 +49,7 @@ A web application for restoring old scanned photos using HuggingFace AI models w
   - [x] Create design token CSS variables (colors, typography)
 
 **Docker & DevOps:**
-- [x] Create `backend/Dockerfile` (Python 3.11-slim)
+- [x] Create `backend/Dockerfile` (Python 3.13-slim)
 - [x] Create `frontend/Dockerfile` (multi-stage: build + nginx serve)
 - [x] Create `nginx/nginx.conf` for reverse proxy
 - [x] Create `docker-compose.yml` with services:
@@ -69,36 +69,48 @@ A web application for restoring old scanned photos using HuggingFace AI models w
 
 ---
 
-### 1.2 Authentication System
+### 1.2 Authentication System ✅ **COMPLETE**
 
 **Backend:**
-- [ ] Implement token-based authentication in `app/core/security.py`
-  - [ ] JWT token generation and validation
-  - [ ] Password hashing utilities
-  - [ ] Token dependency for protected routes
-- [ ] Create auth schemas in `app/api/v1/schemas/auth.py`
-  - [ ] LoginRequest (username, password)
-  - [ ] TokenResponse (access_token, token_type)
-  - [ ] UserResponse
-- [ ] Create auth routes in `app/api/v1/routes/auth.py`
-  - [ ] POST `/api/v1/auth/login` - authenticate and get token
-  - [ ] POST `/api/v1/auth/validate` - validate token
-- [ ] Configure simple user storage (hardcoded in config or .env for MVP)
-- [ ] Add authentication tests
+- [x] Implement token-based authentication in `app/core/security.py`
+  - [x] JWT token generation and validation
+  - [x] Password hashing utilities
+  - [x] Token dependency for protected routes
+- [x] Create auth schemas in `app/api/v1/schemas/auth.py`
+  - [x] LoginRequest (username, password, remember_me)
+  - [x] TokenResponse (access_token, token_type, expires_in)
+  - [x] UserResponse
+  - [x] TokenValidateResponse
+- [x] Create auth routes in `app/api/v1/routes/auth.py`
+  - [x] POST `/api/v1/auth/login` - authenticate and get token
+  - [x] POST `/api/v1/auth/validate` - validate token
+  - [x] GET `/api/v1/auth/me` - get current user
+- [x] Configure simple user storage (hardcoded from .env for MVP)
+- [x] Add "Remember Me" functionality (7 days token expiration)
+- [x] Integrate auth routes into main.py
 
 **Frontend:**
-- [ ] Create auth feature in `src/features/auth/`
-  - [ ] `components/LoginForm.tsx` - login UI component
-  - [ ] `hooks/useAuth.ts` - authentication logic hook
-  - [ ] `services/authService.ts` - API calls for auth
-  - [ ] `types.ts` - auth-related TypeScript types
-- [ ] Create auth store in `src/services/authStore.ts` (Zustand)
-  - [ ] Store token in localStorage
-  - [ ] Provide auth state globally
-  - [ ] Auto-logout on token expiration
-- [ ] Implement protected route wrapper
-- [ ] Create login page with sqowe branding
-- [ ] Add token to all API requests (Authorization header)
+- [x] Create auth feature in `src/features/auth/`
+  - [x] `components/LoginForm.tsx` - login UI component with sqowe branding
+  - [x] `hooks/useAuth.ts` - authentication logic hook
+  - [x] `services/authService.ts` - API calls for auth
+  - [x] `types.ts` - auth-related TypeScript types
+  - [x] `pages/LoginPage.tsx` - full login page
+- [x] Create auth store in `src/services/authStore.ts` (Zustand)
+  - [x] Store token in localStorage
+  - [x] Provide auth state globally
+  - [x] Auto-logout on token expiration
+  - [x] Token expiry checking (every minute)
+  - [x] Initialize from localStorage on app start
+- [x] Implement protected route wrapper (`ProtectedRoute.tsx`)
+- [x] Create login page with sqowe branding
+- [x] Add token to all API requests (Authorization header via `apiClient.ts`)
+- [x] Create API client with auto-injection of JWT token
+- [x] Handle 401 responses (auto-redirect to login)
+- [x] Add "Remember Me" checkbox (7 days vs 24 hours)
+- [x] Update App.tsx with routing (BrowserRouter, Routes)
+
+**Completed:** December 14, 2024
 
 ---
 
@@ -480,6 +492,35 @@ MODELS_CONFIG=[
 
 ---
 
+### 2.2 Enhanced Authentication Features
+
+**Backend:**
+- [ ] Database-backed user management (replace hardcoded credentials)
+  - [ ] User table in SQLite
+  - [ ] CRUD operations for users
+  - [ ] Admin user management endpoints
+- [ ] Configurable token expiration
+  - [ ] Allow users to set token lifetime
+  - [ ] Short-lived tokens with refresh token support
+  - [ ] Configurable per-user token settings
+- [ ] Enhanced password security
+  - [ ] Password complexity requirements
+  - [ ] Password change functionality
+  - [ ] Password reset flow via email (optional)
+- [ ] Session management improvements
+  - [ ] Multiple device support
+  - [ ] Active session viewing
+  - [ ] Remote logout capability
+
+**Frontend:**
+- [ ] User registration page
+- [ ] Profile management page
+- [ ] Password change interface
+- [ ] Active sessions viewer
+- [ ] Security settings
+
+---
+
 ### 2.3 Additional Models
 
 **Add More Models:**
@@ -762,6 +803,6 @@ MODELS_CONFIG=[
 
 ---
 
-**Last Updated:** December 13, 2024
+**Last Updated:** December 14, 2024
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Status:** Phase 1.1 Complete ✅ | Phase 1.2 Next
+**Status:** Phase 1.1 Complete ✅ | Phase 1.2 In Progress 🔄
