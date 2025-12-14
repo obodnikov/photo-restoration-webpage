@@ -41,7 +41,7 @@ async function request<T>(
   const { requiresAuth = true, headers = {}, ...restOptions } = options;
 
   // Build request headers
-  const requestHeaders: HeadersInit = {
+  const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
   };
