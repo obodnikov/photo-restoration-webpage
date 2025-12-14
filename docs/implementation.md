@@ -7,10 +7,31 @@ This document provides detailed implementation instructions, configuration examp
 ## Table of Contents
 
 1. [Docker Deployment](#docker-deployment)
-2. [nginx Reverse Proxy Configuration](#nginx-reverse-proxy-configuration)
+2. [External Reverse Proxy Configuration](#external-reverse-proxy-configuration)
 3. [Production Deployment](#production-deployment)
 4. [Environment-Specific Configurations](#environment-specific-configurations)
 5. [Monitoring and Logging](#monitoring-and-logging)
+
+## Architecture Overview
+
+**IMPORTANT:** The frontend container has been redesigned to be a simple static file server without proxy capabilities. This allows you to use your own external reverse proxy server (nginx, Apache, Traefik, Caddy, etc.) to handle routing between frontend and backend.
+
+**Frontend Container:**
+- Uses `serve` npm package (lightweight static file server)
+- Serves built React app on port 3000
+- No proxy configuration - purely serves static files
+- Handles SPA routing (React Router)
+
+**Backend Container:**
+- FastAPI application on port 8000
+- Exposes `/api/v1/*` endpoints
+- Not exposed to host by default (accessed via proxy)
+
+**Your External Proxy:**
+- Routes `/api/*` requests → `backend:8000`
+- Routes `/uploads/*` requests → `backend:8000`
+- Routes `/processed/*` requests → `backend:8000`
+- Routes all other requests → `frontend:3000`
 
 ---
 
@@ -53,15 +74,17 @@ docker build -t obodnikov/photo-restoration-backend:0.1.2 ./backend
 
 **Frontend:**
 
-The frontend supports build-time configuration via build arguments. Choose the appropriate build command based on your deployment scenario:
+The frontend uses a simple static file server (`serve` npm package) and supports build-time configuration via build arguments:
 
-**Scenario 1: With nginx reverse proxy (default, recommended)**
+**Scenario 1: With external reverse proxy (default, recommended)**
 ```bash
+# Build with relative API path - your external proxy handles routing
 docker build -t obodnikov/photo-restoration-frontend:0.1.2 ./frontend
 ```
 
 **Scenario 2: Direct connection to backend container (Docker network)**
 ```bash
+# Frontend connects directly to backend - CORS must be configured in backend
 docker build \
   --build-arg VITE_API_BASE_URL=http://backend:8000/api/v1 \
   -t obodnikov/photo-restoration-frontend:0.1.2 \
@@ -70,7 +93,7 @@ docker build \
 
 **Scenario 3: Direct connection to backend on external host**
 ```bash
-# Replace with your backend server IP/hostname
+# Replace with your backend server IP/hostname - CORS must be configured
 docker build \
   --build-arg VITE_API_BASE_URL=http://192.168.1.10:8000/api/v1 \
   -t obodnikov/photo-restoration-frontend:0.1.2 \
@@ -82,10 +105,7 @@ docker build \
 - `VITE_APP_NAME` - Application name (default: `"Photo Restoration"`)
 - `VITE_APP_VERSION` - Application version (default: `"1.0.0"`)
 
-**nginx:**
-```bash
-docker build -t obodnikov/photo-restoration-nginx:0.1.2 ./nginx
-```
+**Note:** The frontend container now runs on port 3000 (not port 80). Your external reverse proxy should route to `http://frontend:3000`.
 
 #### Python 3.13 Compatibility
 
@@ -199,30 +219,40 @@ If you're upgrading from a version that used comma-separated format:
 
 The application uses Docker Compose for orchestration. See [README.md](../README.md) for quick start.
 
+**IMPORTANT:** The docker-compose.yml no longer includes an nginx service. You must configure your own external reverse proxy to route requests to the frontend (port 3000) and backend (port 8000) containers.
+
 **Production:**
 ```bash
 docker-compose up -d --build
 ```
+
+This will start:
+- `backend` on port 8000 (not exposed to host)
+- `frontend` on port 3000 (exposed to host)
 
 **Development:**
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
+This will start:
+- `backend-dev` on port 8000 (exposed to host for direct access)
+- `frontend-dev` on port 3000 (Vite dev server with hot reload)
+
 ### Individual Docker Run Commands
 
 If you prefer to run containers individually without Docker Compose, choose the deployment scenario that matches your setup:
 
 **Quick Decision Guide:**
-- **Scenario A (nginx)**: Production deployment, need SSL/TLS, caching, security headers → Use this
-- **Scenario B (direct)**: Simple deployment, single server, development → Use this
-- **Scenario C (external)**: Multi-server setup, backend on different machine → Use this
+- **Scenario A (External Proxy)**: Production deployment with your own reverse proxy → Use this
+- **Scenario B (Direct)**: Simple deployment, development, testing → Use this
+- **Scenario C (Multi-host)**: Backend on different machine → Use this
 
 ---
 
-#### Deployment Scenario A: With nginx Reverse Proxy (Recommended)
+#### Deployment Scenario A: With External Reverse Proxy (Recommended)
 
-This is the recommended production setup. nginx handles routing, SSL/TLS, caching, and security headers.
+This is the recommended production setup. Your external reverse proxy (nginx, Apache, Traefik, Caddy) handles routing, SSL/TLS, caching, and security headers.
 
 **1. Create Network**
 ```bash
@@ -234,11 +264,8 @@ docker network create photo-restoration-network
 # Backend
 docker build -t photo-restoration-backend:latest ./backend
 
-# Frontend (with default relative path for nginx)
+# Frontend (with default relative path for external proxy)
 docker build -t photo-restoration-frontend:latest ./frontend
-
-# nginx
-docker build -t photo-restoration-nginx:latest ./nginx
 ```
 
 **3. Run Backend**
@@ -276,15 +303,59 @@ docker run -d \
   photo-restoration-frontend:latest
 ```
 
-**6. Run nginx Reverse Proxy**
-```bash
-docker run -d \
-  --name photo-restoration-nginx \
-  --network photo-restoration-network \
-  -p 80:80 \
-  -p 443:443 \
-  --restart unless-stopped \
-  photo-restoration-nginx:latest
+**Note:** The frontend is NOT exposed to the host directly. Your external reverse proxy should access it via `http://frontend:3000` on the Docker network.
+
+**6. Configure Your External Reverse Proxy**
+
+Example nginx configuration (place on your host):
+
+```nginx
+upstream backend {
+    server 127.0.0.1:8000;  # If backend port is exposed
+    # OR server backend:8000; if nginx is in same Docker network
+}
+
+upstream frontend {
+    server 127.0.0.1:3000;  # Frontend exposed port
+    # OR server frontend:3000; if nginx is in same Docker network
+}
+
+server {
+    listen 80;
+    server_name photo-restoration.yourdomain.com;
+
+    # API requests to backend
+    location /api {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads {
+        proxy_pass http://backend;
+    }
+
+    location /processed {
+        proxy_pass http://backend;
+    }
+
+    location /health {
+        proxy_pass http://backend/health;
+    }
+
+    # All other requests to frontend
+    location / {
+        proxy_pass http://frontend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 **7. Verify Deployment**
@@ -292,18 +363,22 @@ docker run -d \
 # Check all containers are running
 docker ps --filter "name=photo-restoration"
 
-# Check nginx can reach backend
-curl http://localhost/health
+# Check backend health (if port exposed)
+curl http://localhost:8000/health
 
-# Check logs if there are issues
-docker logs photo-restoration-nginx
+# Check frontend (if port exposed)
+curl http://localhost:3000/
+
+# Check via your proxy
+curl http://localhost/health  # Should reach backend
+curl http://localhost/        # Should reach frontend
 ```
 
 ---
 
-#### Deployment Scenario B: Direct Frontend-to-Backend (Without nginx)
+#### Deployment Scenario B: Direct Frontend-to-Backend (Without External Proxy)
 
-In this setup, frontend connects directly to backend. Useful for development or simple deployments.
+In this setup, frontend connects directly to backend. Useful for development or simple deployments. No external reverse proxy needed.
 
 **1. Create Network**
 ```bash
@@ -340,16 +415,17 @@ docker run -d \
   photo-restoration-backend:latest
 ```
 
-**Important:** When not using nginx, you must:
-- Expose backend port (`-p 8000:8000`)
+**Important:** When not using an external proxy, you must:
+- Expose both backend port (`-p 8000:8000`) and frontend port (`-p 3000:3000`)
 - Configure CORS to allow frontend origin in backend `.env`
+- Frontend build must use direct backend URL (`VITE_API_BASE_URL=http://backend:8000/api/v1`)
 
 **4. Run Frontend**
 ```bash
 docker run -d \
   --name photo-restoration-frontend \
   --network photo-restoration-network \
-  -p 80:80 \
+  -p 3000:3000 \
   --restart unless-stopped \
   photo-restoration-frontend:latest
 ```
@@ -363,7 +439,7 @@ docker ps --filter "name=photo-restoration"
 curl http://localhost:8000/health
 
 # Test frontend
-curl http://localhost/
+curl http://localhost:3000/
 ```
 
 ---
@@ -385,7 +461,7 @@ docker build \
 ```bash
 docker run -d \
   --name photo-restoration-frontend \
-  -p 80:80 \
+  -p 3000:3000 \
   --restart unless-stopped \
   photo-restoration-frontend:latest
 ```
@@ -412,17 +488,16 @@ docker run -d \
 ```bash
 docker logs -f photo-restoration-backend
 docker logs -f photo-restoration-frontend
-docker logs -f photo-restoration-nginx
 ```
 
 **Stop containers:**
 ```bash
-docker stop photo-restoration-backend photo-restoration-frontend photo-restoration-nginx
+docker stop photo-restoration-backend photo-restoration-frontend
 ```
 
 **Remove containers:**
 ```bash
-docker rm photo-restoration-backend photo-restoration-frontend photo-restoration-nginx
+docker rm photo-restoration-backend photo-restoration-frontend
 ```
 
 **Clean up network:**
@@ -437,11 +512,17 @@ docker volume rm photo-restoration-data
 
 ---
 
-## nginx Reverse Proxy Configuration
+## External Reverse Proxy Configuration
 
-### Standalone nginx Configuration
+### Overview
 
-If you're running the application with an external nginx server (not the containerized one), use this configuration:
+The frontend container no longer includes nginx or any proxy functionality. You must configure your own external reverse proxy server to route requests between the frontend and backend containers.
+
+This section provides example configurations for common reverse proxy servers.
+
+### nginx Configuration
+
+If you're using nginx as your external reverse proxy, use this configuration:
 
 #### Basic Configuration (HTTP Only)
 
@@ -449,12 +530,14 @@ If you're running the application with an external nginx server (not the contain
 
 ```nginx
 upstream backend {
-    server localhost:8000;
+    server localhost:8000;  # If backend port is exposed to host
+    # OR server backend:8000; if nginx is in same Docker network
     keepalive 32;
 }
 
 upstream frontend {
-    server localhost:3000;
+    server localhost:3000;  # Frontend exposed port
+    # OR server frontend:3000; if nginx is in same Docker network
     keepalive 32;
 }
 
@@ -710,21 +793,66 @@ sudo certbot --nginx -d photo-restoration.yourdomain.com
 sudo certbot renew --dry-run
 ```
 
-### Docker nginx with Custom Configuration
+### Alternative Reverse Proxies
 
-If using Docker but want custom nginx config:
+While nginx is the most common choice, you can use any reverse proxy server:
 
-**docker-compose.override.yml:**
+**Traefik:**
 ```yaml
+# docker-compose.override.yml
 version: '3.8'
 
 services:
-  nginx:
-    volumes:
-      - ./nginx/custom.conf:/etc/nginx/conf.d/default.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    ports:
-      - "443:443"
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`photo-restoration.yourdomain.com`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  backend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`photo-restoration.yourdomain.com`) && PathPrefix(`/api`, `/uploads`, `/processed`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+```
+
+**Caddy:**
+```
+photo-restoration.yourdomain.com {
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle /uploads/* {
+        reverse_proxy backend:8000
+    }
+    handle /processed/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
+```
+
+**Apache:**
+```apache
+<VirtualHost *:80>
+    ServerName photo-restoration.yourdomain.com
+
+    ProxyPreserveHost On
+
+    ProxyPass /api http://localhost:8000/api
+    ProxyPassReverse /api http://localhost:8000/api
+
+    ProxyPass /uploads http://localhost:8000/uploads
+    ProxyPassReverse /uploads http://localhost:8000/uploads
+
+    ProxyPass /processed http://localhost:8000/processed
+    ProxyPassReverse /processed http://localhost:8000/processed
+
+    ProxyPass / http://localhost:3000/
+    ProxyPassReverse / http://localhost:3000/
+</VirtualHost>
 ```
 
 ---
@@ -737,8 +865,8 @@ services:
 - [ ] Set secure `AUTH_PASSWORD`
 - [ ] Configure `HF_API_KEY`
 - [ ] Set `DEBUG=false`
-- [ ] Configure proper domain in nginx
-- [ ] Set up SSL/TLS certificates
+- [ ] Configure your external reverse proxy (nginx, Apache, Traefik, etc.)
+- [ ] Set up SSL/TLS certificates on your proxy
 - [ ] Configure firewall (allow 80, 443)
 - [ ] Set up log rotation
 - [ ] Configure backup for SQLite database
@@ -1011,13 +1139,16 @@ docker logs -f photo-restoration-backend
 docker logs -f photo-restoration-frontend
 ```
 
-**nginx logs:**
+**External proxy logs:**
 ```bash
-docker logs -f photo-restoration-nginx
-
-# Or system nginx
+# For system nginx
 tail -f /var/log/nginx/photo-restoration-access.log
 tail -f /var/log/nginx/photo-restoration-error.log
+
+# For containerized nginx
+docker logs -f your-nginx-container
+
+# For other proxies, check their log locations
 ```
 
 ### Monitoring Metrics (Optional)
@@ -1044,14 +1175,18 @@ chmod 755 data/
 ls -la data/*.db*
 ```
 
-**2. nginx can't reach backend/frontend**
+**2. External proxy can't reach backend/frontend**
 ```bash
-# Check network
+# Check network (if proxy is in Docker network)
 docker network inspect photo-restoration-network
 
-# Check service names resolution
-docker exec -it photo-restoration-nginx ping backend
-docker exec -it photo-restoration-nginx ping frontend
+# Check if containers are accessible from host
+curl http://localhost:3000/  # Frontend
+curl http://localhost:8000/health  # Backend (if port exposed)
+
+# Check service names resolution (if proxy is containerized)
+docker exec -it your-proxy-container ping backend
+docker exec -it your-proxy-container ping frontend
 ```
 
 **3. SSL certificate issues**
@@ -1069,8 +1204,10 @@ sudo certbot renew
 ls -la data/uploads/
 chmod 755 data/uploads/
 
-# Check max upload size in nginx
+# Check max upload size in your reverse proxy
+# For nginx:
 grep client_max_body_size /etc/nginx/sites-available/photo-restoration
+# For other proxies, check their configuration
 ```
 
 ### Performance Tuning
