@@ -1,93 +1,361 @@
-# Photo restoration webpage
+# Photo Restoration Webpage
 
+AI-powered web application for restoring old scanned photos using HuggingFace models. Built with FastAPI backend, React frontend, and deployed with Docker and nginx reverse proxy.
 
+## Features
 
-## Getting started
+### Phase 1 (MVP - Current)
+- ✅ Token-based authentication
+- ✅ Multiple AI model selection (3 models configured)
+- ✅ Local image upload and processing
+- ✅ Before/After image comparison
+- ✅ Session-based history
+- ✅ Image download
+- ✅ sqowe brand design
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Planned Features
+- **Phase 2**: Model pipelines, batch processing, additional models
+- **Phase 3**: OwnCloud integration, multi-user support, video frame restoration
+- **Phase 4**: Production polish, monitoring, security hardening
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 
-## Add your files
+## Tech Stack
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+**Backend:**
+- Python 3.11+
+- FastAPI (async REST API)
+- SQLAlchemy (async ORM)
+- SQLite (database)
+- HuggingFace Inference API
+- JWT authentication
+
+**Frontend:**
+- React 18
+- TypeScript (strict mode)
+- Vite (build tool)
+- Zustand (state management)
+- sqowe brand design system
+
+**Deployment:**
+- Docker & Docker Compose
+- nginx reverse proxy
+- Multi-stage builds
+
+## Prerequisites
+
+- Docker & Docker Compose
+- HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
+
+**For local development:**
+- Python 3.11+
+- Node.js 20+
+- npm or yarn
+
+## Quick Start (Docker)
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd photo-restoration-webpage
+```
+
+### 2. Configure environment variables
+
+**Backend:**
+```bash
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and set:
+- `HF_API_KEY` - Your HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
+- `SECRET_KEY` - **CRITICAL**: Cryptographic secret for JWT token signing (minimum 32 characters)
+  - Generate with: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+  - **NEVER use the example value in production**
+  - Must be unique and random for security
+- `AUTH_USERNAME` - Admin username (default: `admin`)
+- `AUTH_PASSWORD` - Admin password (**change from default!**)
+
+**Frontend:**
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+(Default values should work for Docker setup)
+
+### 3. Build and run with Docker Compose
+
+**Production mode:**
+```bash
+docker-compose up --build
+```
+
+**Development mode (with hot reload):**
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+**Alternative: Individual Docker run commands**
+
+See [docs/implementation.md](docs/implementation.md#individual-docker-run-commands) for manual Docker run commands.
+
+### 4. Access the application
+
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost/api
+- **API Documentation**: http://localhost/api/docs
+- **Health Check**: http://localhost/health
+
+> **Note:** For production deployment with HTTPS, nginx configuration examples, and advanced setup, see [docs/implementation.md](docs/implementation.md).
+
+## Local Development (Without Docker)
+
+### Backend Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Run development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend will be available at http://localhost:8000
+
+### Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+
+# Run development server
+npm run dev
+```
+
+Frontend will be available at http://localhost:3000
+
+## Project Structure
 
 ```
-cd existing_repo
-git remote add origin http://gitlab.obodnikov.com/mike/photo-restoration-webpage.git
-git branch -M main
-git push -uf origin main
+photo-restoration-webpage/
+├── backend/                    # FastAPI application
+│   ├── app/
+│   │   ├── api/v1/            # API routes and schemas
+│   │   ├── core/              # Configuration and security
+│   │   ├── services/          # Business logic
+│   │   ├── db/                # Database models
+│   │   ├── utils/             # Utilities
+│   │   └── main.py            # FastAPI app entry point
+│   ├── tests/                 # Backend tests
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .env.example
+│
+├── frontend/                   # React + TypeScript application
+│   ├── src/
+│   │   ├── app/               # App shell and routing
+│   │   ├── features/          # Feature modules
+│   │   ├── components/        # Shared UI components
+│   │   ├── services/          # API clients and services
+│   │   ├── hooks/             # Custom React hooks
+│   │   ├── types/             # TypeScript types
+│   │   ├── styles/            # Global styles and themes
+│   │   └── config/            # Frontend configuration
+│   ├── public/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.ts
+│   ├── Dockerfile
+│   └── .env.example
+│
+├── nginx/                      # nginx reverse proxy
+│   ├── nginx.conf
+│   └── Dockerfile
+│
+├── docs/                       # Documentation
+│   └── chats/                 # Technical discussions
+│
+├── tmp/                        # Brand assets and design
+│   ├── 02. logotype/          # sqowe logos
+│   ├── Brand-Guidelines.pdf
+│   └── AI_WEB_DESIGN_SQOWE.md
+│
+├── docker-compose.yml          # Production compose
+├── docker-compose.dev.yml      # Development compose
+├── ROADMAP.md                  # Development roadmap
+└── README.md                   # This file
 ```
 
-## Integrate with your tools
+## Configuration
 
-- [ ] [Set up project integrations](http://gitlab.obodnikov.com/mike/photo-restoration-webpage/-/settings/integrations)
+### Backend Environment Variables
 
-## Collaborate with your team
+See [`backend/.env.example`](backend/.env.example) for all available options.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Key variables:
+- `HF_API_KEY` - HuggingFace API key (required)
+- `SECRET_KEY` - **JWT secret key (REQUIRED)** - Cryptographic key for signing authentication tokens
+  - **Purpose**: Signs and verifies JWT tokens for user authentication
+  - **Security**: If compromised, attackers can bypass authentication entirely
+  - **Minimum**: 32 characters (recommended: 64+ characters)
+  - **Generation**: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+  - **Important**: NEVER use default value in production, must be unique per environment
+  - **Note**: Changing this key will log out all users
+  - See [docs/implementation.md](docs/implementation.md#understanding-secret_key) for detailed explanation
+- `AUTH_USERNAME` / `AUTH_PASSWORD` - Admin credentials (change from defaults!)
+- `MODELS_CONFIG` - JSON configuration of available AI models
+- `DATABASE_URL` - SQLite database path
+- `MAX_UPLOAD_SIZE` - Maximum file upload size (default: 10MB)
 
-## Test and Deploy
+### Frontend Environment Variables
 
-Use the built-in continuous integration in GitLab.
+See [`frontend/.env.example`](frontend/.env.example) for all available options.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Key variables:
+- `VITE_API_BASE_URL` - API base URL (default: `/api/v1`)
 
-***
+### Available AI Models (MVP)
 
-# Editing this README
+Configured in `MODELS_CONFIG` environment variable:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+1. **Swin2SR 2x Upscale** - Fast 2x upscaling
+2. **Swin2SR 4x Upscale** - Fast 4x upscaling
+3. **Qwen Image Enhance** - AI-powered enhancement and restoration
 
-## Suggestions for a good README
+You can add more models by editing the `MODELS_CONFIG` JSON in `.env`.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## Development Guidelines
 
-## Name
-Choose a self-explaining name for your project.
+This project follows strict coding standards:
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+- **Backend**: [AI.md](AI.md), [AI_FastAPI.md](AI_FastAPI.md), [AI_SQLite.md](AI_SQLite.md)
+- **Frontend**: [AI_FRONTEND.md](AI_FRONTEND.md), [AI_WEB_COMMON.md](AI_WEB_COMMON.md)
+- **Design**: [tmp/AI_WEB_DESIGN_SQOWE.md](tmp/AI_WEB_DESIGN_SQOWE.md) (sqowe brand)
+- **General**: [CLAUDE.md](CLAUDE.md) - Always propose before implementing
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Key principles:
+- Type hints (Python) and TypeScript (strict mode)
+- Files ≤ 800 lines
+- Comprehensive error handling
+- Security-first approach
+- Material-inspired UI with sqowe branding
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Testing
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+**Backend:**
+```bash
+cd backend
+pytest
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+**Frontend:**
+```bash
+cd frontend
+npm test
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## Docker Commands
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+**Build and start:**
+```bash
+docker-compose up --build
+```
+
+**Start in background:**
+```bash
+docker-compose up -d
+```
+
+**Stop:**
+```bash
+docker-compose down
+```
+
+**View logs:**
+```bash
+docker-compose logs -f
+```
+
+**Rebuild specific service:**
+```bash
+docker-compose up --build backend
+```
+
+**Clean everything (including volumes):**
+```bash
+docker-compose down -v
+```
+
+> **Advanced Usage:** For individual Docker run commands, custom nginx configurations, SSL setup, and production deployment guides, see [docs/implementation.md](docs/implementation.md).
+
+## API Documentation
+
+Once the backend is running, visit:
+- Swagger UI: http://localhost/api/docs
+- ReDoc: http://localhost/api/redoc
+
+## Troubleshooting
+
+### Backend won't start
+- Check that `HF_API_KEY` is set in `backend/.env`
+- Ensure `SECRET_KEY` is at least 32 characters
+- Check logs: `docker-compose logs backend`
+
+### Frontend can't connect to backend
+- Verify nginx is running: `docker-compose ps`
+- Check nginx logs: `docker-compose logs nginx`
+- Ensure `VITE_API_BASE_URL=/api/v1` in `frontend/.env`
+
+### Database errors
+- SQLite WAL files may cause issues. Stop containers and delete `data/*.db-*` files
+- Check permissions on `data/` directory
+
+### Port conflicts
+- Default ports: 80 (nginx), 8000 (backend), 3000 (frontend dev)
+- Change ports in `docker-compose.yml` if needed
+
+> **Detailed Troubleshooting:** See [docs/implementation.md](docs/implementation.md#troubleshooting) for comprehensive troubleshooting guide, nginx configuration examples, SSL setup, and production deployment instructions.
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+See [ROADMAP.md](ROADMAP.md) for planned features and development phases.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+Before contributing:
+1. Read coding guidelines in `AI*.md` files
+2. Follow the sqowe brand design system
+3. Write tests for new features
+4. Ensure code passes linting
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[Add your license here]
+
+## Acknowledgments
+
+- sqowe brand guidelines and assets
+- HuggingFace for AI model inference
+- FastAPI, React, and all open-source dependencies
+
+---
+
+**Current Phase:** Phase 1.1 - Project Setup ✅ Complete
+
+**Next Steps:** Phase 1.2 - Authentication System
+
+See [ROADMAP.md](ROADMAP.md) for detailed implementation plan.

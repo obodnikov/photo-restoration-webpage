@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Backend - FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: photo-restoration-backend
+    restart: unless-stopped
+    environment:
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db
+      - UPLOAD_DIR=/data/uploads
+      - PROCESSED_DIR=/data/processed
+    env_file:
+      - ./backend/.env
+    volumes:
+      - backend_data:/data
+    networks:
+      - photo-restoration-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=5.0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend - React + Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: photo-restoration-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - photo-restoration-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: photo-restoration-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - photo-restoration-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  backend_data:
+    driver: local
+
+networks:
+  photo-restoration-network:
+    driver: bridge
