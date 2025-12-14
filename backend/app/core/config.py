@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost"]
 
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str] | Any:
+        """Parse CORS origins from comma-separated string or JSON array."""
+        if isinstance(v, str):
+            # Handle comma-separated string
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
     # Security
     secret_key: str = "CHANGE_THIS_TO_A_SECURE_RANDOM_SECRET_KEY"
     algorithm: str = "HS256"
