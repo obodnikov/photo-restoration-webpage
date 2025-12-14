@@ -1,4 +1,6 @@
-"""Frontend configuration from environment variables."""
+/**
+ * Frontend configuration from environment variables.
+ */
 
 export const config = {
   // API base URL - use relative path for reverse proxy compatibility
