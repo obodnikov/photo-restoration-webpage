@@ -1,0 +1,190 @@
+/* Base styles and design tokens - sqowe brand */
+
+/* CSS Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Design Tokens - sqowe Brand Colors */
+:root {
+  /* Primary Colors */
+  --sqowe-dark-ground: #222222;
+  --sqowe-light-purple: #8E88A3;
+
+  /* Secondary Colors */
+  --sqowe-light-grey: #B2B3B2;
+  --sqowe-dark-purple: #5B5377;
+
+  /* Gradient */
+  --sqowe-gradient: linear-gradient(135deg, #5B5377 0%, #8E88A3 100%);
+
+  /* Semantic Colors */
+  --color-background-dark: var(--sqowe-dark-ground);
+  --color-background-light: #FFFFFF;
+  --color-text-primary: #222222;
+  --color-text-secondary: #5B5377;
+  --color-accent: #8E88A3;
+  --color-border: #B2B3B2;
+  --color-error: #d32f2f;
+  --color-success: #388e3c;
+
+  /* Typography */
+  --font-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-light: 300;
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+
+  /* Font Sizes (8px grid) */
+  --font-size-h1: 3rem;      /* 48px */
+  --font-size-h2: 2.25rem;   /* 36px */
+  --font-size-h3: 1.875rem;  /* 30px */
+  --font-size-h4: 1.5rem;    /* 24px */
+  --font-size-h5: 1.25rem;   /* 20px */
+  --font-size-h6: 1.125rem;  /* 18px */
+  --font-size-body: 1rem;    /* 16px */
+  --font-size-small: 0.875rem; /* 14px */
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.8;
+
+  /* Spacing Scale (8px grid) */
+  --space-xs: 0.25rem;   /* 4px */
+  --space-sm: 0.5rem;    /* 8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+  --space-3xl: 4rem;     /* 64px */
+  --space-4xl: 6rem;     /* 96px */
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.2);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* Base Styles */
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-primary);
+  font-weight: var(--font-regular);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-background-light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, .h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-bold);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-lg);
+  color: var(--color-text-primary);
+}
+
+h2, .h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-bold);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-primary);
+}
+
+h3, .h3 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-medium);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-secondary);
+}
+
+h4, .h4 {
+  font-size: var(--font-size-h4);
+  font-weight: var(--font-medium);
+  line-height: var(--line-height-normal);
+  margin-bottom: var(--space-sm);
+}
+
+p {
+  margin-bottom: var(--space-md);
+  max-width: 70ch;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-base);
+}
+
+a:hover {
+  color: var(--sqowe-dark-purple);
+}
+
+/* Focus Styles */
+*:focus {
+  outline: 2px solid var(--sqowe-light-purple);
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--sqowe-light-purple);
+  outline-offset: 2px;
+}
+
+/* Utility Classes */
+.text-light {
+  font-weight: var(--font-light);
+}
+
+.text-regular {
+  font-weight: var(--font-regular);
+}
+
+.text-medium {
+  font-weight: var(--font-medium);
+}
+
+.text-bold {
+  font-weight: var(--font-bold);
+}
+
+.text-small {
+  font-size: var(--font-size-small);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
