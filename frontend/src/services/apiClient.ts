@@ -38,13 +38,29 @@ async function request<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { requiresAuth = true, headers = {}, ...restOptions } = options;
+  const { requiresAuth = true, headers, ...restOptions } = options;
 
   // Build request headers
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...headers,
   };
+
+  // Merge custom headers if provided
+  if (headers) {
+    if (headers instanceof Headers) {
+      headers.forEach((value, key) => {
+        requestHeaders[key] = value;
+      });
+    } else if (Array.isArray(headers)) {
+      headers.forEach(([key, value]) => {
+        requestHeaders[key] = value;
+      });
+    } else {
+      Object.entries(headers).forEach(([key, value]) => {
+        requestHeaders[key] = value;
+      });
+    }
+  }
 
   // Add auth token if required
   if (requiresAuth) {
