@@ -521,7 +521,7 @@ I've successfully completed **Phase 1.1 - Project Setup & Infrastructure** and u
 ### 🚀 Ready to Use:
 The project is now fully set up and ready for development. You can:
 
-1. **Test locally** (requires Python 3.11+ and Node.js 20+)
+1. **Test locally** (requires Python 3.11+ and Node.js 22+)
 2. **Run with Docker** (recommended)
 3. **Proceed to Phase 1.2** - Authentication System
 

@@ -69,7 +69,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 
 **For local development:**
 - Python 3.11+
-- Node.js 20+
+- Node.js 22+ (LTS, minimum: 22.12)
 - npm or yarn
 
 ## Quick Start (Docker)
