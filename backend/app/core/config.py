@@ -1,34 +1,10 @@
 """Application configuration using Pydantic BaseSettings."""
 import json
 from pathlib import Path
-from typing import Any, Annotated
+from typing import Any
 
-from pydantic import field_validator, BeforeValidator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def parse_cors(v: Any) -> list[str]:
-    """Parse CORS origins from comma-separated string or list."""
-    if v is None or v == "":
-        return ["http://localhost:3000", "http://localhost"]
-    if isinstance(v, str):
-        origins = [origin.strip() for origin in v.split(",") if origin.strip()]
-        return origins if origins else ["http://localhost:3000", "http://localhost"]
-    if isinstance(v, list):
-        return v
-    return ["http://localhost:3000", "http://localhost"]
-
-
-def parse_extensions(v: Any) -> set[str]:
-    """Parse allowed extensions from comma-separated string or set."""
-    if v is None or v == "":
-        return {".jpg", ".jpeg", ".png"}
-    if isinstance(v, str):
-        exts = {ext.strip() for ext in v.split(",") if ext.strip()}
-        return exts if exts else {".jpg", ".jpeg", ".png"}
-    if isinstance(v, set):
-        return v
-    return {".jpg", ".jpeg", ".png"}
 
 
 class Settings(BaseSettings):
@@ -39,9 +15,6 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        # Disable JSON parsing for environment variables
-        # We'll handle complex types with custom validators
-        env_parse_none_str="",
     )
 
     # Application
@@ -53,11 +26,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # CORS
-    cors_origins: Annotated[list[str], BeforeValidator(parse_cors)] = [
-        "http://localhost:3000",
-        "http://localhost",
-    ]
+    # CORS - Must be JSON array format in .env file
+    # Example: CORS_ORIGINS=["http://localhost:3000","http://localhost"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost"]
 
     # Security
     secret_key: str = "CHANGE_THIS_TO_A_SECURE_RANDOM_SECRET_KEY"
@@ -108,11 +79,9 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("./data/uploads")
     processed_dir: Path = Path("./data/processed")
     max_upload_size: int = 10 * 1024 * 1024  # 10MB
-    allowed_extensions: Annotated[set[str], BeforeValidator(parse_extensions)] = {
-        ".jpg",
-        ".jpeg",
-        ".png",
-    }
+    # Allowed extensions - Must be JSON array format in .env file
+    # Example: ALLOWED_EXTENSIONS=[".jpg",".jpeg",".png"]
+    allowed_extensions: set[str] = {".jpg", ".jpeg", ".png"}
 
     # Session
     session_cleanup_hours: int = 24
