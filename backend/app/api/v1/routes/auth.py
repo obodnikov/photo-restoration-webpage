@@ -81,11 +81,11 @@ async def login(credentials: LoginRequest) -> TokenResponse:
         expires_in_seconds = 7 * 24 * 60 * 60  # 7 days in seconds
         logger.info(f"User {credentials.username} logged in with 'Remember Me' (7 days)")
     else:
-        expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        expires_in_seconds = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
+        expires_in_seconds = settings.access_token_expire_minutes * 60
         logger.info(
             f"User {credentials.username} logged in successfully "
-            f"(expires in {settings.ACCESS_TOKEN_EXPIRE_MINUTES} minutes)"
+            f"(expires in {settings.access_token_expire_minutes} minutes)"
         )
 
     # Create JWT token

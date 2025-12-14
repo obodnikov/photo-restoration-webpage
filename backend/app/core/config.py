@@ -114,6 +114,17 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
+
+def get_settings() -> Settings:
+    """
+    Get the global settings instance.
+
+    This function provides a way to get settings that can be
+    overridden in tests using dependency injection.
+    """
+    return settings
+
+
 # Ensure directories exist
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 settings.processed_dir.mkdir(parents=True, exist_ok=True)

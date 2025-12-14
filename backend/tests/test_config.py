@@ -13,16 +13,17 @@ class TestSettingsLoading:
     """Test Settings class with different environment configurations."""
 
     def test_default_settings(self):
-        """Test settings with default values."""
+        """Test settings with default values (test environment)."""
         settings = Settings()
 
-        assert settings.app_name == "Photo Restoration API"
-        assert settings.app_version == "1.0.0"
-        assert settings.debug is False
+        # In test environment, we get values from .env.test
+        assert settings.app_name == "Photo Restoration API - Test"
+        assert settings.app_version == "1.0.0-test"
+        assert settings.debug is True  # Test environment has debug=True
         assert settings.host == "0.0.0.0"
         assert settings.port == 8000
         assert "http://localhost:3000" in settings.cors_origins
-        assert "http://localhost" in settings.cors_origins
+        assert "http://testserver" in settings.cors_origins
 
     def test_cors_origins_json_format(self, monkeypatch, tmp_path):
         """Test CORS origins with JSON array format in .env file."""
@@ -132,13 +133,14 @@ class TestSettingsLoading:
         assert model is None
 
     def test_file_storage_paths(self):
-        """Test file storage paths are Path objects."""
+        """Test file storage paths are Path objects (test environment)."""
         settings = Settings()
 
         assert isinstance(settings.upload_dir, Path)
         assert isinstance(settings.processed_dir, Path)
-        assert settings.upload_dir == Path("./data/uploads")
-        assert settings.processed_dir == Path("./data/processed")
+        # In test environment, paths are under test_data/
+        assert settings.upload_dir == Path("./test_data/uploads")
+        assert settings.processed_dir == Path("./test_data/processed")
 
     def test_max_upload_size(self):
         """Test max upload size default."""
