@@ -16,6 +16,61 @@ This document provides detailed implementation instructions, configuration examp
 
 ## Docker Deployment
 
+### Building Docker Images
+
+#### Prerequisites
+
+The project uses exact version pinning for dependencies and requires specific build environments.
+
+**Important:** The frontend requires a `package-lock.json` file for reproducible builds. If this file is missing, generate it using Docker to ensure compatibility with the exact Node.js version (22.12-alpine) used in the Dockerfile.
+
+#### Generate package-lock.json (if missing)
+
+Run this command on your build machine to generate the lockfile using the exact Node.js version:
+
+```bash
+cd ~/src/photo-restoration-webpage
+docker run --rm -v "$PWD/frontend:/app" -w /app node:22.12-alpine npm install
+```
+
+**What this does:**
+- Uses the exact same Node.js 22.12-alpine image as the Dockerfile
+- Mounts your frontend directory to `/app` in the container
+- Runs `npm install` to generate `package-lock.json` with exact dependency versions
+- Automatically removes the container when done
+
+**Verify the file was created:**
+```bash
+ls -lh frontend/package-lock.json
+```
+
+#### Build Individual Images
+
+**Backend:**
+```bash
+docker build -t obodnikov/photo-restoration-backend:0.1.2 ./backend
+```
+
+**Frontend:**
+```bash
+docker build -t obodnikov/photo-restoration-frontend:0.1.2 ./frontend
+```
+
+**nginx:**
+```bash
+docker build -t obodnikov/photo-restoration-nginx:0.1.2 ./nginx
+```
+
+#### Python 3.13 Compatibility
+
+The backend has been updated to use Python 3.13 with compatible dependency versions:
+- FastAPI 0.115.7
+- Pydantic 2.10.6
+- Pillow 10.4.0
+- All other dependencies updated for Python 3.13 compatibility
+
+See [backend/requirements.txt](../backend/requirements.txt) for the complete list.
+
 ### Docker Compose (Recommended)
 
 The application uses Docker Compose for orchestration. See [README.md](../README.md) for quick start.
