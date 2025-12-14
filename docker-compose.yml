@@ -54,8 +54,10 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
-      - frontend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
     networks:
       - photo-restoration-network
     healthcheck:
