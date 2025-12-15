@@ -143,9 +143,12 @@ async def get_current_user(
     if username is None:
         raise credentials_exception
 
-    # For MVP, we return minimal user data
+    # For MVP, we return minimal user data including session_id
     # In Phase 2.x, this will query the database
-    return {"username": username}
+    return {
+        "username": username,
+        "session_id": payload.get("session_id")
+    }
 
 
 def authenticate_user(username: str, password: str) -> Optional[dict]:

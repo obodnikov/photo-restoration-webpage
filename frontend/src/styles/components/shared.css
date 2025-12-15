@@ -356,24 +356,29 @@
 .app-footer {
   background: var(--sqowe-dark-ground);
   color: white;
-  padding: var(--space-xl) 0;
+  padding: var(--space-md) 0;
   margin-top: auto;
 }
 
 .footer-content {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .footer-text {
   font-size: var(--font-size-sm);
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: var(--space-xs);
+  margin: 0;
 }
 
 .footer-subtitle {
   font-size: var(--font-size-xs);
   color: var(--sqowe-light-purple);
   margin: 0;
+  margin-top: 2px;
 }
 
 /* Responsive Design */
