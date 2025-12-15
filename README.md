@@ -59,8 +59,9 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 
 **Deployment:**
 - Docker & Docker Compose
-- nginx reverse proxy
+- External reverse proxy (nginx, Apache, Traefik, Caddy, etc.)
 - Multi-stage builds
+- Simple static file server (serve npm package) for frontend
 
 ## Prerequisites
 
@@ -109,28 +110,85 @@ cp frontend/.env.example frontend/.env
 
 ### 3. Build and run with Docker Compose
 
+**IMPORTANT:** The application now requires an external reverse proxy. The docker-compose.yml no longer includes nginx. You must configure your own reverse proxy (nginx, Apache, Traefik, Caddy, etc.) to route requests.
+
 **Production mode:**
 ```bash
 docker-compose up --build
 ```
+
+This starts:
+- Backend on port 8000 (not exposed to host - access via proxy)
+- Frontend on port 3000 (exposed to host)
 
 **Development mode (with hot reload):**
 ```bash
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
+This starts:
+- Backend-dev on port 8000 (exposed for direct access)
+- Frontend-dev on port 3000 (Vite dev server with hot reload)
+
 **Alternative: Individual Docker run commands**
 
 See [docs/implementation.md](docs/implementation.md#individual-docker-run-commands) for manual Docker run commands.
 
-### 4. Access the application
+### 4. Configure your external reverse proxy
 
-- **Frontend**: http://localhost
-- **Backend API**: http://localhost/api
-- **API Documentation**: http://localhost/api/docs
-- **Health Check**: http://localhost/health
+You must set up a reverse proxy to route requests. Example nginx configuration:
 
-> **Note:** For production deployment with HTTPS, nginx configuration examples, and advanced setup, see [docs/implementation.md](docs/implementation.md).
+```nginx
+upstream backend {
+    server localhost:8000;
+}
+
+upstream frontend {
+    server localhost:3000;
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    location /api {
+        proxy_pass http://backend;
+    }
+
+    location /uploads {
+        proxy_pass http://backend;
+    }
+
+    location /processed {
+        proxy_pass http://backend;
+    }
+
+    location /health {
+        proxy_pass http://backend/health;
+    }
+
+    location / {
+        proxy_pass http://frontend;
+    }
+}
+```
+
+See [docs/implementation.md](docs/implementation.md#external-reverse-proxy-configuration) for complete nginx, Apache, Traefik, and Caddy examples.
+
+### 5. Access the application
+
+Once your reverse proxy is configured:
+
+- **Frontend**: http://localhost (via your proxy)
+- **Backend API**: http://localhost/api (via your proxy)
+- **API Documentation**: http://localhost/api/docs (via your proxy)
+- **Health Check**: http://localhost/health (via your proxy)
+
+For direct container access (without proxy):
+- **Frontend**: http://localhost:3000
+- **Backend**: http://localhost:8000 (if exposed)
+
+> **Note:** For production deployment with HTTPS, SSL/TLS configuration, multiple proxy examples, and advanced setup, see [docs/implementation.md](docs/implementation.md).
 
 ## Local Development (Without Docker)
 
@@ -206,10 +264,6 @@ photo-restoration-webpage/
 │   ├── vite.config.ts
 │   ├── Dockerfile
 │   └── .env.example
-│
-├── nginx/                      # nginx reverse proxy
-│   ├── nginx.conf
-│   └── Dockerfile
 │
 ├── docs/                       # Documentation
 │   └── chats/                 # Technical discussions
@@ -346,17 +400,20 @@ Once the backend is running, visit:
 - Check logs: `docker-compose logs backend`
 
 ### Frontend can't connect to backend
-- Verify nginx is running: `docker-compose ps`
-- Check nginx logs: `docker-compose logs nginx`
-- Ensure `VITE_API_BASE_URL=/api/v1` in `frontend/.env`
+- Verify your external reverse proxy is running and configured correctly
+- Check proxy logs for routing errors
+- Ensure `VITE_API_BASE_URL=/api/v1` in `frontend/.env` (for proxy-based routing)
+- Verify frontend and backend containers are running: `docker-compose ps`
+- Test direct access: `curl http://localhost:3000/` and `curl http://localhost:8000/health`
 
 ### Database errors
 - SQLite WAL files may cause issues. Stop containers and delete `data/*.db-*` files
 - Check permissions on `data/` directory
 
 ### Port conflicts
-- Default ports: 80 (nginx), 8000 (backend), 3000 (frontend dev)
+- Default container ports: 8000 (backend), 3000 (frontend)
 - Change ports in `docker-compose.yml` if needed
+- Your external proxy will use port 80/443 for HTTP/HTTPS
 
 > **Detailed Troubleshooting:** See [docs/implementation.md](docs/implementation.md#troubleshooting) for comprehensive troubleshooting guide, nginx configuration examples, SSL setup, and production deployment instructions.
 

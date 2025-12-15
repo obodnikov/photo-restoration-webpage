@@ -14,24 +14,40 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Build arguments for environment variables
+# These are available during build time only
+ARG VITE_API_BASE_URL=/api/v1
+ARG VITE_APP_NAME="Photo Restoration"
+ARG VITE_APP_VERSION="1.0.0"
+
+# Set as environment variables for the build process
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_APP_NAME=${VITE_APP_NAME}
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+
 # Build the application
+# Vite will embed these environment variables into the build
 RUN npm run build
 
-# Production stage - serve with nginx
-FROM nginx:alpine
+# Production stage - serve with simple static file server
+FROM node:22.12-alpine
+
+# Install serve package globally
+RUN npm install -g serve
+
+# Create app directory
+WORKDIR /app
 
 # Copy built files from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist ./dist
 
 # Expose port
-EXPOSE 80
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start serve (SPA mode handles React Router)
+# Listen on 0.0.0.0 to accept connections from outside the container
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:3000"]

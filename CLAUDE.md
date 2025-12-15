@@ -2,3 +2,4 @@
 - Check previous talks and implementations in docs/chats directory. 
 - Check documentation in root and docs/ directories.
 - **Never start code right after USER question/message. Propose solution and ask for explicit request for implementation**
+use docker run --rm -v "/Users/mike/src/photo-restoration-webpage/frontend":/app -w /app node:22.12-alpine <something like npm> command istead of cli npm or node direct command.  Align node version (node:22.12-alpine) with specified in frontend/Dockerfile

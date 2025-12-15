@@ -112,6 +112,110 @@ A web application for restoring old scanned photos using HuggingFace AI models w
 
 **Completed:** December 14, 2024
 
+**Tests for Phase 1.2:**
+- [x] Backend: Basic config tests (`backend/tests/test_config.py`) - 21 tests ✅
+- [x] Backend: Health check tests (`backend/tests/test_health.py`) - 21 tests ✅
+  - [x] `/health` returns 200 with correct JSON
+  - [x] Root endpoint returns API info
+  - [x] App startup validation (HF_API_KEY, SECRET_KEY, directories)
+  - [x] MODELS_CONFIG parsing tests (valid/invalid JSON, get by ID)
+  - [x] Security configuration tests (SECRET_KEY validation, debug mode)
+- [x] Backend: Auth tests (`backend/tests/api/v1/test_auth.py`) - 24 tests ✅
+  - [x] POST `/api/v1/auth/login` with valid credentials → 200 + token
+  - [x] POST `/api/v1/auth/login` with invalid username → 401
+  - [x] POST `/api/v1/auth/login` with invalid password → 401
+  - [x] POST `/api/v1/auth/login` with remember_me=True → 7 days expiration
+  - [x] POST `/api/v1/auth/login` with remember_me=False → 24h expiration
+  - [x] POST `/api/v1/auth/login` with missing/empty credentials → 422/401
+  - [x] POST `/api/v1/auth/validate` with valid token → 200
+  - [x] POST `/api/v1/auth/validate` with expired token → 401
+  - [x] POST `/api/v1/auth/validate` with malformed token → 401
+  - [x] POST `/api/v1/auth/validate` without token → 403
+  - [x] GET `/api/v1/auth/me` with valid token → returns username
+  - [x] GET `/api/v1/auth/me` without token → 403
+  - [x] GET `/api/v1/auth/me` with expired/invalid token → 401
+  - [x] Full authentication flows (login → validate → get_me)
+  - [x] Multiple logins generate different tokens
+  - [x] Security tests (no user existence leakage, password not logged, token forgery)
+- [x] Backend: Security utilities tests (`backend/tests/services/test_security.py`) - 29 tests ✅
+  - [x] `verify_password()` with matching password → True
+  - [x] `verify_password()` with wrong password → False
+  - [x] `verify_password()` case sensitivity and empty password handling
+  - [x] `get_password_hash()` creates valid bcrypt hash
+  - [x] `get_password_hash()` different salts each time
+  - [x] `create_access_token()` with custom expires_delta
+  - [x] `create_access_token()` with default expiration
+  - [x] `create_access_token()` preserves additional data and is deterministic in tests
+  - [x] `verify_token()` with valid token → returns payload
+  - [x] `verify_token()` with expired token → None
+  - [x] `verify_token()` with invalid signature/malformed/wrong algorithm → None
+  - [x] `authenticate_user()` with valid credentials → user dict
+  - [x] `authenticate_user()` with invalid username/password → None
+  - [x] `authenticate_user()` case sensitivity and empty credentials
+  - [x] Edge cases: special characters, long passwords (bcrypt 72-byte limit), token subjects
+- [x] Backend: Test infrastructure ✅
+  - [x] Create `backend/tests/conftest.py` with 12 shared fixtures
+  - [x] Create `backend/conftest.py` for environment loading and module reloading
+  - [x] Create `backend/.env.test` for test environment (committed to git)
+  - [x] Add `pytest.ini` configuration with markers and settings
+  - [x] Add `pytest-cov` for coverage reporting (99% coverage achieved)
+  - [x] Fix bcrypt compatibility (pin bcrypt<5.0.0 for passlib 1.7.4)
+
+**Backend Test Summary:** 82 tests, 100% passing, 99% code coverage ✅
+
+- [x] Frontend: Test configuration ✅
+  - [x] Create `frontend/vitest.config.ts`
+  - [x] Create `frontend/src/__tests__/setup.ts`
+  - [x] Add test utilities in `frontend/src/test-utils/`
+  - [x] Install test dependencies (@testing-library/react, @testing-library/jest-dom, @testing-library/user-event, jsdom)
+- [x] Frontend: Auth store tests (`frontend/src/__tests__/authStore.test.ts`) - 18 tests ✅
+  - [x] `setAuth()` updates state and localStorage
+  - [x] `setAuth()` calculates correct expiration time
+  - [x] `clearAuth()` removes token from state and localStorage
+  - [x] Token persists after page reload (via initializeAuthStore)
+  - [x] Expired tokens are not restored on init
+  - [x] Incomplete localStorage data is cleared on init
+  - [x] Remember Me sets 24-hour expiration (regular login)
+  - [x] Remember Me sets 7-day expiration (remember_me=true)
+  - [x] `checkTokenExpiry()` returns false for valid token
+  - [x] `checkTokenExpiry()` clears auth for expired token
+  - [x] `isTokenExpired()` correctly identifies expired tokens
+  - [x] Auto-logout on token expiration (periodic check with setInterval)
+- [x] Frontend: Auth component tests (`frontend/src/__tests__/auth.test.tsx`) - 17 tests ✅
+  - [x] LoginForm renders with username/password fields
+  - [x] LoginForm renders "Remember Me" checkbox
+  - [x] LoginForm disables submit button when fields are empty
+  - [x] LoginForm enables submit button when fields are filled
+  - [x] LoginForm submits valid credentials → stores token
+  - [x] LoginForm shows error on invalid credentials
+  - [x] LoginForm shows loading state during login
+  - [x] LoginForm redirects to home after successful login
+  - [x] LoginForm sends remember_me=true when checkbox is checked
+  - [x] LoginForm sends remember_me=false when checkbox is not checked
+  - [x] useAuth hook: isAuthenticated reflects token state
+  - [x] useAuth hook: login() stores token and updates state
+  - [x] useAuth hook: logout() clears token
+  - [x] useAuth hook: logout() navigates to login page
+  - [x] useAuth hook: shows error when login fails
+  - [x] useAuth hook: shows loading state during login
+- [x] Frontend: API client tests (`frontend/src/__tests__/apiClient.test.ts`) - 20 tests ✅
+  - [x] Auto-injects Authorization header when token exists
+  - [x] Redirects to login when no token exists for protected endpoint
+  - [x] Allows requests without token when requiresAuth=false
+  - [x] Redirects to login when token is expired
+  - [x] Handles 401 responses (clears auth and redirects to login)
+  - [x] Returns typed responses from GET/POST/PUT/DELETE requests
+  - [x] Makes correct HTTP method calls (GET, POST, PUT, DELETE)
+  - [x] POST/PUT requests include JSON body
+  - [x] Throws ApiError for HTTP errors with correct status codes
+  - [x] Extracts error messages from response body
+  - [x] Handles network errors gracefully
+  - [x] Includes Content-Type header
+  - [x] Merges custom headers with default headers
+  - [x] Constructs correct URLs with base path
+
+**Frontend Test Summary:** 55 tests, 100% passing ✅
+
 ---
 
 ### 1.3 AI Models Configuration
@@ -131,6 +235,20 @@ A web application for restoring old scanned photos using HuggingFace AI models w
   - [ ] GET `/api/v1/models` - list available models
   - [ ] GET `/api/v1/models/{model_id}` - get model details
 - [ ] Add model configuration to `.env.example`
+
+**Tests for Phase 1.3:**
+- [ ] Backend: Model configuration tests (`backend/tests/core/test_models_config.py`)
+  - [ ] Load model definitions from MODELS_CONFIG env var
+  - [ ] Validate model schema (id, name, model, category, description)
+  - [ ] Get model by ID returns correct model
+  - [ ] Get model by invalid ID returns None
+  - [ ] List all models returns correct count
+  - [ ] Invalid MODELS_CONFIG JSON raises ValidationError
+- [ ] Backend: Model routes tests (`backend/tests/api/v1/test_models.py`)
+  - [ ] GET `/api/v1/models` returns all models with correct schema
+  - [ ] GET `/api/v1/models/{model_id}` returns model details
+  - [ ] GET `/api/v1/models/invalid-id` returns 404
+  - [ ] Response includes all required fields (id, name, description, category)
 
 **Environment Variables:**
 ```
@@ -186,6 +304,35 @@ MODELS_CONFIG=[
   - [ ] Model unavailable errors
 - [ ] Add service tests with mocked HF API
 
+**Tests for Phase 1.4:**
+- [ ] Backend: Test data setup
+  - [ ] Create `backend/tests/data/` directory
+  - [ ] Add `old_photo_small.jpg` (100KB test image)
+  - [ ] Add `old_photo_large.jpg` (9.5MB near-limit image)
+  - [ ] Add `invalid_file.txt` (non-image file)
+  - [ ] Add `corrupted_image.jpg` (truncated/invalid JPEG)
+- [ ] Backend: Mock HF API service (`backend/tests/mocks/hf_api.py`)
+  - [ ] Mock successful image processing (returns test image bytes)
+  - [ ] Mock HF rate limit response (429)
+  - [ ] Mock HF server error (5xx)
+  - [ ] Mock timeout scenarios
+  - [ ] Mock malformed response
+- [ ] Backend: HF Inference service tests (`backend/tests/services/test_hf_inference.py`)
+  - [ ] `process_image()` with valid model and image → returns processed image
+  - [ ] `process_image()` with invalid model_id → raises error
+  - [ ] `process_image()` handles HF 429 rate limit → returns 503
+  - [ ] `process_image()` handles HF 5xx error → returns 502/503
+  - [ ] `process_image()` handles timeout → raises timeout error
+  - [ ] `process_image()` validates response is valid image
+- [ ] Backend: Image utilities tests (`backend/tests/utils/test_image_processing.py`)
+  - [ ] Validate image format (JPEG, PNG accepted)
+  - [ ] Validate image format (BMP, TXT rejected)
+  - [ ] Validate image size (within MAX_UPLOAD_SIZE)
+  - [ ] Validate image size (exceeds limit → error)
+  - [ ] Image conversion: PIL Image to bytes
+  - [ ] Image conversion: bytes to PIL Image
+  - [ ] Handle corrupted image data → clear error message
+
 ---
 
 ### 1.5 Session Management & History
@@ -208,6 +355,26 @@ MODELS_CONFIG=[
   - [ ] Temporary storage for uploaded images
   - [ ] Storage for processed images (session-based)
   - [ ] Cleanup task for old files
+
+**Tests for Phase 1.5:**
+- [ ] Backend: Database model tests (`backend/tests/db/test_models.py`)
+  - [ ] Session model creates valid session
+  - [ ] Session model tracks created_at and last_accessed
+  - [ ] ProcessedImage model stores all required fields
+  - [ ] ProcessedImage model links to session correctly
+  - [ ] Database constraints work (unique IDs, foreign keys)
+- [ ] Backend: Session manager tests (`backend/tests/services/test_session_manager.py`)
+  - [ ] `create_session()` creates new session in database
+  - [ ] `get_session_history()` returns user's processed images
+  - [ ] `save_processed_image()` stores metadata correctly
+  - [ ] `cleanup_old_sessions()` deletes sessions older than 24h
+  - [ ] `cleanup_old_sessions()` deletes associated files
+  - [ ] Concurrent session access is handled correctly
+- [ ] Backend: Database setup tests (`backend/tests/db/test_database.py`)
+  - [ ] Database initialization creates tables
+  - [ ] SQLite WAL mode is enabled
+  - [ ] Async SQLAlchemy engine works correctly
+  - [ ] Session factory creates valid sessions
 
 ---
 
@@ -241,6 +408,44 @@ MODELS_CONFIG=[
 - [ ] Configure FastAPI to serve uploaded/processed images
 - [ ] Setup proper CORS headers
 - [ ] Add security headers
+
+**Tests for Phase 1.6:**
+- [ ] Backend: Restoration validation tests (`backend/tests/api/v1/test_restore_validation.py`)
+  - [ ] Upload valid JPEG within size limit → 200 + job_id
+  - [ ] Upload valid PNG within size limit → 200 + job_id
+  - [ ] Upload unsupported format (BMP, TXT) → 400 with error
+  - [ ] Upload exceeds MAX_UPLOAD_SIZE → 413 or 400 with clear error
+  - [ ] Upload corrupted image → 400 with "Invalid image data"
+  - [ ] Upload without authentication → 401
+  - [ ] Upload with expired token → 401
+- [ ] Backend: Restoration model tests (`backend/tests/api/v1/test_restore_models.py`)
+  - [ ] Request with valid model_id → calls correct HF model
+  - [ ] Request with unknown model_id → 400 "Unknown model"
+  - [ ] HF returns binary image → response is valid image (image/jpeg or image/png)
+  - [ ] HF returns 429 rate limit → backend returns 503 with retry-after
+  - [ ] HF network error → backend returns 502/503 "Model service unavailable"
+  - [ ] Request timeout → backend returns error within timeout limit
+  - [ ] Response includes all required fields (job_id, original_url, processed_url)
+- [ ] Backend: Restoration API integration tests (`backend/tests/api/v1/test_restore_integration.py`)
+  - [ ] Full restore flow: upload → process → save → return URLs
+  - [ ] Original image saved to UPLOAD_DIR
+  - [ ] Processed image saved to PROCESSED_DIR
+  - [ ] Metadata stored in database
+  - [ ] GET `/api/v1/restore/history` returns user's processed images
+  - [ ] GET `/api/v1/restore/{image_id}` returns specific image
+  - [ ] GET `/api/v1/restore/{image_id}/download` downloads processed image
+  - [ ] DELETE `/api/v1/restore/{image_id}` deletes image and files
+  - [ ] DELETE with wrong user → 403 Forbidden
+- [ ] Backend: Background cleanup tests (`backend/tests/services/test_cleanup.py`)
+  - [ ] Cleanup task deletes sessions older than SESSION_CLEANUP_HOURS
+  - [ ] Cleanup task deletes associated files from filesystem
+  - [ ] Cleanup task preserves recent sessions
+  - [ ] Cleanup task handles missing files gracefully
+- [ ] Backend: Static file serving tests (`backend/tests/test_static_files.py`)
+  - [ ] GET `/uploads/{filename}` serves uploaded image
+  - [ ] GET `/processed/{filename}` serves processed image
+  - [ ] CORS headers are set correctly
+  - [ ] Security headers are present
 
 ---
 
@@ -281,6 +486,48 @@ MODELS_CONFIG=[
   - [ ] File upload support with progress
 - [ ] Configure base URL from environment
   - [ ] `VITE_API_BASE_URL=/api/v1`
+
+**Tests for Phase 1.7:**
+- [ ] Frontend: Test utilities setup
+  - [ ] Create `frontend/src/test-utils/mockApiClient.ts` for mocked API calls
+  - [ ] Create `frontend/src/test-utils/testData.ts` for test fixtures
+  - [ ] Add mock file upload utilities
+- [ ] Frontend: Image upload tests (`frontend/src/__tests__/imageUploader.test.tsx`)
+  - [ ] ImageUploader renders drag & drop area
+  - [ ] ImageUploader accepts file via file picker
+  - [ ] ImageUploader accepts file via drag & drop
+  - [ ] ImageUploader shows preview after file selection
+  - [ ] ImageUploader rejects non-image files (shows error)
+  - [ ] ImageUploader rejects files exceeding size limit
+  - [ ] ImageUploader clears selection on cancel
+- [ ] Frontend: Model selector tests (`frontend/src/__tests__/modelSelector.test.tsx`)
+  - [ ] ModelSelector fetches and renders model list
+  - [ ] ModelSelector displays model names and descriptions
+  - [ ] ModelSelector allows model selection
+  - [ ] ModelSelector highlights selected model
+  - [ ] ModelSelector handles API error gracefully
+- [ ] Frontend: Image restoration hook tests (`frontend/src/__tests__/useImageRestore.test.tsx`)
+  - [ ] `uploadAndRestore()` uploads image and calls API
+  - [ ] `uploadAndRestore()` shows loading state during processing
+  - [ ] `uploadAndRestore()` returns processed image URL on success
+  - [ ] `uploadAndRestore()` shows error on validation failure
+  - [ ] `uploadAndRestore()` shows error on network failure
+  - [ ] `uploadAndRestore()` handles HF service unavailable (503)
+- [ ] Frontend: Restoration service tests (`frontend/src/__tests__/restorationService.test.tsx`)
+  - [ ] `restoreImage()` sends multipart form data
+  - [ ] `restoreImage()` includes model_id in request
+  - [ ] `restoreImage()` includes auth token
+  - [ ] `restoreImage()` handles 401 (redirects to login)
+  - [ ] `restoreImage()` handles 400 (validation error)
+  - [ ] `restoreImage()` handles 503 (service unavailable)
+- [ ] Frontend: History tests (`frontend/src/__tests__/history.test.tsx`)
+  - [ ] HistoryList fetches and displays processed images
+  - [ ] HistoryCard shows thumbnail and metadata
+  - [ ] HistoryCard allows clicking to view full image
+  - [ ] HistoryCard has download button
+  - [ ] HistoryCard has delete button
+  - [ ] Delete removes item from list after confirmation
+  - [ ] History handles empty state (no images processed)
 
 ---
 
@@ -343,39 +590,160 @@ MODELS_CONFIG=[
 - [ ] Desktop breakpoint (1024px)
 - [ ] Test on multiple devices
 
+**Tests for Phase 1.8:**
+- [ ] Frontend: Shared component tests (`frontend/src/__tests__/components/`)
+  - [ ] Button component renders all variants (primary, secondary, gradient)
+  - [ ] Button component handles onClick events
+  - [ ] Card component renders light and dark variants
+  - [ ] Input component handles value changes
+  - [ ] Input component validates required fields
+  - [ ] Loader component renders with correct animation
+  - [ ] ErrorMessage component displays error text
+  - [ ] Modal component opens and closes correctly
+- [ ] Frontend: Layout tests (`frontend/src/__tests__/layout.test.tsx`)
+  - [ ] Header renders with sqowe logo
+  - [ ] Navigation menu renders correctly
+  - [ ] Logout button triggers logout
+  - [ ] Footer renders with correct content
+  - [ ] Responsive layout works at mobile breakpoint (< 768px)
+  - [ ] Responsive layout works at tablet breakpoint (768px - 1024px)
+  - [ ] Responsive layout works at desktop breakpoint (> 1024px)
+- [ ] Frontend: Page integration tests (`frontend/src/__tests__/pages/`)
+  - [ ] RestorationPage renders all components correctly
+  - [ ] RestorationPage: upload → select model → restore flow works
+  - [ ] RestorationPage shows loading state during processing
+  - [ ] RestorationPage shows before/after comparison on success
+  - [ ] RestorationPage shows error message on failure
+  - [ ] HistoryPage renders history list
+  - [ ] HistoryPage allows viewing, downloading, deleting images
+- [ ] Frontend: Accessibility tests
+  - [ ] All interactive elements are keyboard accessible
+  - [ ] ARIA labels are present on important elements
+  - [ ] Color contrast meets WCAG AA standards
+  - [ ] Focus indicators are visible
+
 ---
 
-### 1.9 Testing
+### 1.9 Testing & Quality Assurance 🔄 **IN PROGRESS**
 
-**Backend Tests:**
-- [ ] Setup pytest configuration
-- [ ] Unit tests for services
-  - [ ] HF Inference service (mocked API)
-  - [ ] Session manager
-  - [ ] Image processing utilities
-- [ ] Integration tests for API routes
-  - [ ] Authentication flow
-  - [ ] Image restoration flow
-  - [ ] History retrieval
-- [ ] Test error scenarios
-  - [ ] Invalid tokens
-  - [ ] Invalid images
-  - [ ] HF API failures
-- [ ] Achieve minimum 70% code coverage
+**Backend Test Infrastructure:**
+- [x] Basic pytest setup (pytest, pytest-asyncio installed)
+- [x] One test file exists (`backend/tests/test_config.py`)
+- [ ] Complete pytest configuration
+  - [ ] Create `backend/pytest.ini` or `backend/pyproject.toml`
+  - [ ] Configure test discovery, async mode, coverage
+  - [ ] Add `pytest-cov` for coverage reporting
+  - [ ] Add `pytest-mock` for better mocking
+- [ ] Test fixtures and utilities
+  - [ ] Create `backend/tests/conftest.py` with shared fixtures
+  - [ ] Test FastAPI client fixture
+  - [ ] Test database fixture (in-memory SQLite)
+  - [ ] Mock HF API fixture
+  - [ ] Test user credentials fixture
+- [ ] Test environment configuration
+  - [ ] Create `backend/.env.test` with test settings
+  - [ ] Fixed SECRET_KEY for deterministic tokens
+  - [ ] In-memory database URL
+  - [ ] Test HF_API_KEY
 
-**Frontend Tests:**
-- [ ] Setup Vitest + React Testing Library
-- [ ] Component tests
-  - [ ] ImageUploader component
-  - [ ] ModelSelector component
-  - [ ] ImageComparison component
-- [ ] Hook tests
-  - [ ] useAuth hook
-  - [ ] useImageRestore hook
-- [ ] Integration tests
-  - [ ] Login flow
-  - [ ] Image restoration flow
-  - [ ] History viewing
+**Backend Unit Tests:**
+- [x] Configuration tests (`backend/tests/test_config.py`) ✅
+- [ ] Health check tests (`backend/tests/test_health.py`)
+- [ ] Security utilities tests (`backend/tests/services/test_security.py`)
+- [ ] HF Inference service tests (`backend/tests/services/test_hf_inference.py`) - mocked
+- [ ] Session manager tests (`backend/tests/services/test_session_manager.py`)
+- [ ] Image processing utilities tests (`backend/tests/utils/test_image_processing.py`)
+- [ ] Database models tests (`backend/tests/db/test_models.py`)
+- [ ] Database setup tests (`backend/tests/db/test_database.py`)
+
+**Backend Integration Tests:**
+- [ ] Auth API tests (`backend/tests/api/v1/test_auth.py`)
+- [ ] Models API tests (`backend/tests/api/v1/test_models.py`)
+- [ ] Restore validation tests (`backend/tests/api/v1/test_restore_validation.py`)
+- [ ] Restore models tests (`backend/tests/api/v1/test_restore_models.py`)
+- [ ] Restore integration tests (`backend/tests/api/v1/test_restore_integration.py`)
+- [ ] Static file serving tests (`backend/tests/test_static_files.py`)
+- [ ] Background cleanup tests (`backend/tests/services/test_cleanup.py`)
+
+**Backend Test Data:**
+- [ ] Create `backend/tests/data/` directory
+- [ ] Add sample test images (small, large, corrupted, invalid)
+- [ ] Create `backend/tests/mocks/` directory
+- [ ] Implement HF API mock responses
+
+**Frontend Test Infrastructure:**
+- [ ] Complete Vitest configuration
+  - [ ] Create `frontend/vitest.config.ts`
+  - [ ] Configure jsdom environment
+  - [ ] Setup coverage reporting
+- [ ] Test setup and utilities
+  - [ ] Create `frontend/src/__tests__/setup.ts`
+  - [ ] Create `frontend/src/test-utils/mockApiClient.ts`
+  - [ ] Create `frontend/src/test-utils/testData.ts`
+  - [ ] Create `frontend/src/test-utils/renderWithProviders.tsx`
+
+**Frontend Unit Tests:**
+- [ ] Auth store tests (`frontend/src/__tests__/authStore.test.tsx`)
+- [ ] Auth hook tests (`frontend/src/__tests__/useAuth.test.tsx`)
+- [ ] API client tests (`frontend/src/__tests__/apiClient.test.tsx`)
+- [ ] Restoration service tests (`frontend/src/__tests__/restorationService.test.tsx`)
+- [ ] History service tests (`frontend/src/__tests__/historyService.test.tsx`)
+
+**Frontend Component Tests:**
+- [ ] LoginForm tests (`frontend/src/__tests__/auth.test.tsx`)
+- [ ] ProtectedRoute tests (included in auth.test.tsx)
+- [ ] ImageUploader tests (`frontend/src/__tests__/imageUploader.test.tsx`)
+- [ ] ModelSelector tests (`frontend/src/__tests__/modelSelector.test.tsx`)
+- [ ] ImageComparison tests (`frontend/src/__tests__/imageComparison.test.tsx`)
+- [ ] HistoryList tests (`frontend/src/__tests__/history.test.tsx`)
+- [ ] Shared component tests (`frontend/src/__tests__/components/`)
+
+**Frontend Integration Tests:**
+- [ ] Login flow integration test
+- [ ] Image restoration flow integration test
+- [ ] History viewing integration test
+- [ ] Layout and navigation tests (`frontend/src/__tests__/layout.test.tsx`)
+- [ ] Page integration tests (`frontend/src/__tests__/pages/`)
+
+**Test Coverage Goals:**
+- [ ] Backend: ≥70% code coverage
+- [ ] Frontend: ≥60% code coverage
+- [ ] All auth flows tested
+- [ ] All API endpoints tested
+- [ ] All error scenarios tested
+
+**Test Automation:**
+- [ ] Add npm script: `"test:coverage": "vitest run --coverage"`
+- [ ] Add npm script: `"test:watch": "vitest"`
+- [ ] Add backend script: `pytest --cov=app --cov-report=html`
+- [ ] Setup CI/CD pipeline (GitHub Actions)
+  - [ ] Run backend tests on PR
+  - [ ] Run frontend tests on PR
+  - [ ] Report coverage
+  - [ ] Fail PR if tests fail
+
+**End-to-End (E2E) Tests (Optional for MVP):**
+- [ ] Setup Playwright for E2E testing
+  - [ ] Create `tests/e2e/` directory
+  - [ ] Configure Playwright to run against Docker stack
+  - [ ] Setup test mode backend (mocked HF API)
+- [ ] E2E test scenarios (`tests/e2e/restore.spec.ts`)
+  - [ ] Happy path: Login → upload → select model → restore → download
+  - [ ] Invalid file upload: Upload .txt → see error message
+  - [ ] HF failure: Backend returns error → UI shows clear message
+  - [ ] Auto-logout: Token expires → redirected to login
+  - [ ] History: View processed images → download/delete
+
+**Security & Performance Tests:**
+- [ ] Security validation
+  - [ ] No sensitive info in error messages (SECRET_KEY, HF_API_KEY)
+  - [ ] CORS configuration tested (allowed origins only)
+  - [ ] Auth tokens not logged in backend
+  - [ ] SQL injection prevention (parameterized queries)
+- [ ] Performance tests (basic)
+  - [ ] Typical restore request (mocked HF) completes < 500ms
+  - [ ] Large image upload (9.5MB) processed within timeout
+  - [ ] Database queries are indexed and efficient
 
 ---
 
@@ -764,8 +1132,13 @@ MODELS_CONFIG=[
 
 ## Success Metrics
 
-### MVP Success Criteria:
-- [ ] User can login with token
+### MVP Success Criteria (Phase 1 Complete):
+
+**Functional Requirements:**
+- [x] User can login with token ✅
+- [x] Auth state persists (localStorage) ✅
+- [x] Protected routes work ✅
+- [x] "Remember Me" functionality (7 days) ✅
 - [ ] User can upload an image
 - [ ] User can select from 3 models
 - [ ] Image is processed successfully via HF API
@@ -773,20 +1146,52 @@ MODELS_CONFIG=[
 - [ ] User can download processed image
 - [ ] User can view session history
 - [ ] Application runs in Docker with nginx
-- [ ] All core features have tests
-- [ ] Documentation is complete
+
+**Testing Requirements:**
+- [x] Backend config tests ✅ (197 lines)
+- [ ] Backend auth tests complete (login, validate, protected routes)
+- [ ] Backend security utilities tests (JWT, password hashing)
+- [ ] Backend health check tests
+- [ ] Frontend auth tests complete (login form, hooks, store, protected routes)
+- [ ] Frontend API client tests
+- [ ] All image processing tests (when implemented in Phase 1.6)
+- [ ] Test coverage: Backend ≥70%, Frontend ≥60%
+- [ ] All error scenarios tested
+- [ ] Security tests pass (no secrets leaked, CORS configured)
+
+**Infrastructure Requirements:**
+- [ ] pytest configuration complete (pytest.ini, conftest.py)
+- [ ] Vitest configuration complete (vitest.config.ts, setup.ts)
+- [ ] Test fixtures and mocks created
+- [ ] Test data directory with sample images
+- [ ] CI/CD pipeline runs tests automatically
+
+**Documentation Requirements:**
+- [x] README.md updated ✅
+- [x] Environment variables documented ✅
+- [ ] API documentation complete (Swagger/ReDoc)
+- [ ] Test documentation (how to run, write tests)
+- [ ] Deployment guide complete
 
 ### Phase 2 Success Criteria:
 - [ ] Pipeline processing works end-to-end
 - [ ] Batch processing handles 10+ images
 - [ ] At least 5 models available
 - [ ] Advanced controls improve results
+- [ ] Pipeline tests complete (unit + integration)
+- [ ] Batch processing tests complete
+- [ ] Additional model integration tests
+- [ ] Performance tests show acceptable speeds
 
 ### Phase 3 Success Criteria:
 - [ ] OwnCloud integration works seamlessly
 - [ ] Multi-user support is stable
 - [ ] Video frame restoration works
 - [ ] AI suggestions are accurate
+- [ ] OwnCloud integration tests (mocked WebDAV)
+- [ ] Multi-user isolation tests
+- [ ] Video processing tests
+- [ ] E2E tests cover all major user flows
 
 ---
 
@@ -800,9 +1205,12 @@ MODELS_CONFIG=[
 - Comprehensive error handling
 - Security-first approach
 - Performance optimization at each phase
+- **Test-Driven Development**: Write tests alongside features (follow tmp/TEST_STRATEGY_AI.md)
+- **Test Coverage**: Minimum 70% backend, 60% frontend
+- **All new code must have tests** - untested code is not allowed
 
 ---
 
 **Last Updated:** December 14, 2024
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Status:** Phase 1.1 Complete ✅ | Phase 1.2 In Progress 🔄
+**Status:** Phase 1.1 Complete ✅ | Phase 1.2 Complete ✅ | Phase 1.2 Tests In Progress 🔄

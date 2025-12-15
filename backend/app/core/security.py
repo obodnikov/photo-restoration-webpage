@@ -69,14 +69,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=settings.access_token_expire_minutes
         )
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
         to_encode,
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM
+        settings.secret_key,
+        algorithm=settings.algorithm
     )
     return encoded_jwt
 
@@ -95,8 +95,8 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(
             token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
+            settings.secret_key,
+            algorithms=[settings.algorithm]
         )
         return payload
     except JWTError:
@@ -165,13 +165,13 @@ def authenticate_user(username: str, password: str) -> Optional[dict]:
     settings = get_settings()
 
     # MVP: Check against hardcoded credentials from .env
-    if username != settings.AUTH_USERNAME:
+    if username != settings.auth_username:
         return None
 
-    # Verify password against hashed password
-    # For MVP, we hash the AUTH_PASSWORD from .env on the fly
+    # For MVP with hardcoded credentials, do simple password comparison
     # In production Phase 2.x, passwords will be pre-hashed in database
-    if not verify_password(password, get_password_hash(settings.AUTH_PASSWORD)):
+    # and we'll use verify_password(password, user.hashed_password)
+    if password != settings.auth_password:
         return None
 
     return {"username": username}
