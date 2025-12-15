@@ -361,46 +361,73 @@ MODELS_CONFIG=[
 
 ---
 
-### 1.5 Session Management & History
+### 1.5 Session Management & History ✅ **COMPLETE**
 
 **Backend:**
-- [ ] Create database models in `app/db/models.py`
-  - [ ] Session model (session_id, created_at, last_accessed)
-  - [ ] ProcessedImage model (id, session_id, original_filename, model_id, created_at, original_path, processed_path)
-- [ ] Setup SQLite database in `app/db/database.py`
-  - [ ] Async SQLAlchemy engine
-  - [ ] Session factory
-  - [ ] Database initialization
-  - [ ] Follow AI_SQLite.md (WAL mode, proper configuration)
-- [ ] Create session manager in `app/services/session_manager.py`
-  - [ ] Create session
-  - [ ] Get session history
-  - [ ] Save processed image metadata
-  - [ ] Cleanup old sessions (background task)
-- [ ] Add file storage utilities
-  - [ ] Temporary storage for uploaded images
-  - [ ] Storage for processed images (session-based)
-  - [ ] Cleanup task for old files
+- [x] Create database models in `app/db/models.py` ✅
+  - [x] Session model (session_id, created_at, last_accessed) ✅
+  - [x] ProcessedImage model (id, session_id, original_filename, model_id, created_at, original_path, processed_path) ✅
+  - [x] Cascade delete relationship (deleting session removes images) ✅
+  - [x] to_dict() serialization methods ✅
+- [x] Setup SQLite database in `app/db/database.py` ✅
+  - [x] Async SQLAlchemy engine (aiosqlite) ✅
+  - [x] Session factory (async_sessionmaker) ✅
+  - [x] Database initialization (init_db, close_db) ✅
+  - [x] Follow AI_SQLite.md (WAL mode, proper configuration) ✅
+  - [x] FastAPI dependency injection (get_db) ✅
+- [x] Create session manager in `app/services/session_manager.py` ✅
+  - [x] Create session (UUID-based session_id) ✅
+  - [x] Get session (with last_accessed update) ✅
+  - [x] Get session history (with pagination) ✅
+  - [x] Save processed image metadata ✅
+  - [x] Cleanup old sessions (delete sessions + files) ✅
+  - [x] Delete specific session (with files) ✅
+  - [x] Custom exceptions (SessionManagerError, SessionNotFoundError) ✅
+- [x] Add file storage utilities ✅
+  - [x] Temporary storage for uploaded images (data/uploads/) ✅
+  - [x] Storage for processed images (data/processed/) ✅
+  - [x] Session-based directory structure ✅
+  - [x] Cleanup task for old files ✅
 
 **Tests for Phase 1.5:**
-- [ ] Backend: Database model tests (`backend/tests/db/test_models.py`)
-  - [ ] Session model creates valid session
-  - [ ] Session model tracks created_at and last_accessed
-  - [ ] ProcessedImage model stores all required fields
-  - [ ] ProcessedImage model links to session correctly
-  - [ ] Database constraints work (unique IDs, foreign keys)
-- [ ] Backend: Session manager tests (`backend/tests/services/test_session_manager.py`)
-  - [ ] `create_session()` creates new session in database
-  - [ ] `get_session_history()` returns user's processed images
-  - [ ] `save_processed_image()` stores metadata correctly
-  - [ ] `cleanup_old_sessions()` deletes sessions older than 24h
-  - [ ] `cleanup_old_sessions()` deletes associated files
-  - [ ] Concurrent session access is handled correctly
-- [ ] Backend: Database setup tests (`backend/tests/db/test_database.py`)
-  - [ ] Database initialization creates tables
-  - [ ] SQLite WAL mode is enabled
-  - [ ] Async SQLAlchemy engine works correctly
-  - [ ] Session factory creates valid sessions
+- [x] Backend: Database model tests (`backend/tests/db/test_models.py`) - 11 tests ✅
+  - [x] Session model creates valid session ✅
+  - [x] Session model tracks created_at and last_accessed ✅
+  - [x] Session model to_dict() method ✅
+  - [x] ProcessedImage model stores all required fields ✅
+  - [x] ProcessedImage model links to session correctly ✅
+  - [x] ProcessedImage to_dict() method ✅
+  - [x] Database constraints work (unique session_id, foreign keys) ✅
+  - [x] Session with multiple images ✅
+  - [x] Cascade delete works (session deletion removes images) ✅
+- [x] Backend: Session manager tests (`backend/tests/services/test_session_manager.py`) - 29 tests ✅
+  - [x] SessionManager initialization (with/without settings) ✅
+  - [x] `create_session()` creates new session in database ✅
+  - [x] `create_session()` generates unique UUIDs ✅
+  - [x] `get_session()` returns existing session ✅
+  - [x] `get_session()` updates last_accessed timestamp ✅
+  - [x] `get_session_history()` returns user's processed images ✅
+  - [x] `get_session_history()` with pagination (limit/offset) ✅
+  - [x] `get_session_history()` ordered by created_at DESC ✅
+  - [x] `save_processed_image()` stores metadata correctly ✅
+  - [x] `save_processed_image()` with model parameters (JSON) ✅
+  - [x] `cleanup_old_sessions()` deletes sessions older than cutoff ✅
+  - [x] `cleanup_old_sessions()` deletes associated files ✅
+  - [x] `cleanup_old_sessions()` handles missing files gracefully ✅
+  - [x] `delete_session()` deletes specific session + files ✅
+  - [x] Storage path management (get_storage_path_for_session) ✅
+  - [x] Error handling (SessionNotFoundError, database errors) ✅
+- [x] Backend: Database setup tests (`backend/tests/db/test_database.py`) - 19 tests ✅
+  - [x] Database initialization creates tables ✅
+  - [x] SQLite WAL mode configuration (or MEMORY for in-memory) ✅
+  - [x] SQLite foreign keys enabled ✅
+  - [x] SQLite synchronous and busy_timeout configured ✅
+  - [x] Async SQLAlchemy engine creation ✅
+  - [x] Session factory creates valid sessions ✅
+  - [x] get_db() dependency yields and commits/rollbacks ✅
+  - [x] close_db() disposes engine ✅
+
+**Completed:** December 15, 2024
 
 ---
 

@@ -4,9 +4,9 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 
 ## Project Status
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅
+**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅
 
 ## Features
 
@@ -43,12 +43,21 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 - ✅ Test data with mock HF API
 - ✅ 60 comprehensive tests (23 HF service + 37 image utilities)
 
-### Phase 1.5+ - In Progress
-- ⏳ Session management & database
+### Phase 1.5 - Session Management & History ✅ COMPLETE
+- ✅ SQLAlchemy async database models (Session, ProcessedImage)
+- ✅ SQLite database with WAL mode and async support
+- ✅ SessionManager service (create, retrieve, cleanup)
+- ✅ Session-based file storage (uploads, processed images)
+- ✅ Automated session cleanup (24-hour inactivity)
+- ✅ Session history with pagination
+- ✅ Cascade delete (session + files)
+- ✅ 59 comprehensive tests (11 models + 19 database + 29 session manager)
+
+### Phase 1.6+ - In Progress
 - ⏳ Image restoration API endpoints
 - ⏳ Image upload and processing
 - ⏳ Before/After comparison
-- ⏳ Session-based history
+- ⏳ Frontend UI for image restoration
 
 ### Planned Features
 - **Phase 2**: Model pipelines, batch processing, additional models
@@ -357,7 +366,7 @@ Key principles:
 
 ## Testing
 
-**Backend: 159 tests ✅**
+**Backend: 218 tests ✅**
 ```bash
 cd backend
 source venv/bin/activate
@@ -375,6 +384,9 @@ Test Summary:
 - Models API tests: 17 tests ✅
 - HF Inference service tests: 23 tests ✅
 - Image utilities tests: 37 tests ✅
+- Database model tests: 11 tests ✅
+- Database setup tests: 19 tests ✅
+- Session manager tests: 29 tests ✅
 
 **Frontend: 55 tests ✅**
 ```bash
@@ -479,12 +491,13 @@ Before contributing:
 - Phase 1.2 - Authentication ✅
 - Phase 1.3 - AI Models Configuration ✅
 - Phase 1.4 - HuggingFace Integration ✅
+- Phase 1.5 - Session Management & History ✅
 
-**Next Steps:** Phase 1.5 - Session Management & History
+**Next Steps:** Phase 1.6 - Image Restoration API
 
 **Test Coverage:**
-- Backend: 159 tests passing ✅
+- Backend: 218 tests passing ✅
 - Frontend: 55 tests passing ✅
-- Total: 214 tests ✅
+- Total: 273 tests ✅
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation plan.

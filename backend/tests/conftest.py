@@ -10,6 +10,8 @@ from typing import AsyncGenerator, Generator
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 # Environment loading is now handled in backend/conftest.py (root level)
 # which is loaded before this file via pytest_configure hook
@@ -17,6 +19,7 @@ from httpx import AsyncClient
 
 from app.core.config import Settings, get_settings
 from app.core.security import create_access_token, get_password_hash
+from app.db.models import Base
 
 
 def _get_app():
@@ -158,6 +161,56 @@ def mock_hf_api_response() -> bytes:
     import base64
     png_data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
     return base64.b64decode(png_data)
+
+
+@pytest.fixture
+async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
+    """
+    Provide a test database engine with in-memory SQLite.
+
+    Creates a new in-memory database for each test.
+    """
+    from sqlalchemy import text
+
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+
+    # Create all tables and enable foreign keys
+    async with engine.begin() as conn:
+        # Enable foreign keys for testing cascade deletes
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield engine
+
+    # Cleanup
+    await engine.dispose()
+
+
+@pytest.fixture
+async def db_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Provide a test database session.
+
+    Each test gets a fresh session with all tables created.
+    Changes are rolled back after each test.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    async_session = async_sessionmaker(
+        test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        autocommit=False,
+    )
+
+    async with async_session() as session:
+        yield session
+        await session.rollback()  # Rollback any changes
 
 
 # Test markers
