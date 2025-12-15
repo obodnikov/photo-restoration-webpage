@@ -26,33 +26,35 @@ export function App() {
 
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<LoginPage />} />
+      <Routes>
+        {/* Public routes - no Layout wrapper */}
+        <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
+        {/* Protected routes - with Layout wrapper */}
+        <Route
+          path="/"
+          element={
+            <Layout>
               <ProtectedRoute>
                 <RestorationPage />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/history"
-            element={
+            </Layout>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <Layout>
               <ProtectedRoute>
                 <HistoryPage />
               </ProtectedRoute>
-            }
-          />
+            </Layout>
+          }
+        />
 
-          {/* Catch all - redirect to home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
