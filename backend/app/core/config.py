@@ -71,6 +71,8 @@ class Settings(BaseSettings):
             "parameters": {"prompt": "enhance details, remove noise and artifacts"}
         }
     ]"""
+    # Models API authentication (default: public access)
+    models_require_auth: bool = False
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./data/photo_restoration.db"

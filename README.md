@@ -4,9 +4,9 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 
 ## Project Status
 
-**Version:** 0.2.0
+**Version:** 0.5.0
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅
+**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅
 
 ## Features
 
@@ -26,12 +26,38 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 - ✅ Auto-logout on token expiration
 - ✅ "Remember Me" functionality (7 days)
 
-### Phase 1.3+ - In Progress
-- ⏳ AI Models configuration
-- ⏳ HuggingFace Inference integration
+### Phase 1.3 - AI Models Configuration ✅ COMPLETE
+- ✅ Models configuration API (`GET /api/v1/models`)
+- ✅ Individual model details (`GET /api/v1/models/{id}`)
+- ✅ Configurable authentication (MODELS_REQUIRE_AUTH)
+- ✅ Smart caching for performance
+- ✅ Model schema with tags and version support
+- ✅ 17 comprehensive tests
+
+### Phase 1.4 - HuggingFace Integration ✅ COMPLETE
+- ✅ HFInferenceService for model processing
+- ✅ Image validation and conversion utilities
+- ✅ Comprehensive error handling (rate limits, timeouts, server errors)
+- ✅ Custom exception classes (HFRateLimitError, HFTimeoutError, etc.)
+- ✅ Model status checking
+- ✅ Test data with mock HF API
+- ✅ 60 comprehensive tests (23 HF service + 37 image utilities)
+
+### Phase 1.5 - Session Management & History ✅ COMPLETE
+- ✅ SQLAlchemy async database models (Session, ProcessedImage)
+- ✅ SQLite database with WAL mode and async support
+- ✅ SessionManager service (create, retrieve, cleanup)
+- ✅ Session-based file storage (uploads, processed images)
+- ✅ Automated session cleanup (24-hour inactivity)
+- ✅ Session history with pagination
+- ✅ Cascade delete (session + files)
+- ✅ 59 comprehensive tests (11 models + 19 database + 29 session manager)
+
+### Phase 1.6+ - In Progress
+- ⏳ Image restoration API endpoints
 - ⏳ Image upload and processing
 - ⏳ Before/After comparison
-- ⏳ Session-based history
+- ⏳ Frontend UI for image restoration
 
 ### Planned Features
 - **Phase 2**: Model pipelines, batch processing, additional models
@@ -340,16 +366,35 @@ Key principles:
 
 ## Testing
 
-**Backend:**
+**Backend: 218 tests ✅**
 ```bash
 cd backend
+source venv/bin/activate
 pytest
+
+# With coverage
+pytest --cov=app --cov-report=html
 ```
 
-**Frontend:**
+Test Summary:
+- Config tests: 21 tests ✅
+- Health & startup tests: 21 tests ✅
+- Auth tests: 24 tests ✅
+- Security tests: 29 tests ✅
+- Models API tests: 17 tests ✅
+- HF Inference service tests: 23 tests ✅
+- Image utilities tests: 37 tests ✅
+- Database model tests: 11 tests ✅
+- Database setup tests: 19 tests ✅
+- Session manager tests: 29 tests ✅
+
+**Frontend: 55 tests ✅**
 ```bash
 cd frontend
 npm test
+
+# With coverage
+npm run test:coverage
 ```
 
 ## Docker Commands
@@ -439,8 +484,20 @@ Before contributing:
 
 ---
 
-**Current Phase:** Phase 1.1 - Project Setup ✅ Complete
+**Current Phase:** Phase 1 - MVP (In Progress)
 
-**Next Steps:** Phase 1.2 - Authentication System
+**Completed Phases:**
+- Phase 1.1 - Infrastructure ✅
+- Phase 1.2 - Authentication ✅
+- Phase 1.3 - AI Models Configuration ✅
+- Phase 1.4 - HuggingFace Integration ✅
+- Phase 1.5 - Session Management & History ✅
+
+**Next Steps:** Phase 1.6 - Image Restoration API
+
+**Test Coverage:**
+- Backend: 218 tests passing ✅
+- Frontend: 55 tests passing ✅
+- Total: 273 tests ✅
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation plan.
