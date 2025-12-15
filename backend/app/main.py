@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.api.v1.routes import auth_router
+from app.api.v1.routes import auth_router, models_router
 
 
 @asynccontextmanager
@@ -63,6 +63,7 @@ app.mount(
 
 # Register API routes
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(models_router, prefix="/api/v1")
 
 
 # Health check endpoint
@@ -87,6 +88,5 @@ async def root():
 
 
 # Additional routers will be added in next phases
-# from app.api.v1.routes import models_router, restoration_router
-# app.include_router(models_router, prefix="/api/v1")
+# from app.api.v1.routes import restoration_router
 # app.include_router(restoration_router, prefix="/api/v1")
