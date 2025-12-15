@@ -293,7 +293,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-lg) 0;
+  padding: var(--space-sm) 0;
 }
 
 .header-logo {
@@ -309,17 +309,17 @@
 }
 
 .logo-text {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-bold);
   line-height: 1;
   color: var(--sqowe-dark-ground);
 }
 
 .logo-subtitle {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-regular);
   color: var(--sqowe-light-purple);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .header-nav {
