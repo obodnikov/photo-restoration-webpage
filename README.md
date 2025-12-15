@@ -4,9 +4,9 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 
 ## Project Status
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅
+**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅ | Phase 1.6 ✅
 
 ## Features
 
@@ -53,11 +53,34 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 - ✅ Cascade delete (session + files)
 - ✅ 59 comprehensive tests (11 models + 19 database + 29 session manager)
 
-### Phase 1.6+ - In Progress
-- ⏳ Image restoration API endpoints
-- ⏳ Image upload and processing
-- ⏳ Before/After comparison
+### Phase 1.6 - Image Restoration API ✅ COMPLETE
+- ✅ Complete restoration workflow (`POST /api/v1/restore`)
+  - ✅ Image validation (format, size, content)
+  - ✅ HuggingFace model integration
+  - ✅ File storage with UUID prefix + original filename
+  - ✅ Database metadata storage
+  - ✅ Concurrent upload limiting per session (configurable)
+- ✅ History endpoints
+  - ✅ `GET /api/v1/restore/history` - paginated session history
+  - ✅ `GET /api/v1/restore/{image_id}` - get image details
+  - ✅ `GET /api/v1/restore/{image_id}/download` - download processed image
+  - ✅ `DELETE /api/v1/restore/{image_id}` - delete image and files
+- ✅ Background cleanup service
+  - ✅ APScheduler integration
+  - ✅ Periodic session cleanup (configurable interval)
+  - ✅ Run on startup + scheduled execution
+- ✅ Comprehensive error handling
+  - ✅ HF API errors mapped to HTTP codes (429→503, timeout→504, errors→502)
+  - ✅ User-friendly error messages
+- ✅ Session creation on login (new session per login)
+- ✅ User isolation (cannot access other sessions' images)
+- ✅ 61 comprehensive tests (11 validation + 13 models + 18 integration + 8 cleanup + 11 static)
+
+### Phase 1.7+ - In Progress
 - ⏳ Frontend UI for image restoration
+- ⏳ Image upload component
+- ⏳ Before/After comparison viewer
+- ⏳ History gallery
 
 ### Planned Features
 - **Phase 2**: Model pipelines, batch processing, additional models
@@ -126,6 +149,11 @@ Edit `backend/.env` and set:
 - `CORS_ORIGINS` - **IMPORTANT**: Must be in JSON array format
   - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
   - For production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
+
+**New in Phase 1.6:**
+- `SESSION_CLEANUP_HOURS` - How old sessions to delete (default: 24)
+- `SESSION_CLEANUP_INTERVAL_HOURS` - How often to run cleanup task (default: 6)
+- `MAX_CONCURRENT_UPLOADS_PER_SESSION` - Concurrent processing limit per session (default: 3)
 
 **Frontend:**
 ```bash
@@ -437,6 +465,31 @@ Once the backend is running, visit:
 - Swagger UI: http://localhost/api/docs
 - ReDoc: http://localhost/api/redoc
 
+### Available Endpoints
+
+**Authentication:**
+- `POST /api/v1/auth/login` - User login, returns JWT token
+- `POST /api/v1/auth/validate` - Validate token
+- `GET /api/v1/auth/me` - Get current user info
+
+**Models:**
+- `GET /api/v1/models` - List available AI models
+- `GET /api/v1/models/{id}` - Get model details
+
+**Image Restoration:**
+- `POST /api/v1/restore` - Upload and process image
+- `GET /api/v1/restore/history` - Get session history (paginated)
+- `GET /api/v1/restore/{image_id}` - Get image details
+- `GET /api/v1/restore/{image_id}/download` - Download processed image
+- `DELETE /api/v1/restore/{image_id}` - Delete image and files
+
+**Static Files:**
+- `GET /uploads/{path}` - Serve uploaded images
+- `GET /processed/{path}` - Serve processed images
+
+**Health:**
+- `GET /health` - API health check
+
 ## Troubleshooting
 
 ### Backend won't start
@@ -492,12 +545,13 @@ Before contributing:
 - Phase 1.3 - AI Models Configuration ✅
 - Phase 1.4 - HuggingFace Integration ✅
 - Phase 1.5 - Session Management & History ✅
+- Phase 1.6 - Image Restoration API ✅
 
-**Next Steps:** Phase 1.6 - Image Restoration API
+**Next Steps:** Phase 1.7 - Frontend UI for Image Restoration
 
 **Test Coverage:**
-- Backend: 218 tests passing ✅
+- Backend: 279 tests passing ✅ (218 from phases 1.1-1.5 + 61 from phase 1.6)
 - Frontend: 55 tests passing ✅
-- Total: 273 tests ✅
+- Total: 334 tests ✅
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation plan.
