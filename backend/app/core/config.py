@@ -87,6 +87,10 @@ class Settings(BaseSettings):
 
     # Session
     session_cleanup_hours: int = 24
+    session_cleanup_interval_hours: int = 6  # How often to run cleanup task
+
+    # Processing limits
+    max_concurrent_uploads_per_session: int = 3  # Concurrent processing limit per session
 
     @field_validator("models_config")
     @classmethod

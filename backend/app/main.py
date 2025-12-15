@@ -7,7 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.api.v1.routes import auth_router, models_router
+from app.api.v1.routes import auth_router, models_router, restoration_router
+from app.db.database import init_db, close_db
+from app.services.cleanup import (
+    start_cleanup_scheduler,
+    stop_cleanup_scheduler,
+    cleanup_old_sessions,
+)
 
 
 @asynccontextmanager
@@ -23,10 +29,28 @@ async def lifespan(app: FastAPI):
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     settings.processed_dir.mkdir(parents=True, exist_ok=True)
 
+    # Initialize database
+    print("Initializing database...")
+    await init_db()
+    print("Database initialized")
+
+    # Run initial cleanup
+    print("Running initial session cleanup...")
+    await cleanup_old_sessions()
+
+    # Start cleanup scheduler
+    print(
+        f"Starting cleanup scheduler (interval: {settings.session_cleanup_interval_hours}h, "
+        f"cleanup threshold: {settings.session_cleanup_hours}h)..."
+    )
+    start_cleanup_scheduler()
+
     yield
 
     # Shutdown
     print("Shutting down...")
+    stop_cleanup_scheduler()
+    await close_db()
 
 
 # Create FastAPI app
@@ -64,6 +88,7 @@ app.mount(
 # Register API routes
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(models_router, prefix="/api/v1")
+app.include_router(restoration_router, prefix="/api/v1")
 
 
 # Health check endpoint
@@ -86,7 +111,3 @@ async def root():
         "docs": "/api/docs",
     }
 
-
-# Additional routers will be added in next phases
-# from app.api.v1.routes import restoration_router
-# app.include_router(restoration_router, prefix="/api/v1")

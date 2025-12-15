@@ -10,6 +10,7 @@ import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.auth import (
     LoginRequest,
@@ -23,6 +24,8 @@ from app.core.security import (
     get_current_user,
 )
 from app.core.config import get_settings
+from app.db.database import get_db
+from app.services.session_manager import SessionManager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -38,18 +41,24 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     summary="User login",
     description="Authenticate user with username and password, returns JWT token",
 )
-async def login(credentials: LoginRequest) -> TokenResponse:
+async def login(
+    credentials: LoginRequest,
+    db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
     """
     Authenticate user and return JWT access token.
 
     For MVP: Validates against hardcoded credentials from environment.
     Phase 2.x: Will validate against database users.
 
+    Creates a new session for each login.
+
     Args:
         credentials: Login credentials (username, password, remember_me)
+        db: Database session
 
     Returns:
-        TokenResponse with JWT access token
+        TokenResponse with JWT access token and session_id
 
     Raises:
         HTTPException 401: If credentials are invalid
@@ -74,6 +83,11 @@ async def login(credentials: LoginRequest) -> TokenResponse:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Create new session for this login
+    session_manager = SessionManager()
+    session = await session_manager.create_session(db)
+    logger.info(f"Created session {session.session_id} for user {credentials.username}")
+
     # Calculate token expiration
     # If remember_me is True, extend token lifetime (7 days for MVP)
     if credentials.remember_me:
@@ -88,9 +102,12 @@ async def login(credentials: LoginRequest) -> TokenResponse:
             f"(expires in {settings.access_token_expire_minutes} minutes)"
         )
 
-    # Create JWT token
+    # Create JWT token with username and session_id
     access_token = create_access_token(
-        data={"sub": user["username"]},
+        data={
+            "sub": user["username"],
+            "session_id": session.session_id
+        },
         expires_delta=expires_delta
     )
 

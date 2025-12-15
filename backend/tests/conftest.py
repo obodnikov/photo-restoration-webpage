@@ -213,6 +213,160 @@ async def db_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, N
         await session.rollback()  # Rollback any changes
 
 
+@pytest.fixture
+async def async_session(test_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Alias for db_session for compatibility.
+
+    Some tests use async_session, some use db_session.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    async_session_maker = async_sessionmaker(
+        test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        autocommit=False,
+    )
+
+    async with async_session_maker() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest.fixture
+def test_image_jpeg() -> bytes:
+    """
+    Provide a small test JPEG image.
+
+    Returns valid JPEG bytes for testing uploads.
+    """
+    from PIL import Image
+    import io
+
+    # Create a small test image
+    img = Image.new('RGB', (10, 10), color='red')
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG')
+    buf.seek(0)
+    return buf.read()
+
+
+@pytest.fixture
+def test_image_png() -> bytes:
+    """
+    Provide a small test PNG image.
+
+    Returns valid PNG bytes for testing uploads.
+    """
+    from PIL import Image
+    import io
+
+    img = Image.new('RGB', (10, 10), color='blue')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    return buf.read()
+
+
+@pytest.fixture
+def test_image_bmp() -> bytes:
+    """
+    Provide a small test BMP image (unsupported format).
+
+    Returns valid BMP bytes for testing format validation.
+    """
+    from PIL import Image
+    import io
+
+    img = Image.new('RGB', (10, 10), color='green')
+    buf = io.BytesIO()
+    img.save(buf, format='BMP')
+    buf.seek(0)
+    return buf.read()
+
+
+@pytest.fixture
+def test_image_large(test_settings: Settings) -> bytes:
+    """
+    Provide a large test image exceeding MAX_UPLOAD_SIZE.
+
+    Returns JPEG bytes larger than the upload limit.
+    """
+    from PIL import Image
+    import io
+
+    # Create image larger than MAX_UPLOAD_SIZE (10MB)
+    # A large high-quality JPEG should exceed the limit
+    max_size = test_settings.max_upload_size
+    img = Image.new('RGB', (2000, 2000), color='yellow')
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=95)
+    buf.seek(0)
+
+    # If image is still too small, pad it
+    img_bytes = buf.read()
+    if len(img_bytes) < max_size:
+        # Pad with zeros to exceed limit
+        img_bytes = img_bytes + (b'\x00' * (max_size + 1000))
+
+    return img_bytes
+
+
+@pytest.fixture
+def mock_hf_service(monkeypatch, mock_hf_api_response):
+    """
+    Provide a mocked HuggingFace inference service.
+
+    Mocks the process_image method to return test image data.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+    from app.services import hf_inference
+
+    mock_service = MagicMock()
+    mock_service.process_image = AsyncMock(return_value=mock_hf_api_response)
+
+    # Patch the service creation
+    monkeypatch.setattr(
+        hf_inference,
+        "HFInferenceService",
+        lambda *args, **kwargs: mock_service
+    )
+
+    return mock_service
+
+
+@pytest.fixture
+async def auth_client(async_client: AsyncClient, async_session: AsyncSession) -> AsyncClient:
+    """
+    Provide an authenticated async client with session created.
+
+    This client has a valid JWT token with session_id included.
+    Creates a session in the database and includes it in the token.
+    """
+    from app.services.session_manager import SessionManager
+    from datetime import timedelta
+
+    # Create session in database
+    session_manager = SessionManager()
+    session = await session_manager.create_session(async_session)
+
+    # Create token with session_id
+    token = create_access_token(
+        data={
+            "sub": "admin",
+            "session_id": session.session_id
+        },
+        expires_delta=timedelta(hours=1)
+    )
+
+    # Add auth header to client
+    async_client.headers["Authorization"] = f"Bearer {token}"
+
+    return async_client
+
+
 # Test markers
 def pytest_configure(config):
     """Configure custom pytest markers."""
