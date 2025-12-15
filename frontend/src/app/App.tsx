@@ -6,19 +6,16 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { initializeAuthStore, setupTokenExpiryCheck } from '../services/authStore';
 import { LoginPage } from '../features/auth/pages/LoginPage';
+import { RestorationPage } from '../features/restoration/pages/RestorationPage';
+import { HistoryPage } from '../features/history/pages/HistoryPage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { Layout } from '../components/Layout';
 import '../styles/base.css';
 import '../styles/layout.css';
-
-// Placeholder home page (will be implemented in Phase 1.7)
-function HomePage() {
-  return (
-    <div className="container">
-      <h1>Welcome to Photo Restoration</h1>
-      <p>Home page - Image restoration feature coming in Phase 1.7</p>
-    </div>
-  );
-}
+import '../styles/components/shared.css';
+import '../styles/components/auth.css';
+import '../styles/components/restoration.css';
+import '../styles/components/history.css';
 
 export function App() {
   // Initialize auth store from localStorage on app start
@@ -29,23 +26,33 @@ export function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
+      <Layout>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <RestorationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Catch all - redirect to home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch all - redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
     </BrowserRouter>
   );
 }

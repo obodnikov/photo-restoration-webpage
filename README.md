@@ -4,9 +4,9 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 
 ## Project Status
 
-**Version:** 0.6.0
+**Version:** 0.7.0
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅ | Phase 1.6 ✅
+**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅ | Phase 1.6 ✅ | Phase 1.7 ✅
 
 ## Features
 
@@ -76,11 +76,21 @@ AI-powered web application for restoring old scanned photos using HuggingFace mo
 - ✅ User isolation (cannot access other sessions' images)
 - ✅ 61 comprehensive tests (11 validation + 13 models + 18 integration + 8 cleanup + 11 static)
 
-### Phase 1.7+ - In Progress
-- ⏳ Frontend UI for image restoration
-- ⏳ Image upload component
-- ⏳ Before/After comparison viewer
-- ⏳ History gallery
+### Phase 1.7 - Frontend Core Features ✅ COMPLETE
+- ✅ Complete image restoration workflow with drag & drop upload
+- ✅ Model selection with descriptions from API
+- ✅ Real-time processing status with progress tracking
+- ✅ Image comparison viewer with 3 modes (Original, Restored, Compare)
+- ✅ Full restoration history with pagination
+- ✅ Download and delete functionality
+- ✅ Layout with header/footer (sqowe branding)
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Shared UI components (Button, Card, Loader, ErrorMessage)
+- ✅ 115 comprehensive frontend tests (60 new tests for Phase 1.7)
+
+### Phase 1.8+ - In Progress
+- ⏳ Additional UI/UX improvements
+- ⏳ Testing and QA
 
 ### Planned Features
 - **Phase 2**: Model pipelines, batch processing, additional models
@@ -546,12 +556,13 @@ Before contributing:
 - Phase 1.4 - HuggingFace Integration ✅
 - Phase 1.5 - Session Management & History ✅
 - Phase 1.6 - Image Restoration API ✅
+- Phase 1.7 - Frontend Core Features ✅
 
-**Next Steps:** Phase 1.7 - Frontend UI for Image Restoration
+**Next Steps:** Phase 1.8 - Additional UI/UX Improvements & Testing
 
 **Test Coverage:**
 - Backend: 279 tests passing ✅ (218 from phases 1.1-1.5 + 61 from phase 1.6)
-- Frontend: 55 tests passing ✅
-- Total: 334 tests ✅
+- Frontend: 115 tests passing ✅ (55 from phases 1.1-1.2 + 60 from phase 1.7)
+- Total: 394 tests ✅
 
 See [ROADMAP.md](ROADMAP.md) for detailed implementation plan.

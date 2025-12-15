@@ -527,85 +527,105 @@ MODELS_CONFIG=[
 
 ---
 
-### 1.7 Frontend - Core Features
+### 1.7 Frontend - Core Features ✅ **COMPLETE**
 
 **Image Upload Feature:**
-- [ ] Create restoration feature in `src/features/restoration/`
-  - [ ] `components/ImageUploader.tsx` - drag & drop upload component
-  - [ ] `components/ModelSelector.tsx` - model selection dropdown
-  - [ ] `components/ImageComparison.tsx` - before/after slider
-  - [ ] `components/ProcessingStatus.tsx` - loading state, progress
-  - [ ] `hooks/useImageRestore.ts` - restoration logic
-  - [ ] `services/restorationService.ts` - API calls
-  - [ ] `types.ts` - restoration-related types
-- [ ] Implement file validation on frontend
-  - [ ] File type validation (jpg, png)
-  - [ ] File size validation (max 10MB)
-  - [ ] User-friendly error messages
+- [x] Create restoration feature in `src/features/restoration/`
+  - [x] `components/ImageUploader.tsx` - drag & drop upload component
+  - [x] `components/ModelSelector.tsx` - model selection dropdown
+  - [x] `components/ImageComparison.tsx` - before/after slider
+  - [x] `components/ProcessingStatus.tsx` - loading state, progress
+  - [x] `hooks/useImageRestore.ts` - restoration logic
+  - [x] `services/restorationService.ts` - API calls
+  - [x] `types.ts` - restoration-related types
+- [x] Implement file validation on frontend
+  - [x] File type validation (jpg, png)
+  - [x] File size validation (max 10MB)
+  - [x] User-friendly error messages
 
 **History Feature:**
-- [ ] Create history feature in `src/features/history/`
-  - [ ] `components/HistoryList.tsx` - list of processed images
-  - [ ] `components/HistoryCard.tsx` - individual history item
-  - [ ] `hooks/useHistory.ts` - fetch and manage history
-  - [ ] `services/historyService.ts` - API calls
-  - [ ] `types.ts` - history-related types
-- [ ] Implement history UI
-  - [ ] Thumbnail grid view
-  - [ ] Click to view/compare
-  - [ ] Download button
-  - [ ] Delete button
+- [x] Create history feature in `src/features/history/`
+  - [x] `components/HistoryList.tsx` - list of processed images
+  - [x] `components/HistoryCard.tsx` - individual history item
+  - [x] `hooks/useHistory.ts` - fetch and manage history
+  - [x] `services/historyService.ts` - API calls
+  - [x] `types.ts` - history-related types
+- [x] Implement history UI
+  - [x] Thumbnail grid view
+  - [x] Click to view/compare
+  - [x] Download button
+  - [x] Delete button
 
 **API Client:**
-- [ ] Create API client in `src/services/apiClient.ts`
-  - [ ] Typed HTTP methods (GET, POST, DELETE)
-  - [ ] Auto-inject auth token from store
-  - [ ] Error handling and user-friendly messages
-  - [ ] File upload support with progress
-- [ ] Configure base URL from environment
-  - [ ] `VITE_API_BASE_URL=/api/v1`
+- [x] Create API client in `src/services/apiClient.ts`
+  - [x] Typed HTTP methods (GET, POST, DELETE)
+  - [x] Auto-inject auth token from store
+  - [x] Error handling and user-friendly messages
+  - [x] File upload support with progress
+- [x] Configure base URL from environment
+  - [x] `VITE_API_BASE_URL=/api/v1`
 
 **Tests for Phase 1.7:**
-- [ ] Frontend: Test utilities setup
-  - [ ] Create `frontend/src/test-utils/mockApiClient.ts` for mocked API calls
-  - [ ] Create `frontend/src/test-utils/testData.ts` for test fixtures
-  - [ ] Add mock file upload utilities
-- [ ] Frontend: Image upload tests (`frontend/src/__tests__/imageUploader.test.tsx`)
-  - [ ] ImageUploader renders drag & drop area
-  - [ ] ImageUploader accepts file via file picker
-  - [ ] ImageUploader accepts file via drag & drop
-  - [ ] ImageUploader shows preview after file selection
-  - [ ] ImageUploader rejects non-image files (shows error)
-  - [ ] ImageUploader rejects files exceeding size limit
-  - [ ] ImageUploader clears selection on cancel
-- [ ] Frontend: Model selector tests (`frontend/src/__tests__/modelSelector.test.tsx`)
-  - [ ] ModelSelector fetches and renders model list
-  - [ ] ModelSelector displays model names and descriptions
-  - [ ] ModelSelector allows model selection
-  - [ ] ModelSelector highlights selected model
-  - [ ] ModelSelector handles API error gracefully
-- [ ] Frontend: Image restoration hook tests (`frontend/src/__tests__/useImageRestore.test.tsx`)
-  - [ ] `uploadAndRestore()` uploads image and calls API
-  - [ ] `uploadAndRestore()` shows loading state during processing
-  - [ ] `uploadAndRestore()` returns processed image URL on success
-  - [ ] `uploadAndRestore()` shows error on validation failure
-  - [ ] `uploadAndRestore()` shows error on network failure
-  - [ ] `uploadAndRestore()` handles HF service unavailable (503)
-- [ ] Frontend: Restoration service tests (`frontend/src/__tests__/restorationService.test.tsx`)
-  - [ ] `restoreImage()` sends multipart form data
-  - [ ] `restoreImage()` includes model_id in request
-  - [ ] `restoreImage()` includes auth token
-  - [ ] `restoreImage()` handles 401 (redirects to login)
-  - [ ] `restoreImage()` handles 400 (validation error)
-  - [ ] `restoreImage()` handles 503 (service unavailable)
-- [ ] Frontend: History tests (`frontend/src/__tests__/history.test.tsx`)
-  - [ ] HistoryList fetches and displays processed images
-  - [ ] HistoryCard shows thumbnail and metadata
-  - [ ] HistoryCard allows clicking to view full image
-  - [ ] HistoryCard has download button
-  - [ ] HistoryCard has delete button
-  - [ ] Delete removes item from list after confirmation
-  - [ ] History handles empty state (no images processed)
+- [x] Frontend: Test utilities setup
+  - [x] Create `frontend/src/test-utils/mockApiClient.ts` for mocked API calls
+  - [x] Create `frontend/src/test-utils/testData.ts` for test fixtures
+  - [x] Add mock file upload utilities
+- [x] Frontend: Image upload tests (`frontend/src/__tests__/imageUploader.test.tsx`)
+  - [x] ImageUploader renders drag & drop area
+  - [x] ImageUploader accepts file via file picker
+  - [x] ImageUploader accepts file via drag & drop
+  - [x] ImageUploader shows preview after file selection
+  - [x] ImageUploader rejects non-image files (shows error)
+  - [x] ImageUploader rejects files exceeding size limit
+  - [x] ImageUploader clears selection on cancel
+- [x] Frontend: Model selector tests (`frontend/src/__tests__/modelSelector.test.tsx`)
+  - [x] ModelSelector fetches and renders model list
+  - [x] ModelSelector displays model names and descriptions
+  - [x] ModelSelector allows model selection
+  - [x] ModelSelector highlights selected model
+  - [x] ModelSelector handles API error gracefully
+- [x] Frontend: Image restoration hook tests (`frontend/src/__tests__/useImageRestore.test.tsx`)
+  - [x] `uploadAndRestore()` uploads image and calls API
+  - [x] `uploadAndRestore()` shows loading state during processing
+  - [x] `uploadAndRestore()` returns processed image URL on success
+  - [x] `uploadAndRestore()` shows error on validation failure
+  - [x] `uploadAndRestore()` shows error on network failure
+  - [x] `uploadAndRestore()` handles HF service unavailable (503)
+- [x] Frontend: Restoration service tests (`frontend/src/__tests__/restorationService.test.tsx`)
+  - [x] `restoreImage()` sends multipart form data
+  - [x] `restoreImage()` includes model_id in request
+  - [x] `restoreImage()` includes auth token
+  - [x] `restoreImage()` handles 401 (redirects to login)
+  - [x] `restoreImage()` handles 400 (validation error)
+  - [x] `restoreImage()` handles 503 (service unavailable)
+- [x] Frontend: History tests (`frontend/src/__tests__/history.test.tsx`)
+  - [x] HistoryList fetches and displays processed images
+  - [x] HistoryCard shows thumbnail and metadata
+  - [x] HistoryCard allows clicking to view full image
+  - [x] HistoryCard has download button
+  - [x] HistoryCard has delete button
+  - [x] Delete removes item from list after confirmation
+  - [x] History handles empty state (no images processed)
+
+**Completed:** December 15, 2024
+
+**Frontend Test Summary:** 115 tests passing ✅
+- Shared components: 43 tests
+- Restoration feature: 40 tests
+- History feature: 32 tests
+- Total new tests for Phase 1.7: 60 tests
+
+**Features Delivered:**
+- Complete image restoration workflow with drag & drop upload
+- Model selection with 3 view modes (Original, Restored, Compare)
+- Real-time processing status with progress tracking
+- Image comparison viewer with side-by-side layout
+- Full restoration history with pagination
+- Download and delete functionality
+- Layout with header/footer visible on all pages
+- Responsive design (mobile, tablet, desktop)
+- sqowe brand styling throughout
+- Comprehensive error handling
 
 ---
 

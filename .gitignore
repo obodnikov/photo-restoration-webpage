@@ -62,6 +62,7 @@ coverage.xml
 tmp/
 temp/
 *.tmp
+*.bak
 
 # OS
 Thumbs.db
