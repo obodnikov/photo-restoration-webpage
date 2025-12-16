@@ -1,9 +1,9 @@
 /**
  * Layout component with Header and Footer
- * Provides consistent layout across all pages
+ * Provides consistent layout across all pages with mobile hamburger menu
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../services/authStore';
 
@@ -15,42 +15,65 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, clearAuth } = useAuthStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     clearAuth();
     navigate('/login');
+    setIsMobileMenuOpen(false);
   };
 
   const isActivePath = (path: string) => location.pathname === path;
+
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <div className="app-layout">
       <header className="app-header">
         <div className="container">
           <div className="header-content">
-            <Link to="/" className="header-logo">
+            <Link to="/" className="header-logo" onClick={closeMobileMenu}>
               <span className="logo-text">sqowe</span>
               <span className="logo-subtitle">Photo Restoration</span>
             </Link>
 
             {isAuthenticated && (
-              <nav className="header-nav">
-                <Link
-                  to="/"
-                  className={`nav-link ${isActivePath('/') ? 'active' : ''}`}
+              <>
+                <button
+                  className="mobile-menu-toggle"
+                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                  aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                  aria-expanded={isMobileMenuOpen}
                 >
-                  Home
-                </Link>
-                <Link
-                  to="/history"
-                  className={`nav-link ${isActivePath('/history') ? 'active' : ''}`}
-                >
-                  History
-                </Link>
-                <button onClick={handleLogout} className="btn btn-secondary btn-small">
-                  Logout
+                  <span className={`hamburger ${isMobileMenuOpen ? 'active' : ''}`}>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
                 </button>
-              </nav>
+
+                <nav className={`header-nav ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+                  <Link
+                    to="/"
+                    className={`nav-link ${isActivePath('/') ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    Home
+                  </Link>
+                  <Link
+                    to="/history"
+                    className={`nav-link ${isActivePath('/history') ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    History
+                  </Link>
+                  <button onClick={handleLogout} className="btn btn-secondary btn-small">
+                    Logout
+                  </button>
+                </nav>
+              </>
             )}
           </div>
         </div>
