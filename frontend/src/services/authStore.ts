@@ -12,6 +12,10 @@ import { persist } from 'zustand/middleware';
 import type { AuthState, User } from '../features/auth/types';
 
 interface AuthStore extends AuthState {
+  // Rehydration state
+  hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+
   // Actions
   setAuth: (token: string, expiresIn: number, user: User) => void;
   clearAuth: () => void;
@@ -30,10 +34,24 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       expiresAt: null,
+      hasHydrated: false,
+
+      // Set hydration state
+      setHasHydrated: (state: boolean) => {
+        set({ hasHydrated: state });
+      },
 
       // Set authentication state
       setAuth: (token: string, expiresIn: number, user: User) => {
         const expiresAt = Date.now() + expiresIn * 1000;
+
+        console.log('[authStore] setAuth called:', {
+          tokenLength: token.length,
+          expiresIn,
+          expiresAt,
+          expiresAtDate: new Date(expiresAt).toISOString(),
+          user,
+        });
 
         set({
           isAuthenticated: true,
@@ -41,6 +59,13 @@ export const useAuthStore = create<AuthStore>()(
           user,
           expiresAt,
         });
+
+        console.log('[authStore] State updated, checking localStorage...');
+        // Give persist middleware a moment to save, then check
+        setTimeout(() => {
+          const stored = localStorage.getItem('auth-storage');
+          console.log('[authStore] localStorage after setAuth:', stored);
+        }, 100);
 
         // Note: Zustand persist middleware handles localStorage automatically
         // No need to manually store - the persist middleware will sync this
@@ -116,8 +141,13 @@ export const useAuthStore = create<AuthStore>()(
               console.log('[authStore] Rehydrated token is expired, clearing...');
               state.clearAuth();
             }
+
+            // Mark that hydration is complete
+            state.setHasHydrated(true);
           } else {
             console.log('[authStore] No stored state to rehydrate');
+            // Still mark hydration as complete even if no state was found
+            useAuthStore.getState().setHasHydrated(true);
           }
         };
       },
