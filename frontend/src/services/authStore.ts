@@ -116,22 +116,30 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
-      // Only persist specific fields
+      // Only persist specific fields (do NOT persist hasHydrated)
       partialize: (state) => ({
         token: state.token,
         user: state.user,
         expiresAt: state.expiresAt,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Skip hydration check - load synchronously
+      skipHydration: false,
       // Handle rehydration from localStorage
       onRehydrateStorage: () => {
+        const rawStorage = localStorage.getItem('auth-storage');
         console.log('[authStore] Starting rehydration from localStorage...');
+        console.log('[authStore] Raw localStorage value:', rawStorage);
+
         return (state, error) => {
           if (error) {
             console.error('[authStore] Rehydration error:', error);
+            useAuthStore.getState().setHasHydrated(true);
           } else if (state) {
+            console.log('[authStore] Rehydrated state object:', state);
             console.log('[authStore] Rehydrated successfully:', {
               hasToken: !!state.token,
+              tokenPreview: state.token ? state.token.substring(0, 20) + '...' : 'null',
               isAuthenticated: state.isAuthenticated,
               expiresAt: state.expiresAt,
             });
@@ -145,7 +153,7 @@ export const useAuthStore = create<AuthStore>()(
             // Mark that hydration is complete
             state.setHasHydrated(true);
           } else {
-            console.log('[authStore] No stored state to rehydrate');
+            console.log('[authStore] No stored state to rehydrate (state is null/undefined)');
             // Still mark hydration as complete even if no state was found
             useAuthStore.getState().setHasHydrated(true);
           }
