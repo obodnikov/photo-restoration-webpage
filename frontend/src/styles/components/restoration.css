@@ -83,6 +83,10 @@
 
 .uploader-placeholder {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .uploader-icon {
@@ -102,6 +106,8 @@
   color: var(--color-text-secondary);
   margin: 0;
   text-align: center;
+  max-width: 100%;
+  width: 100%;
 }
 
 .uploader-preview {
