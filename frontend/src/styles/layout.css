@@ -115,12 +115,12 @@
 }
 
 /* Commented out - conflicts with shared.css header styles */
-/* .app-header {
+.app-header {
   background: var(--sqowe-dark-ground);
   color: white;
-  padding: var(--space-xl);
+  padding: var(--space-sm);
   text-align: center;
-} */
+} 
 
 .app-main {
   flex: 1;
