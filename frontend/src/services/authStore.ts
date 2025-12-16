@@ -98,40 +98,42 @@ export const useAuthStore = create<AuthStore>()(
         expiresAt: state.expiresAt,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Handle rehydration from localStorage
+      onRehydrateStorage: () => {
+        console.log('[authStore] Starting rehydration from localStorage...');
+        return (state, error) => {
+          if (error) {
+            console.error('[authStore] Rehydration error:', error);
+          } else if (state) {
+            console.log('[authStore] Rehydrated successfully:', {
+              hasToken: !!state.token,
+              isAuthenticated: state.isAuthenticated,
+              expiresAt: state.expiresAt,
+            });
+
+            // Check if rehydrated token is expired
+            if (state.token && state.expiresAt && Date.now() >= state.expiresAt) {
+              console.log('[authStore] Rehydrated token is expired, clearing...');
+              state.clearAuth();
+            }
+          } else {
+            console.log('[authStore] No stored state to rehydrate');
+          }
+        };
+      },
     }
   )
 );
 
 /**
  * Initialize auth store from localStorage on app start
- * Note: Zustand persist middleware automatically loads from localStorage,
- * but we still need to check if the loaded token is expired
+ * Note: Zustand persist middleware automatically loads from localStorage
+ * via the onRehydrateStorage callback above
  */
 export function initializeAuthStore() {
-  console.log('[authStore] Initializing auth store...');
-
-  // Zustand persist middleware has already loaded the state
-  const state = useAuthStore.getState();
-
-  console.log('[authStore] Current state:', {
-    isAuthenticated: state.isAuthenticated,
-    hasToken: !!state.token,
-    expiresAt: state.expiresAt,
-    isExpired: state.isTokenExpired(),
-  });
-
-  // Check if loaded token is expired
-  if (state.token && state.expiresAt && Date.now() >= state.expiresAt) {
-    console.log('[authStore] Stored token is expired, clearing auth...');
-    state.clearAuth();
-    return;
-  }
-
-  if (state.token) {
-    console.log('[authStore] Auth state loaded successfully from localStorage');
-  } else {
-    console.log('[authStore] No auth state in localStorage');
-  }
+  console.log('[authStore] Auth store initialization triggered');
+  // The actual rehydration is handled by Zustand persist middleware
+  // See onRehydrateStorage callback in the store definition above
 }
 
 /**
