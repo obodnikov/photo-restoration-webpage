@@ -77,6 +77,13 @@ export function useImageRestore(): UseImageRestoreResult {
 
       if (err.status === 400) {
         errorMessage = err.message || 'Invalid image file or parameters.';
+      } else if (err.status === 404) {
+        // Session not found - likely expired or cleared
+        if (err.message && err.message.includes('Session not found')) {
+          errorMessage = 'Your session has expired. Please log out and log back in.';
+        } else {
+          errorMessage = err.message || 'Resource not found.';
+        }
       } else if (err.status === 413) {
         errorMessage = 'Image file is too large. Maximum size is 10MB.';
       } else if (err.status === 422) {
