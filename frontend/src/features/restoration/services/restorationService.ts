@@ -22,12 +22,13 @@ export async function restoreImage(
   modelId: string,
   onProgress?: UploadProgressCallback
 ): Promise<RestoreResponse> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('model_id', modelId);
+  // Backend expects:
+  // - file: UploadFile (multipart/form-data)
+  // - model_id: Form field (multipart/form-data)
+  // So we need to send everything as FormData, not in query params
+  const endpoint = `/restore`;
 
-  // Use uploadFile with multipart/form-data
-  const endpoint = `/restore?model_id=${encodeURIComponent(modelId)}`;
-
-  return uploadFile<RestoreResponse>(endpoint, file, onProgress);
+  // uploadFile handles creating FormData with the file
+  // but we need to also send model_id as a form field
+  return uploadFile<RestoreResponse>(endpoint, file, onProgress, { modelId });
 }

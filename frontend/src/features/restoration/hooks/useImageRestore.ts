@@ -65,6 +65,12 @@ export function useImageRestore(): UseImageRestoreResult {
       setProgress(100);
     } catch (err: any) {
       console.error('Restoration error:', err);
+      console.error('Error details:', {
+        status: err.status,
+        statusText: err.statusText,
+        message: err.message,
+        fullError: JSON.stringify(err, null, 2)
+      });
 
       // Map backend errors to user-friendly messages
       let errorMessage = 'Failed to process image. Please try again.';
@@ -73,6 +79,9 @@ export function useImageRestore(): UseImageRestoreResult {
         errorMessage = err.message || 'Invalid image file or parameters.';
       } else if (err.status === 413) {
         errorMessage = 'Image file is too large. Maximum size is 10MB.';
+      } else if (err.status === 422) {
+        // Unprocessable Entity - validation error
+        errorMessage = err.message || 'Invalid request. Please check the file and model selection.';
       } else if (err.status === 503) {
         errorMessage = 'AI service is temporarily unavailable. Please try again later.';
       } else if (err.status === 504) {

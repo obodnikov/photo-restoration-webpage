@@ -213,9 +213,9 @@ export async function uploadFile<T>(
   endpoint: string,
   file: File,
   onProgress?: (progress: number) => void,
-  options?: RequestOptions
+  options?: RequestOptions & { modelId?: string }
 ): Promise<T> {
-  const { requiresAuth = true } = options || {};
+  const { requiresAuth = true, modelId } = options || {};
 
   const authState = useAuthStore.getState();
   const token = authState.token;
@@ -294,6 +294,11 @@ export async function uploadFile<T>(
     // Prepare and send request
     const formData = new FormData();
     formData.append('file', file);
+
+    // Add model_id if provided (required by restoration endpoint)
+    if (modelId) {
+      formData.append('model_id', modelId);
+    }
 
     xhr.open('POST', url);
 
