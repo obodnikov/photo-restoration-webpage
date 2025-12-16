@@ -66,10 +66,11 @@ class HFInferenceService:
         if not self.api_key:
             raise ValueError("HuggingFace API key is required")
 
-        # Initialize InferenceClient with provider="auto"
+        # Initialize InferenceClient
+        # Note: Don't use provider="auto" as it causes StopIteration for some models
+        # Let the library use the default HuggingFace Inference API
         self.client = InferenceClient(
-            provider="auto",
-            api_key=self.api_key,
+            token=self.api_key,
         )
 
     def _get_model_url(self, model_path: str) -> str:
@@ -125,45 +126,39 @@ class HFInferenceService:
             input_image = Image.open(io.BytesIO(image_bytes))
             logger.info(f"Input image: {input_image.format}, {input_image.size}, {input_image.mode}")
 
+            # Helper function to call InferenceClient synchronously
+            def call_inference():
+                try:
+                    if model_category == "enhance":
+                        # For enhancement models (like Qwen), use image_to_image with prompt
+                        prompt = request_params.get("prompt", "enhance details, remove noise and artifacts")
+                        logger.info(f"Using image_to_image with prompt: {prompt}")
+                        return self.client.image_to_image(
+                            input_image,
+                            prompt=prompt,
+                            model=model_path,
+                        )
+                    elif model_category == "upscale":
+                        # For upscaling models (like Swin2SR), use image_to_image without prompt
+                        logger.info(f"Using image_to_image for upscaling")
+                        return self.client.image_to_image(
+                            input_image,
+                            model=model_path,
+                        )
+                    else:
+                        # Default: try image_to_image
+                        logger.info(f"Using image_to_image (default)")
+                        return self.client.image_to_image(
+                            input_image,
+                            model=model_path,
+                        )
+                except StopIteration as e:
+                    # Convert StopIteration to a regular exception
+                    raise RuntimeError(f"Inference call failed with StopIteration: {e}")
+
             # Run inference in executor to avoid blocking async loop
             loop = asyncio.get_event_loop()
-
-            # Use appropriate method based on model category
-            if model_category == "enhance":
-                # For enhancement models (like Qwen), use image_to_image with prompt
-                prompt = request_params.get("prompt", "enhance details, remove noise and artifacts")
-                logger.info(f"Using image_to_image with prompt: {prompt}")
-
-                output_image = await loop.run_in_executor(
-                    None,
-                    lambda: self.client.image_to_image(
-                        input_image,
-                        prompt=prompt,
-                        model=model_path,
-                    )
-                )
-            elif model_category == "upscale":
-                # For upscaling models (like Swin2SR), use image_to_image without prompt
-                logger.info(f"Using image_to_image for upscaling")
-
-                output_image = await loop.run_in_executor(
-                    None,
-                    lambda: self.client.image_to_image(
-                        input_image,
-                        model=model_path,
-                    )
-                )
-            else:
-                # Default: try image_to_image
-                logger.info(f"Using image_to_image (default)")
-
-                output_image = await loop.run_in_executor(
-                    None,
-                    lambda: self.client.image_to_image(
-                        input_image,
-                        model=model_path,
-                    )
-                )
+            output_image = await loop.run_in_executor(None, call_inference)
 
             # Convert PIL Image back to bytes
             output_bytes = io.BytesIO()
