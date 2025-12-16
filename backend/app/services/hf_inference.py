@@ -122,11 +122,12 @@ class HFInferenceService:
         logger.info(f"Processing image with model: {model_path}, category: {model_category}")
 
         try:
-            # Convert bytes to PIL Image for InferenceClient
+            # Validate input image (just for logging)
             input_image = Image.open(io.BytesIO(image_bytes))
             logger.info(f"Input image: {input_image.format}, {input_image.size}, {input_image.mode}")
 
             # Helper function to call InferenceClient synchronously
+            # Note: InferenceClient expects bytes, not PIL Image!
             def call_inference():
                 try:
                     if model_category == "enhance":
@@ -134,7 +135,7 @@ class HFInferenceService:
                         prompt = request_params.get("prompt", "enhance details, remove noise and artifacts")
                         logger.info(f"Using image_to_image with prompt: {prompt}")
                         return self.client.image_to_image(
-                            input_image,
+                            image_bytes,  # Use bytes, not PIL Image
                             prompt=prompt,
                             model=model_path,
                         )
@@ -142,14 +143,14 @@ class HFInferenceService:
                         # For upscaling models (like Swin2SR), use image_to_image without prompt
                         logger.info(f"Using image_to_image for upscaling")
                         return self.client.image_to_image(
-                            input_image,
+                            image_bytes,  # Use bytes, not PIL Image
                             model=model_path,
                         )
                     else:
                         # Default: try image_to_image
                         logger.info(f"Using image_to_image (default)")
                         return self.client.image_to_image(
-                            input_image,
+                            image_bytes,  # Use bytes, not PIL Image
                             model=model_path,
                         )
                 except StopIteration as e:
@@ -160,14 +161,18 @@ class HFInferenceService:
             loop = asyncio.get_event_loop()
             output_image = await loop.run_in_executor(None, call_inference)
 
-            # Convert PIL Image back to bytes
-            output_bytes = io.BytesIO()
-            output_format = input_image.format or "PNG"
-            output_image.save(output_bytes, format=output_format)
-            output_bytes.seek(0)
-
-            logger.info(f"Successfully processed image with {model_path}")
-            return output_bytes.read()
+            # InferenceClient returns a PIL Image, convert to bytes
+            if isinstance(output_image, Image.Image):
+                output_bytes = io.BytesIO()
+                output_format = input_image.format or "PNG"
+                output_image.save(output_bytes, format=output_format)
+                output_bytes.seek(0)
+                logger.info(f"Successfully processed image with {model_path}")
+                return output_bytes.read()
+            else:
+                # If it's already bytes, return as-is
+                logger.info(f"Successfully processed image with {model_path} (returned as bytes)")
+                return output_image
 
         except Exception as e:
             error_msg = str(e).lower()
