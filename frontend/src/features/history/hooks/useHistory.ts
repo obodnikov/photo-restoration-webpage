@@ -34,13 +34,32 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
       setError(null);
 
       const offset = (currentPage - 1) * pageSize;
+      console.log('[useHistory] Loading history:', { pageSize, offset, currentPage });
+
       const response = await fetchHistory(pageSize, offset);
 
+      console.log('[useHistory] History loaded successfully:', {
+        itemCount: response.items.length,
+        total: response.total
+      });
       setItems(response.items);
       setTotal(response.total);
     } catch (err: any) {
-      console.error('Error loading history:', err);
-      setError('Failed to load history. Please try again.');
+      console.error('[useHistory] Error loading history:', err);
+      console.error('[useHistory] Error details:', {
+        message: err.message,
+        status: err.status,
+        name: err.name,
+      });
+
+      // Provide more specific error messages
+      if (err.status === 401) {
+        setError('Authentication failed. Please log in again.');
+      } else if (err.message && err.message.includes('Authentication')) {
+        setError('Authentication required. Please log in again.');
+      } else {
+        setError('Failed to load history. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

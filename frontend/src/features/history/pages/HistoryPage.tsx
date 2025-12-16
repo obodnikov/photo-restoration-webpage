@@ -21,11 +21,17 @@ export const HistoryPage: React.FC = () => {
     pageSize,
     changePage,
     removeItem,
+    loadHistory,
   } = useHistory(20);
 
   const [viewingItem, setViewingItem] = useState<HistoryItem | null>(null);
   const [viewMode, setViewMode] = useState<ImageViewMode>('both');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Log when component mounts to help with debugging
+  React.useEffect(() => {
+    console.log('[HistoryPage] Component mounted');
+  }, []);
 
   const handleView = (item: HistoryItem) => {
     setViewingItem(item);
@@ -86,6 +92,11 @@ export const HistoryPage: React.FC = () => {
           <ErrorMessage
             message={error}
             title="History Error"
+            onClose={() => {
+              // Allow user to retry loading history
+              console.log('[HistoryPage] Retrying history load after error');
+              loadHistory();
+            }}
           />
         )}
 
