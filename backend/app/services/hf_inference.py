@@ -5,12 +5,19 @@ This module provides integration with HuggingFace's Inference API
 for image processing tasks such as upscaling and enhancement.
 """
 import asyncio
+import io
+import logging
 from typing import Any
 
 import httpx
 from fastapi import HTTPException, status
+from huggingface_hub import InferenceClient
+from PIL import Image
 
 from app.core.config import Settings, get_settings
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class HFInferenceError(Exception):
@@ -54,11 +61,16 @@ class HFInferenceService:
         """
         self.settings = settings or get_settings()
         self.api_key = self.settings.hf_api_key
-        self.api_url = self.settings.hf_api_url
         self.timeout = self.settings.hf_api_timeout
 
         if not self.api_key:
             raise ValueError("HuggingFace API key is required")
+
+        # Initialize InferenceClient with provider="auto"
+        self.client = InferenceClient(
+            provider="auto",
+            api_key=self.api_key,
+        )
 
     def _get_model_url(self, model_path: str) -> str:
         """
@@ -101,82 +113,89 @@ class HFInferenceService:
             raise HFModelError(f"Model '{model_id}' not found in configuration")
 
         model_path = model_config["model"]
-        model_url = self._get_model_url(model_path)
+        model_category = model_config.get("category", "enhance")
 
-        # Prepare headers
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/octet-stream",
-        }
-
-        # Prepare parameters if any
+        # Get model parameters
         request_params = parameters or model_config.get("parameters", {})
 
+        logger.info(f"Processing image with model: {model_path}, category: {model_category}")
+
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(
-                    model_url,
-                    headers=headers,
-                    content=image_bytes,
-                    params=request_params if request_params else None,
+            # Convert bytes to PIL Image for InferenceClient
+            input_image = Image.open(io.BytesIO(image_bytes))
+            logger.info(f"Input image: {input_image.format}, {input_image.size}, {input_image.mode}")
+
+            # Run inference in executor to avoid blocking async loop
+            loop = asyncio.get_event_loop()
+
+            # Use appropriate method based on model category
+            if model_category == "enhance":
+                # For enhancement models (like Qwen), use image_to_image with prompt
+                prompt = request_params.get("prompt", "enhance details, remove noise and artifacts")
+                logger.info(f"Using image_to_image with prompt: {prompt}")
+
+                output_image = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.image_to_image(
+                        input_image,
+                        prompt=prompt,
+                        model=model_path,
+                    )
+                )
+            elif model_category == "upscale":
+                # For upscaling models (like Swin2SR), use image_to_image without prompt
+                logger.info(f"Using image_to_image for upscaling")
+
+                output_image = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.image_to_image(
+                        input_image,
+                        model=model_path,
+                    )
+                )
+            else:
+                # Default: try image_to_image
+                logger.info(f"Using image_to_image (default)")
+
+                output_image = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.image_to_image(
+                        input_image,
+                        model=model_path,
+                    )
                 )
 
-                # Handle different response status codes
-                if response.status_code == 200:
-                    # Validate response is actually an image
-                    content_type = response.headers.get("content-type", "")
-                    if not content_type.startswith("image/"):
-                        # Some models return JSON with error
-                        try:
-                            error_data = response.json()
-                            error_msg = error_data.get("error", "Invalid response from model")
-                            raise HFInferenceError(f"Model returned error: {error_msg}")
-                        except Exception:
-                            raise HFInferenceError("Model did not return a valid image")
+            # Convert PIL Image back to bytes
+            output_bytes = io.BytesIO()
+            output_format = input_image.format or "PNG"
+            output_image.save(output_bytes, format=output_format)
+            output_bytes.seek(0)
 
-                    return response.content
+            logger.info(f"Successfully processed image with {model_path}")
+            return output_bytes.read()
 
-                elif response.status_code == 429:
-                    # Rate limit exceeded
-                    raise HFRateLimitError("HuggingFace API rate limit exceeded")
+        except Exception as e:
+            error_msg = str(e).lower()
+            logger.error(f"HuggingFace API error: {e}", exc_info=True)
 
-                elif response.status_code == 503:
-                    # Model loading or unavailable
-                    try:
-                        error_data = response.json()
-                        estimated_time = error_data.get("estimated_time", "unknown")
-                        raise HFModelError(
-                            f"Model is loading. Estimated time: {estimated_time}s"
-                        )
-                    except Exception:
-                        raise HFModelError("Model is currently unavailable")
-
-                elif response.status_code == 404:
-                    raise HFModelError(f"Model '{model_path}' not found on HuggingFace")
-
-                elif response.status_code >= 500:
-                    # Server error
-                    raise HFInferenceError(
-                        f"HuggingFace API server error: {response.status_code}"
-                    )
-
-                else:
-                    # Other errors
-                    try:
-                        error_data = response.json()
-                        error_msg = error_data.get("error", f"HTTP {response.status_code}")
-                        raise HFInferenceError(f"HuggingFace API error: {error_msg}")
-                    except Exception:
-                        raise HFInferenceError(
-                            f"HuggingFace API error: HTTP {response.status_code}"
-                        )
-
-        except httpx.TimeoutException:
-            raise HFTimeoutError(
-                f"Request to HuggingFace API timed out after {self.timeout}s"
-            )
-        except httpx.RequestError as e:
-            raise HFInferenceError(f"Failed to connect to HuggingFace API: {str(e)}")
+            # Map common errors
+            if "rate limit" in error_msg or "429" in error_msg:
+                raise HFRateLimitError("HuggingFace API rate limit exceeded")
+            elif "timeout" in error_msg:
+                raise HFTimeoutError(
+                    f"Request to HuggingFace API timed out after {self.timeout}s"
+                )
+            elif "not found" in error_msg or "404" in error_msg:
+                raise HFModelError(f"Model '{model_path}' not found on HuggingFace")
+            elif "loading" in error_msg or "503" in error_msg:
+                raise HFModelError(f"Model '{model_path}' is still loading. Please try again in a moment.")
+            elif "410" in error_msg or "gone" in error_msg:
+                raise HFModelError(
+                    f"Model '{model_path}' is not available via Inference API. "
+                    f"This model may require a dedicated endpoint or local deployment."
+                )
+            else:
+                raise HFInferenceError(f"HuggingFace API error: {str(e)}")
 
     async def check_model_status(self, model_id: str) -> dict[str, Any]:
         """
