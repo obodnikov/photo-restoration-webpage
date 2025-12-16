@@ -34,6 +34,15 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
       setError(null);
 
       const offset = (currentPage - 1) * pageSize;
+
+      // Debug: Check localStorage
+      console.log('[useHistory] localStorage check:', {
+        token: localStorage.getItem('photo_restoration_token'),
+        tokenExpiry: localStorage.getItem('photo_restoration_token_expiry'),
+        user: localStorage.getItem('photo_restoration_user'),
+        authStorage: localStorage.getItem('auth-storage'),
+      });
+
       console.log('[useHistory] Loading history:', { pageSize, offset, currentPage });
 
       const response = await fetchHistory(pageSize, offset);
