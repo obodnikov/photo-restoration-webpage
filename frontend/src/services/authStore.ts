@@ -11,10 +11,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthState, User } from '../features/auth/types';
 
-const TOKEN_STORAGE_KEY = 'photo_restoration_token';
-const TOKEN_EXPIRY_KEY = 'photo_restoration_token_expiry';
-const USER_STORAGE_KEY = 'photo_restoration_user';
-
 interface AuthStore extends AuthState {
   // Actions
   setAuth: (token: string, expiresIn: number, user: User) => void;
@@ -46,10 +42,8 @@ export const useAuthStore = create<AuthStore>()(
           expiresAt,
         });
 
-        // Store in localStorage
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        localStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt.toString());
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        // Note: Zustand persist middleware handles localStorage automatically
+        // No need to manually store - the persist middleware will sync this
       },
 
       // Clear authentication state (logout)
@@ -61,10 +55,8 @@ export const useAuthStore = create<AuthStore>()(
           expiresAt: null,
         });
 
-        // Clear from localStorage
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
+        // Note: Zustand persist middleware handles localStorage automatically
+        // The persist middleware will clear the storage when state is set to null
       },
 
       // Check if token is expired and auto-logout if necessary
@@ -112,32 +104,34 @@ export const useAuthStore = create<AuthStore>()(
 
 /**
  * Initialize auth store from localStorage on app start
+ * Note: Zustand persist middleware automatically loads from localStorage,
+ * but we still need to check if the loaded token is expired
  */
 export function initializeAuthStore() {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
-  const userStr = localStorage.getItem(USER_STORAGE_KEY);
+  console.log('[authStore] Initializing auth store...');
 
-  if (!token || !expiryStr || !userStr) {
-    useAuthStore.getState().clearAuth();
+  // Zustand persist middleware has already loaded the state
+  const state = useAuthStore.getState();
+
+  console.log('[authStore] Current state:', {
+    isAuthenticated: state.isAuthenticated,
+    hasToken: !!state.token,
+    expiresAt: state.expiresAt,
+    isExpired: state.isTokenExpired(),
+  });
+
+  // Check if loaded token is expired
+  if (state.token && state.expiresAt && Date.now() >= state.expiresAt) {
+    console.log('[authStore] Stored token is expired, clearing auth...');
+    state.clearAuth();
     return;
   }
 
-  const expiresAt = parseInt(expiryStr, 10);
-  const user = JSON.parse(userStr);
-
-  // Check if token is expired
-  if (Date.now() >= expiresAt) {
-    console.log('Stored token is expired, clearing auth...');
-    useAuthStore.getState().clearAuth();
-    return;
+  if (state.token) {
+    console.log('[authStore] Auth state loaded successfully from localStorage');
+  } else {
+    console.log('[authStore] No auth state in localStorage');
   }
-
-  // Restore auth state
-  const expiresIn = Math.floor((expiresAt - Date.now()) / 1000);
-  useAuthStore.getState().setAuth(token, expiresIn, user);
-
-  console.log('Auth state restored from localStorage');
 }
 
 /**
