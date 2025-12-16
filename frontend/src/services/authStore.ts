@@ -73,6 +73,9 @@ export const useAuthStore = create<AuthStore>()(
 
       // Clear authentication state (logout)
       clearAuth: () => {
+        console.log('[authStore] clearAuth called!');
+        console.trace('[authStore] clearAuth stack trace:');
+
         set({
           isAuthenticated: false,
           token: null,
@@ -80,8 +83,7 @@ export const useAuthStore = create<AuthStore>()(
           expiresAt: null,
         });
 
-        // Note: Zustand persist middleware handles localStorage automatically
-        // The persist middleware will clear the storage when state is set to null
+        console.log('[authStore] Auth cleared, localStorage will be updated by persist middleware');
       },
 
       // Check if token is expired and auto-logout if necessary
