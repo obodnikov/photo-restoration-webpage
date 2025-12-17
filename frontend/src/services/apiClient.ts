@@ -64,23 +64,46 @@ async function request<T>(
 
   // Add auth token if required
   if (requiresAuth) {
-    const token = useAuthStore.getState().token;
+    const authState = useAuthStore.getState();
+    const token = authState.token;
+
+    // Log BEFORE any redirects
+    const debugInfo = {
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      isAuthenticated: authState.isAuthenticated,
+      expiresAt: authState.expiresAt,
+      expiresAtDate: authState.expiresAt ? new Date(authState.expiresAt).toISOString() : 'null',
+      now: Date.now(),
+      nowDate: new Date().toISOString(),
+      isExpired: authState.isTokenExpired(),
+      endpoint,
+    };
+
+    console.log('[API Client] Auth check:', debugInfo);
+
+    // Store in sessionStorage so we can see it even after redirect
+    sessionStorage.setItem('last_auth_check', JSON.stringify(debugInfo));
 
     if (!token) {
       // No token available, redirect to login
+      console.error('[API Client] No token available, redirecting to login');
+      alert('DEBUG: No token found. Check sessionStorage for last_auth_check');
       window.location.href = '/login';
       throw new Error('Authentication required');
     }
 
     // Check if token is expired
-    if (useAuthStore.getState().isTokenExpired()) {
-      console.log('Token expired, redirecting to login...');
-      useAuthStore.getState().clearAuth();
+    if (authState.isTokenExpired()) {
+      console.error('[API Client] Token expired, redirecting to login...');
+      alert('DEBUG: Token expired. Check sessionStorage for last_auth_check');
+      authState.clearAuth();
       window.location.href = '/login';
       throw new Error('Token expired');
     }
 
     requestHeaders['Authorization'] = `Bearer ${token}`;
+    console.log('[API Client] Added Authorization header for endpoint:', endpoint);
   }
 
   // Make request
@@ -190,19 +213,29 @@ export async function uploadFile<T>(
   endpoint: string,
   file: File,
   onProgress?: (progress: number) => void,
-  options?: RequestOptions
+  options?: RequestOptions & { modelId?: string }
 ): Promise<T> {
-  const { requiresAuth = true } = options || {};
+  const { requiresAuth = true, modelId } = options || {};
 
-  const token = useAuthStore.getState().token;
+  const authState = useAuthStore.getState();
+  const token = authState.token;
+
+  console.log('[Upload File] Auth check:', {
+    hasToken: !!token,
+    isAuthenticated: authState.isAuthenticated,
+    isExpired: authState.isTokenExpired(),
+    endpoint,
+  });
 
   if (requiresAuth && !token) {
+    console.error('[Upload File] No token available');
     window.location.href = '/login';
     throw new Error('Authentication required');
   }
 
-  if (requiresAuth && useAuthStore.getState().isTokenExpired()) {
-    useAuthStore.getState().clearAuth();
+  if (requiresAuth && authState.isTokenExpired()) {
+    console.error('[Upload File] Token expired');
+    authState.clearAuth();
     window.location.href = '/login';
     throw new Error('Token expired');
   }
@@ -261,6 +294,11 @@ export async function uploadFile<T>(
     // Prepare and send request
     const formData = new FormData();
     formData.append('file', file);
+
+    // Add model_id if provided (required by restoration endpoint)
+    if (modelId) {
+      formData.append('model_id', modelId);
+    }
 
     xhr.open('POST', url);
 

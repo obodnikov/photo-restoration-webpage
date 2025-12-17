@@ -11,6 +11,9 @@ python-dotenv==1.0.0
 # Async HTTP client for HuggingFace API
 httpx==0.28.1
 
+# HuggingFace Hub for Inference API
+huggingface-hub>=1.2.3
+
 # Image processing
 Pillow==10.4.0
 

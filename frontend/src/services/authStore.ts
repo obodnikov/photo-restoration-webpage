@@ -11,11 +11,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthState, User } from '../features/auth/types';
 
-const TOKEN_STORAGE_KEY = 'photo_restoration_token';
-const TOKEN_EXPIRY_KEY = 'photo_restoration_token_expiry';
-const USER_STORAGE_KEY = 'photo_restoration_user';
-
 interface AuthStore extends AuthState {
+  // Rehydration state
+  hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+
   // Actions
   setAuth: (token: string, expiresIn: number, user: User) => void;
   clearAuth: () => void;
@@ -34,10 +34,24 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       expiresAt: null,
+      hasHydrated: false,
+
+      // Set hydration state
+      setHasHydrated: (state: boolean) => {
+        set({ hasHydrated: state });
+      },
 
       // Set authentication state
       setAuth: (token: string, expiresIn: number, user: User) => {
         const expiresAt = Date.now() + expiresIn * 1000;
+
+        console.log('[authStore] setAuth called:', {
+          tokenLength: token.length,
+          expiresIn,
+          expiresAt,
+          expiresAtDate: new Date(expiresAt).toISOString(),
+          user,
+        });
 
         set({
           isAuthenticated: true,
@@ -46,14 +60,22 @@ export const useAuthStore = create<AuthStore>()(
           expiresAt,
         });
 
-        // Store in localStorage
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        localStorage.setItem(TOKEN_EXPIRY_KEY, expiresAt.toString());
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        console.log('[authStore] State updated, checking localStorage...');
+        // Give persist middleware a moment to save, then check
+        setTimeout(() => {
+          const stored = localStorage.getItem('auth-storage');
+          console.log('[authStore] localStorage after setAuth:', stored);
+        }, 100);
+
+        // Note: Zustand persist middleware handles localStorage automatically
+        // No need to manually store - the persist middleware will sync this
       },
 
       // Clear authentication state (logout)
       clearAuth: () => {
+        console.log('[authStore] clearAuth called!');
+        console.trace('[authStore] clearAuth stack trace:');
+
         set({
           isAuthenticated: false,
           token: null,
@@ -61,10 +83,7 @@ export const useAuthStore = create<AuthStore>()(
           expiresAt: null,
         });
 
-        // Clear from localStorage
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
+        console.log('[authStore] Auth cleared, localStorage will be updated by persist middleware');
       },
 
       // Check if token is expired and auto-logout if necessary
@@ -99,45 +118,62 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
-      // Only persist specific fields
+      // Only persist specific fields (do NOT persist hasHydrated)
       partialize: (state) => ({
         token: state.token,
         user: state.user,
         expiresAt: state.expiresAt,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Skip hydration check - load synchronously
+      skipHydration: false,
+      // Handle rehydration from localStorage
+      onRehydrateStorage: () => {
+        const rawStorage = localStorage.getItem('auth-storage');
+        console.log('[authStore] Starting rehydration from localStorage...');
+        console.log('[authStore] Raw localStorage value:', rawStorage);
+
+        return (state, error) => {
+          if (error) {
+            console.error('[authStore] Rehydration error:', error);
+            useAuthStore.getState().setHasHydrated(true);
+          } else if (state) {
+            console.log('[authStore] Rehydrated state object:', state);
+            console.log('[authStore] Rehydrated successfully:', {
+              hasToken: !!state.token,
+              tokenPreview: state.token ? state.token.substring(0, 20) + '...' : 'null',
+              isAuthenticated: state.isAuthenticated,
+              expiresAt: state.expiresAt,
+            });
+
+            // Check if rehydrated token is expired
+            if (state.token && state.expiresAt && Date.now() >= state.expiresAt) {
+              console.log('[authStore] Rehydrated token is expired, clearing...');
+              state.clearAuth();
+            }
+
+            // Mark that hydration is complete
+            state.setHasHydrated(true);
+          } else {
+            console.log('[authStore] No stored state to rehydrate (state is null/undefined)');
+            // Still mark hydration as complete even if no state was found
+            useAuthStore.getState().setHasHydrated(true);
+          }
+        };
+      },
     }
   )
 );
 
 /**
  * Initialize auth store from localStorage on app start
+ * Note: Zustand persist middleware automatically loads from localStorage
+ * via the onRehydrateStorage callback above
  */
 export function initializeAuthStore() {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
-  const userStr = localStorage.getItem(USER_STORAGE_KEY);
-
-  if (!token || !expiryStr || !userStr) {
-    useAuthStore.getState().clearAuth();
-    return;
-  }
-
-  const expiresAt = parseInt(expiryStr, 10);
-  const user = JSON.parse(userStr);
-
-  // Check if token is expired
-  if (Date.now() >= expiresAt) {
-    console.log('Stored token is expired, clearing auth...');
-    useAuthStore.getState().clearAuth();
-    return;
-  }
-
-  // Restore auth state
-  const expiresIn = Math.floor((expiresAt - Date.now()) / 1000);
-  useAuthStore.getState().setAuth(token, expiresIn, user);
-
-  console.log('Auth state restored from localStorage');
+  console.log('[authStore] Auth store initialization triggered');
+  // The actual rehydration is handled by Zustand persist middleware
+  // See onRehydrateStorage callback in the store definition above
 }
 
 /**
