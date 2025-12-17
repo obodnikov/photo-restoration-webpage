@@ -762,7 +762,7 @@ MODELS_CONFIG=[
   - [x] Add detailed schema documentation with provider field
   - [x] Add example Replicate model (flux-kontext-apps/restore-image)
 - [x] Dependencies
-  - [x] Add `replicate==1.7.0` to requirements.txt
+  - [x] Add `replicate==1.0.7` to requirements.txt
 
 **Initial Replicate Model:**
 - [x] flux-kontext-apps/restore-image
