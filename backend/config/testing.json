@@ -1,0 +1,68 @@
+{
+  "application": {
+    "name": "Photo Restoration API - Test",
+    "version": "1.8.2",
+    "debug": true,
+    "log_level": "DEBUG"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 1
+  },
+  "cors": {
+    "origins": ["*"]
+  },
+  "security": {
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 60,
+    "remember_me_expire_days": 1
+  },
+  "api_providers": {
+    "huggingface": {
+      "api_url": "https://api-inference.huggingface.co/models",
+      "timeout_seconds": 30
+    },
+    "replicate": {
+      "timeout_seconds": 30
+    }
+  },
+  "models": [
+    {
+      "id": "test-model",
+      "name": "Test Model",
+      "model": "test/model",
+      "provider": "huggingface",
+      "category": "test",
+      "description": "Test model for unit tests",
+      "enabled": true,
+      "parameters": {},
+      "tags": ["test"],
+      "version": "1.0"
+    }
+  ],
+  "models_api": {
+    "require_auth": false,
+    "cache_ttl_seconds": 0
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///:memory:",
+    "echo_sql": false
+  },
+  "file_storage": {
+    "upload_dir": "./test_data/uploads",
+    "processed_dir": "./test_data/processed",
+    "max_upload_size_mb": 5,
+    "allowed_extensions": [".jpg", ".jpeg", ".png"],
+    "image_quality": 85
+  },
+  "session": {
+    "cleanup_hours": 1,
+    "cleanup_interval_hours": 24,
+    "max_age_hours": 2
+  },
+  "processing": {
+    "max_concurrent_uploads_per_session": 1,
+    "queue_size": 10
+  }
+}

@@ -1,14 +1,98 @@
-"""Application configuration using Pydantic BaseSettings."""
+"""Application configuration using Pydantic BaseSettings with JSON config file support."""
 import json
+import logging
+import warnings
 from pathlib import Path
 from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.config_schema import ConfigFile
+
+logger = logging.getLogger(__name__)
+
+
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """
+    Deep merge two dictionaries.
+
+    Args:
+        base: Base dictionary
+        override: Dictionary with override values
+
+    Returns:
+        Merged dictionary (base is not modified)
+    """
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_json_config(config_path: Path) -> dict[str, Any]:
+    """
+    Load and parse JSON configuration file.
+
+    Args:
+        config_path: Path to JSON config file
+
+    Returns:
+        Parsed configuration dictionary
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        json.JSONDecodeError: If config file is invalid JSON
+    """
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
+    """
+    Load configuration from JSON files based on environment.
+
+    Loading priority (lowest to highest):
+    1. config/default.json (base configuration)
+    2. config/{app_env}.json (environment-specific overrides)
+
+    Args:
+        app_env: Application environment (development, production, staging, testing)
+
+    Returns:
+        Merged configuration dictionary
+    """
+    config_dir = Path(__file__).parent.parent.parent / "config"
+
+    # Load default config
+    default_config_path = config_dir / "default.json"
+    if not default_config_path.exists():
+        logger.warning(f"Default config not found: {default_config_path}")
+        return {}
+
+    config = load_json_config(default_config_path)
+    logger.info(f"Loaded default config from {default_config_path}")
+
+    # Load environment-specific config
+    env_config_path = config_dir / f"{app_env}.json"
+    if env_config_path.exists():
+        env_config = load_json_config(env_config_path)
+        config = deep_merge(config, env_config)
+        logger.info(f"Loaded {app_env} config from {env_config_path}")
+    else:
+        logger.info(f"No environment-specific config found at {env_config_path}, using defaults only")
+
+    return config
+
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Application settings loaded from environment variables and config files."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -17,9 +101,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Environment selection
+    app_env: str = "development"
+
+    # ===== SECRETS (from .env only) =====
+    # These should NEVER be in config files, only in .env
+    hf_api_key: str = ""
+    replicate_api_token: str = ""
+    secret_key: str = "CHANGE_THIS_TO_A_SECURE_RANDOM_SECRET_KEY"
+    auth_username: str = "admin"
+    auth_password: str = "changeme"
+
+    # ===== CONFIGURATION (from JSON files + .env overrides) =====
     # Application
     app_name: str = "Photo Restoration API"
-    app_version: str = "1.0.0"
+    app_version: str = "1.8.2"
     debug: bool = False
 
     # Server
@@ -31,47 +127,27 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost"]
 
     # Security
-    secret_key: str = "CHANGE_THIS_TO_A_SECURE_RANDOM_SECRET_KEY"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24 hours
 
-    # Simple auth for MVP (username:password in env)
-    auth_username: str = "admin"
-    auth_password: str = "changeme"
-
     # HuggingFace
-    hf_api_key: str = ""
     hf_api_timeout: int = 60
     hf_api_url: str = "https://api-inference.huggingface.co/models"
 
-    # Replicate
-    replicate_api_token: str = ""
+    # Replicate (API token is secret, loaded from .env)
+    replicate_api_timeout: int = 120
 
-    # Models configuration (JSON string)
+    # Models configuration (JSON string - DEPRECATED, use config files instead)
     models_config: str = """[
         {
             "id": "swin2sr-2x",
             "name": "Swin2SR 2x Upscale",
             "model": "caidas/swin2SR-classical-sr-x2-64",
+            "provider": "huggingface",
             "category": "upscale",
             "description": "Fast 2x upscaling",
+            "enabled": true,
             "parameters": {"scale": 2}
-        },
-        {
-            "id": "swin2sr-4x",
-            "name": "Swin2SR 4x Upscale",
-            "model": "caidas/swin2SR-classical-sr-x4-64",
-            "category": "upscale",
-            "description": "Fast 4x upscaling",
-            "parameters": {"scale": 4}
-        },
-        {
-            "id": "qwen-edit",
-            "name": "Qwen Image Enhance",
-            "model": "Qwen/Qwen-Image-Edit-2509",
-            "category": "enhance",
-            "description": "AI-powered enhancement and restoration",
-            "parameters": {"prompt": "enhance details, remove noise and artifacts"}
         }
     ]"""
     # Models API authentication (default: public access)
@@ -95,10 +171,93 @@ class Settings(BaseSettings):
     # Processing limits
     max_concurrent_uploads_per_session: int = 3  # Concurrent processing limit per session
 
+    # Internal flag to track if using new config system
+    _using_json_config: bool = False
+    _config_data: dict[str, Any] | None = None
+
+    def __init__(self, **kwargs: Any):
+        """Initialize settings with config file support."""
+        # Try to load from JSON config files first
+        app_env = kwargs.get("app_env", "development")
+
+        try:
+            config_data = load_config_from_files(app_env)
+            if config_data:
+                # Validate using Pydantic schema
+                validated_config = ConfigFile(**config_data)
+
+                # Flatten config for Settings
+                flat_config = self._flatten_config(validated_config)
+
+                # Merge with kwargs (env vars override config files)
+                kwargs = {**flat_config, **kwargs}
+
+                self._using_json_config = True
+                self._config_data = config_data
+                logger.info("Using new JSON config system")
+        except FileNotFoundError:
+            logger.warning("Config files not found, falling back to .env only (DEPRECATED)")
+            warnings.warn(
+                "Using .env-only configuration is deprecated. "
+                "Please migrate to JSON config files using: python scripts/migrate_env_to_config.py",
+                DeprecationWarning,
+                stacklevel=2
+            )
+        except Exception as e:
+            logger.error(f"Error loading JSON config: {e}, falling back to .env only")
+            warnings.warn(f"Config file error: {e}. Falling back to .env only.", stacklevel=2)
+
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def _flatten_config(config: ConfigFile) -> dict[str, Any]:
+        """Flatten ConfigFile to match Settings field names."""
+        return {
+            # Application
+            "app_name": config.application.name,
+            "app_version": config.application.version,
+            "debug": config.application.debug,
+
+            # Server
+            "host": config.server.host,
+            "port": config.server.port,
+
+            # CORS
+            "cors_origins": config.cors.origins,
+
+            # Security
+            "algorithm": config.security.algorithm,
+            "access_token_expire_minutes": config.security.access_token_expire_minutes,
+
+            # API Providers
+            "hf_api_url": config.api_providers.huggingface.api_url,
+            "hf_api_timeout": config.api_providers.huggingface.timeout_seconds,
+            "replicate_api_timeout": config.api_providers.replicate.timeout_seconds,
+
+            # Models API
+            "models_require_auth": config.models_api.require_auth,
+
+            # Database
+            "database_url": config.database.url,
+
+            # File Storage
+            "upload_dir": Path(config.file_storage.upload_dir),
+            "processed_dir": Path(config.file_storage.processed_dir),
+            "max_upload_size": config.file_storage.max_upload_size_mb * 1024 * 1024,
+            "allowed_extensions": set(config.file_storage.allowed_extensions),
+
+            # Session
+            "session_cleanup_hours": config.session.cleanup_hours,
+            "session_cleanup_interval_hours": config.session.cleanup_interval_hours,
+
+            # Processing
+            "max_concurrent_uploads_per_session": config.processing.max_concurrent_uploads_per_session,
+        }
+
     @field_validator("models_config")
     @classmethod
     def validate_models_config(cls, v: str) -> str:
-        """Validate models configuration JSON."""
+        """Validate models configuration JSON (DEPRECATED - use config files)."""
         try:
             models = json.loads(v)
             if not isinstance(models, list):
@@ -118,7 +277,18 @@ class Settings(BaseSettings):
             raise ValueError(f"Invalid JSON in models_config: {e}")
 
     def get_models(self) -> list[dict[str, Any]]:
-        """Parse and return models configuration."""
+        """
+        Parse and return models configuration.
+
+        Returns models from JSON config if available, otherwise from .env MODELS_CONFIG.
+        """
+        # Try to get from JSON config first
+        if self._using_json_config and self._config_data:
+            models = self._config_data.get("models", [])
+            if models:
+                return models
+
+        # Fallback to .env MODELS_CONFIG (deprecated)
         return json.loads(self.models_config)
 
     def get_model_by_id(self, model_id: str) -> dict[str, Any] | None:
@@ -128,6 +298,10 @@ class Settings(BaseSettings):
             if model.get("id") == model_id:
                 return model
         return None
+
+    def is_using_json_config(self) -> bool:
+        """Check if using new JSON config system."""
+        return self._using_json_config
 
 
 # Global settings instance

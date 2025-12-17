@@ -33,6 +33,9 @@ ENV PATH=/root/.local/bin:$PATH
 # Copy application code
 COPY ./app ./app
 
+# Copy configuration files
+COPY ./config ./config
+
 # Create data directory
 RUN mkdir -p /data/uploads /data/processed
 

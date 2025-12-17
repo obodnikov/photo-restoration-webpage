@@ -1,0 +1,122 @@
+{
+  "application": {
+    "name": "Photo Restoration API",
+    "version": "1.8.2",
+    "debug": false,
+    "log_level": "INFO"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 1
+  },
+  "cors": {
+    "origins": [
+      "http://localhost:3000",
+      "http://localhost"
+    ],
+    "allow_credentials": true,
+    "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["*"]
+  },
+  "security": {
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 1440,
+    "remember_me_expire_days": 7
+  },
+  "api_providers": {
+    "huggingface": {
+      "api_url": "https://api-inference.huggingface.co/models",
+      "timeout_seconds": 60,
+      "retry_attempts": 3,
+      "retry_delay_seconds": 2
+    },
+    "replicate": {
+      "timeout_seconds": 120,
+      "webhook_enabled": false
+    }
+  },
+  "models": [
+    {
+      "id": "swin2sr-2x",
+      "name": "Swin2SR 2x Upscale",
+      "model": "caidas/swin2SR-classical-sr-x2-64",
+      "provider": "huggingface",
+      "category": "upscale",
+      "description": "Fast 2x upscaling for images",
+      "enabled": true,
+      "parameters": {
+        "scale": 2
+      },
+      "tags": ["upscale", "fast", "2x"],
+      "version": "1.0"
+    },
+    {
+      "id": "swin2sr-4x",
+      "name": "Swin2SR 4x Upscale",
+      "model": "caidas/swin2SR-classical-sr-x4-64",
+      "provider": "huggingface",
+      "category": "upscale",
+      "description": "Fast 4x upscaling for images",
+      "enabled": true,
+      "parameters": {
+        "scale": 4
+      },
+      "tags": ["upscale", "fast", "4x"],
+      "version": "1.0"
+    },
+    {
+      "id": "qwen-edit",
+      "name": "Qwen Image Enhance",
+      "model": "Qwen/Qwen-Image-Edit-2509",
+      "provider": "huggingface",
+      "category": "enhance",
+      "description": "AI-powered enhancement and restoration",
+      "enabled": true,
+      "parameters": {
+        "prompt": "enhance details, remove noise and artifacts"
+      },
+      "tags": ["enhance", "ai", "quality"],
+      "version": "2509"
+    },
+    {
+      "id": "replicate-restore",
+      "name": "Replicate Photo Restore",
+      "model": "flux-kontext-apps/restore-image",
+      "provider": "replicate",
+      "category": "restore",
+      "description": "Advanced photo restoration using Replicate AI",
+      "enabled": true,
+      "input_param_name": "input_image",
+      "parameters": {},
+      "tags": ["restore", "replicate", "advanced"],
+      "version": "1.0"
+    }
+  ],
+  "models_api": {
+    "require_auth": false,
+    "cache_ttl_seconds": 300
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///./data/photo_restoration.db",
+    "echo_sql": false,
+    "pool_size": 5,
+    "max_overflow": 10
+  },
+  "file_storage": {
+    "upload_dir": "./data/uploads",
+    "processed_dir": "./data/processed",
+    "max_upload_size_mb": 10,
+    "allowed_extensions": [".jpg", ".jpeg", ".png"],
+    "image_quality": 95
+  },
+  "session": {
+    "cleanup_hours": 24,
+    "cleanup_interval_hours": 6,
+    "max_age_hours": 168
+  },
+  "processing": {
+    "max_concurrent_uploads_per_session": 3,
+    "queue_size": 100
+  }
+}

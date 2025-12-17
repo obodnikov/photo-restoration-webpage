@@ -1,0 +1,12 @@
+# Ignore runtime config files (not examples)
+development.json
+production.json
+staging.json
+
+# Keep examples and defaults
+!*.example
+!default.json
+!testing.json
+
+# Ignore generated schema
+schema.json

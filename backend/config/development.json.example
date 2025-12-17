@@ -1,0 +1,28 @@
+{
+  "application": {
+    "debug": true,
+    "log_level": "DEBUG"
+  },
+  "server": {
+    "workers": 1
+  },
+  "cors": {
+    "origins": [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:8080",
+      "http://localhost"
+    ]
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///./data/dev.db",
+    "echo_sql": true
+  },
+  "session": {
+    "cleanup_hours": 1,
+    "cleanup_interval_hours": 1
+  },
+  "file_storage": {
+    "max_upload_size_mb": 20
+  }
+}
