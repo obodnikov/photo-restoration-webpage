@@ -185,6 +185,13 @@ class ReplicateInferenceService:
                 logger.info(f"Model returned bytes directly: {len(output)} bytes")
                 return output
 
+            elif hasattr(output, 'aread'):
+                # If output is a FileOutput object (from replicate.helpers)
+                # It has an aread() method to get bytes asynchronously
+                output_bytes = await output.aread()
+                logger.info(f"Read output from FileOutput object: {len(output_bytes)} bytes")
+                return output_bytes
+
             else:
                 raise ReplicateInferenceError(f"Unexpected output type: {type(output)}")
 
