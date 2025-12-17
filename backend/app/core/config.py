@@ -1,6 +1,7 @@
 """Application configuration using Pydantic BaseSettings with JSON config file support."""
 import json
 import logging
+import os
 import warnings
 from pathlib import Path
 from typing import Any
@@ -178,7 +179,7 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs: Any):
         """Initialize settings with config file support."""
         # Try to load from JSON config files first
-        app_env = kwargs.get("app_env", "development")
+        app_env = os.getenv("APP_ENV", kwargs.get("app_env", "development"))
 
         using_json = False
         config_data_dict = None
@@ -192,7 +193,7 @@ class Settings(BaseSettings):
                 # Flatten config for Settings
                 flat_config = self._flatten_config(validated_config)
 
-                # Merge with kwargs (env vars override config files)
+                # Merge with kwargs (JSON config provides defaults)
                 kwargs = {**flat_config, **kwargs}
 
                 using_json = True
@@ -212,7 +213,48 @@ class Settings(BaseSettings):
 
         super().__init__(**kwargs)
 
-        # Set flags AFTER Pydantic initialization to prevent them from being reset
+        # IMPORTANT: Environment variables override JSON config
+        # Apply environment variable overrides AFTER Pydantic initialization
+        # This ensures env vars have highest priority
+        env_overrides = {}
+
+        # Check for environment variable overrides for key settings
+        if os.getenv("DEBUG") is not None:
+            debug_str = os.getenv("DEBUG", "").lower()
+            debug_val = debug_str in ("true", "1", "yes", "on")
+            if debug_val != self.debug:
+                env_overrides["debug"] = debug_val
+                object.__setattr__(self, "debug", debug_val)
+
+        if os.getenv("HOST") is not None:
+            host_val = os.getenv("HOST")
+            if host_val != self.host:
+                env_overrides["host"] = host_val
+                object.__setattr__(self, "host", host_val)
+
+        if os.getenv("PORT") is not None:
+            port_val = int(os.getenv("PORT"))
+            if port_val != self.port:
+                env_overrides["port"] = port_val
+                object.__setattr__(self, "port", port_val)
+
+        if os.getenv("UPLOAD_DIR") is not None:
+            upload_dir_val = Path(os.getenv("UPLOAD_DIR"))
+            if upload_dir_val != self.upload_dir:
+                env_overrides["upload_dir"] = str(upload_dir_val)
+                object.__setattr__(self, "upload_dir", upload_dir_val)
+
+        if os.getenv("PROCESSED_DIR") is not None:
+            processed_dir_val = Path(os.getenv("PROCESSED_DIR"))
+            if processed_dir_val != self.processed_dir:
+                env_overrides["processed_dir"] = str(processed_dir_val)
+                object.__setattr__(self, "processed_dir", processed_dir_val)
+
+        # Log environment overrides
+        if env_overrides:
+            logger.info(f"Environment variables overriding JSON config: {', '.join(env_overrides.keys())}")
+
+        # Set flags AFTER all initialization
         self._using_json_config = using_json
         self._config_data = config_data_dict
 
