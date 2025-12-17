@@ -9,13 +9,15 @@ Usage:
     python scripts/generate_config_docs.py --format json --output config/schema.json
     python scripts/generate_config_docs.py --help
 """
+from __future__ import annotations
+
 import argparse
 import json
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -41,7 +43,7 @@ def format_type(type_info: Any) -> str:
     return str(type_info)
 
 
-def generate_markdown_docs(schema: dict[str, Any]) -> str:
+def generate_markdown_docs(schema: Dict[str, Any]) -> str:
     """
     Generate markdown documentation from JSON schema.
 

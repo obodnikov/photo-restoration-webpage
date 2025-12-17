@@ -9,6 +9,8 @@ Usage:
     python scripts/migrate_env_to_config.py --env-file backend/.env --output config/production.json
     python scripts/migrate_env_to_config.py --help
 """
+from __future__ import annotations
+
 import argparse
 import json
 import logging
@@ -17,7 +19,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -39,7 +41,7 @@ SECRETS = {
 ENV_VARS = {"APP_ENV", "DEBUG"}
 
 
-def parse_env_file(env_path: Path) -> dict[str, str]:
+def parse_env_file(env_path: Path) -> Dict[str, str]:
     """
     Parse .env file into a dictionary.
 
@@ -98,7 +100,7 @@ def parse_json_value(value: str) -> Any:
         return value
 
 
-def migrate_to_config(env_vars: dict[str, str]) -> dict[str, Any]:
+def migrate_to_config(env_vars: Dict[str, str]) -> Dict[str, Any]:
     """
     Convert env vars to config.json structure.
 
@@ -201,7 +203,7 @@ def migrate_to_config(env_vars: dict[str, str]) -> dict[str, Any]:
     return config
 
 
-def create_new_env_file(env_vars: dict[str, str]) -> str:
+def create_new_env_file(env_vars: Dict[str, str]) -> str:
     """
     Create new .env file content with only secrets.
 

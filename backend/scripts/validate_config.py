@@ -9,13 +9,15 @@ Usage:
     python scripts/validate_config.py --config config/production.json
     python scripts/validate_config.py --help
 """
+from __future__ import annotations
+
 import argparse
 import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -41,7 +43,7 @@ OPTIONAL_SECRETS = {
 }
 
 
-def validate_json_syntax(config_path: Path) -> dict[str, Any]:
+def validate_json_syntax(config_path: Path) -> Dict[str, Any]:
     """
     Validate JSON syntax.
 
@@ -69,7 +71,7 @@ def validate_json_syntax(config_path: Path) -> dict[str, Any]:
             raise
 
 
-def validate_schema(config: dict[str, Any]) -> ConfigFile:
+def validate_schema(config: Dict[str, Any]) -> ConfigFile:
     """
     Validate config against Pydantic schema.
 
@@ -94,7 +96,7 @@ def validate_schema(config: dict[str, Any]) -> ConfigFile:
         raise
 
 
-def check_secrets(env_file: Path = Path(".env")) -> tuple[bool, list[str]]:
+def check_secrets(env_file: Path = Path(".env")) -> Tuple[bool, List[str]]:
     """
     Check if required secrets are present in .env file.
 
@@ -140,7 +142,7 @@ def check_secrets(env_file: Path = Path(".env")) -> tuple[bool, list[str]]:
     return len(missing) == 0, missing
 
 
-def validate_models(config: dict[str, Any]) -> bool:
+def validate_models(config: Dict[str, Any]) -> bool:
     """
     Validate models configuration.
 
