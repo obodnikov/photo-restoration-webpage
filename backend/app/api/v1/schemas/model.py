@@ -1,5 +1,5 @@
 """Model schemas for API responses."""
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -18,8 +18,11 @@ class ModelInfo(BaseModel):
 
     id: str = Field(..., description="Unique model identifier")
     name: str = Field(..., description="Human-readable model name")
-    model: str = Field(..., description="HuggingFace model path")
-    category: str = Field(..., description="Model category (upscale, enhance, etc.)")
+    model: str = Field(..., description="Model path (HuggingFace or Replicate)")
+    provider: Literal["huggingface", "replicate"] = Field(
+        "huggingface", description="Model provider (huggingface or replicate)"
+    )
+    category: str = Field(..., description="Model category (upscale, enhance, restore, etc.)")
     description: str = Field(..., description="Brief description of model capabilities")
     parameters: ModelParameters | dict[str, Any] = Field(
         default_factory=dict, description="Model-specific parameters"

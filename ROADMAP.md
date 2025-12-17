@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-A web application for restoring old scanned photos using HuggingFace AI models with a clean, sqowe-branded interface.
+A web application for restoring old scanned photos using multiple AI providers (HuggingFace, Replicate) with a clean, sqowe-branded interface.
 
 **Tech Stack:**
 - **Backend:** FastAPI (Python 3.13+)
 - **Frontend:** Vite + React + TypeScript
 - **Deployment:** Docker + Docker Compose + nginx reverse proxy
-- **AI Models:** HuggingFace Inference API
+- **AI Providers:** HuggingFace Inference API, Replicate API
 - **Design:** sqowe brand guidelines (Material-inspired)
 
 ---
@@ -739,6 +739,55 @@ MODELS_CONFIG=[
 
 ---
 
+### 1.8.1 Multi-Provider Support (Replicate) ✅ **COMPLETE**
+
+**Backend:**
+- [x] Add Replicate API integration (`app/services/replicate_inference.py`)
+  - [x] ReplicateInferenceService class with async methods
+  - [x] Image processing via Replicate API
+  - [x] Support for multiple output formats (URLs, data URIs, bytes)
+  - [x] Comprehensive error handling (rate limits, timeouts, model errors)
+  - [x] Custom exception classes (ReplicateRateLimitError, ReplicateTimeoutError, etc.)
+- [x] Add `provider` field to model configuration schema
+  - [x] Update ModelInfo schema with provider field (Literal["huggingface", "replicate"])
+  - [x] Validate provider in config validation
+  - [x] Default to "huggingface" for backward compatibility
+- [x] Update restoration route with provider routing
+  - [x] Detect provider from model configuration
+  - [x] Route to appropriate inference service (HF or Replicate)
+  - [x] Unified error handling for both providers
+- [x] Configuration updates
+  - [x] Add `REPLICATE_API_TOKEN` to settings
+  - [x] Format `MODELS_CONFIG` as multi-line in `.env.example`
+  - [x] Add detailed schema documentation with provider field
+  - [x] Add example Replicate model (flux-kontext-apps/restore-image)
+- [x] Dependencies
+  - [x] Add `replicate==1.7.0` to requirements.txt
+
+**Initial Replicate Model:**
+- [x] flux-kontext-apps/restore-image
+  - Category: restore
+  - Advanced photo restoration using Replicate AI
+  - Supports old photo restoration with artifact removal
+
+**Documentation:**
+- [x] Update README.md with Replicate provider information
+  - [x] Add Replicate API token to prerequisites
+  - [x] Update tech stack section
+  - [x] Add MODELS_CONFIG configuration instructions
+- [x] Update ROADMAP.md with Phase 1.8.1
+
+**Completed:** December 17, 2024
+
+**Benefits:**
+- Multi-provider architecture allows using best models from different platforms
+- Easy to add more providers in the future (OpenAI, Stability AI, etc.)
+- Maintains backward compatibility with existing HuggingFace models
+- Better MODELS_CONFIG management with multi-line format
+- Comprehensive error handling for both providers
+
+---
+
 ### 1.9 Testing & Quality Assurance 🔄 **IN PROGRESS**
 
 **Backend Test Infrastructure:**
@@ -1372,6 +1421,6 @@ REDIS_URL=redis://localhost:6379/0
 
 ---
 
-**Last Updated:** December 16, 2024
+**Last Updated:** December 17, 2024
 **Current Phase:** Phase 1 - MVP (In Progress)
-**Status:** Phase 1.1 Complete ✅ | Phase 1.2 Complete ✅ | Phase 1.3 Complete ✅ | Phase 1.4 Complete ✅ | Phase 1.5 Complete ✅ | Phase 1.6 Complete ✅ | Phase 1.7 Complete ✅ | Phase 1.8 Complete ✅
+**Status:** Phase 1.1 Complete ✅ | Phase 1.2 Complete ✅ | Phase 1.3 Complete ✅ | Phase 1.4 Complete ✅ | Phase 1.5 Complete ✅ | Phase 1.6 Complete ✅ | Phase 1.7 Complete ✅ | Phase 1.8 Complete ✅ | Phase 1.8.1 Complete ✅
