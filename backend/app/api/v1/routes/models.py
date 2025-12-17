@@ -13,29 +13,9 @@ router = APIRouter(prefix="/models", tags=["models"])
 security = HTTPBearer(auto_error=False)
 
 
-@lru_cache(maxsize=128)
-def _parse_models_config(models_config: str) -> list[ModelInfo]:
-    """
-    Parse and cache models configuration.
-
-    Uses LRU cache with models_config string as key to avoid re-parsing
-    on every request. Cache is automatically managed by lru_cache.
-
-    Args:
-        models_config: JSON string of models configuration
-
-    Returns:
-        List of ModelInfo objects
-    """
-    import json
-
-    models_data = json.loads(models_config)
-    return [ModelInfo(**model) for model in models_data]
-
-
 def get_cached_models(settings: Settings) -> list[ModelInfo]:
     """
-    Get the list of available models with caching.
+    Get the list of available models from configuration.
 
     Args:
         settings: Application settings instance
@@ -43,7 +23,8 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
     Returns:
         List of ModelInfo objects
     """
-    return _parse_models_config(settings.models_config)
+    models_data = settings.get_models()
+    return [ModelInfo(**model) for model in models_data]
 
 
 async def check_auth_if_required(
