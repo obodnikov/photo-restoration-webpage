@@ -309,3 +309,104 @@ export async function uploadFile<T>(
     xhr.send(formData);
   });
 }
+
+/**
+ * Download file with authentication
+ * Downloads a file from an authenticated endpoint and triggers browser download
+ */
+export async function downloadFile(
+  endpoint: string,
+  filename: string,
+  options?: RequestOptions
+): Promise<void> {
+  const { requiresAuth = true } = options || {};
+
+  // Build request headers
+  const requestHeaders: Record<string, string> = {};
+
+  // Add auth token if required
+  if (requiresAuth) {
+    const authState = useAuthStore.getState();
+    const token = authState.token;
+
+    console.log('[Download File] Auth check:', {
+      hasToken: !!token,
+      isAuthenticated: authState.isAuthenticated,
+      isExpired: authState.isTokenExpired(),
+      endpoint,
+    });
+
+    if (!token) {
+      console.error('[Download File] No token available, redirecting to login');
+      window.location.href = '/login';
+      throw new Error('Authentication required');
+    }
+
+    if (authState.isTokenExpired()) {
+      console.error('[Download File] Token expired, redirecting to login...');
+      authState.clearAuth();
+      window.location.href = '/login';
+      throw new Error('Token expired');
+    }
+
+    requestHeaders['Authorization'] = `Bearer ${token}`;
+    console.log('[Download File] Added Authorization header for endpoint:', endpoint);
+  }
+
+  // Make request
+  const url = `${config.apiBaseUrl}${endpoint}`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: requestHeaders,
+    });
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      console.error('[Download File] Received 401, clearing auth and redirecting to login...');
+      useAuthStore.getState().clearAuth();
+      window.location.href = '/login';
+      throw new ApiError('Unauthorized', 401, response.statusText);
+    }
+
+    // Handle other errors
+    if (!response.ok) {
+      let errorMessage = 'Download failed';
+
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch {
+        errorMessage = response.statusText || errorMessage;
+      }
+
+      throw new ApiError(errorMessage, response.status, response.statusText);
+    }
+
+    // Get the blob from response
+    const blob = await response.blob();
+
+    // Create object URL and trigger download
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up object URL
+    URL.revokeObjectURL(objectUrl);
+
+    console.log('[Download File] Download completed successfully:', filename);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    // Network or other errors
+    console.error('[Download File] Download failed:', error);
+    throw new Error('Network error. Please check your connection.');
+  }
+}

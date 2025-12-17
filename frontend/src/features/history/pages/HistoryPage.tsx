@@ -10,6 +10,7 @@ import { ErrorMessage } from '../../../components/ErrorMessage';
 import { ImageComparison } from '../../restoration/components/ImageComparison';
 import type { ImageViewMode } from '../../restoration/types';
 import { config } from '../../../config/config';
+import { downloadFile } from '../../../services/apiClient';
 
 export const HistoryPage: React.FC = () => {
   const {
@@ -58,21 +59,26 @@ export const HistoryPage: React.FC = () => {
     }
   };
 
-  const handleDownload = (item: HistoryItem) => {
-    const baseUrl = config.apiBaseUrl.replace('/api/v1', '');
-    const downloadUrl = `${baseUrl}/api/v1/restore/${item.id}/download`;
+  const handleDownload = async (item: HistoryItem) => {
+    try {
+      setDeleteError(null);
 
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `restored-${item.original_filename}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Use authenticated download function
+      await downloadFile(
+        `/restore/${item.id}/download`,
+        `restored-${item.original_filename}`
+      );
+
+      console.log('[HistoryPage] Download completed for:', item.original_filename);
+    } catch (err: any) {
+      console.error('[HistoryPage] Download failed:', err);
+      setDeleteError(`Failed to download "${item.original_filename}". Please try again.`);
+    }
   };
 
-  const handleDownloadViewing = () => {
+  const handleDownloadViewing = async () => {
     if (viewingItem) {
-      handleDownload(viewingItem);
+      await handleDownload(viewingItem);
     }
   };
 
@@ -122,8 +128,8 @@ export const HistoryPage: React.FC = () => {
               </div>
 
               <ImageComparison
-                originalUrl={`${baseUrl}${viewingItem.original_path}`}
-                processedUrl={`${baseUrl}${viewingItem.processed_path}`}
+                originalUrl={`${baseUrl}${viewingItem.original_url}`}
+                processedUrl={`${baseUrl}${viewingItem.processed_url}`}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 onDownload={handleDownloadViewing}
