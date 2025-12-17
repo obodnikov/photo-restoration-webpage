@@ -43,6 +43,13 @@ from app.services.hf_inference import (
     HFRateLimitError,
     HFTimeoutError,
 )
+from app.services.replicate_inference import (
+    ReplicateInferenceError,
+    ReplicateInferenceService,
+    ReplicateModelError,
+    ReplicateRateLimitError,
+    ReplicateTimeoutError,
+)
 from app.services.session_manager import SessionManager, SessionNotFoundError
 from app.utils.image_processing import (
     ImageFormatError,
@@ -116,7 +123,7 @@ async def restore_image(
     1. Validate authentication and file
     2. Check concurrent upload limit
     3. Get session from token
-    4. Process image with HuggingFace model
+    4. Process image with appropriate model provider (HuggingFace or Replicate)
     5. Save original and processed images
     6. Store metadata in database
     7. Return URLs
@@ -201,33 +208,53 @@ async def restore_image(
                 detail=f"Invalid image data: {str(e)}",
             )
 
-        # Process image with HuggingFace
-        hf_service = HFInferenceService(settings)
+        # Get model configuration to determine provider
+        model_config = settings.get_model_by_id(model_id)
+        if not model_config:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown model: {model_id}",
+            )
+
+        provider = model_config.get("provider", "huggingface")
+        logger.info(
+            f"Processing image with model {model_id} (provider: {provider}) "
+            f"for session {session_id}"
+        )
+
+        # Process image with appropriate provider
         try:
-            logger.info(
-                f"Processing image with model {model_id} for session {session_id}"
-            )
-            processed_bytes = await hf_service.process_image(
-                model_id=model_id,
-                image_bytes=preprocessed_bytes,
-            )
-        except HFModelError as e:
+            if provider == "replicate":
+                # Use Replicate service
+                replicate_service = ReplicateInferenceService(settings)
+                processed_bytes = await replicate_service.process_image(
+                    model_id=model_id,
+                    image_bytes=preprocessed_bytes,
+                )
+            else:
+                # Use HuggingFace service (default)
+                hf_service = HFInferenceService(settings)
+                processed_bytes = await hf_service.process_image(
+                    model_id=model_id,
+                    image_bytes=preprocessed_bytes,
+                )
+        except (HFModelError, ReplicateModelError) as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Model error: {str(e)}",
             )
-        except HFRateLimitError as e:
+        except (HFRateLimitError, ReplicateRateLimitError) as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=str(e),
                 headers={"Retry-After": "60"},
             )
-        except HFTimeoutError as e:
+        except (HFTimeoutError, ReplicateTimeoutError) as e:
             raise HTTPException(
                 status_code=status.HTTP_504_GATEWAY_TIMEOUT,
                 detail=str(e),
             )
-        except HFInferenceError as e:
+        except (HFInferenceError, ReplicateInferenceError) as e:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"Model service error: {str(e)}",

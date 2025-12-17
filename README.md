@@ -1,6 +1,6 @@
 # Photo Restoration Webpage
 
-AI-powered web application for restoring old scanned photos using HuggingFace models. Built with FastAPI backend, React frontend, and deployed with Docker and nginx reverse proxy.
+AI-powered web application for restoring old scanned photos using multiple AI providers (HuggingFace, Replicate). Built with FastAPI backend, React frontend, and deployed with Docker and nginx reverse proxy.
 
 ## Project Status
 
@@ -119,7 +119,9 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 - FastAPI (async REST API)
 - SQLAlchemy (async ORM)
 - SQLite (database)
-- HuggingFace Inference API
+- **AI Providers:**
+  - HuggingFace Inference API (upscaling, enhancement)
+  - Replicate API (advanced restoration models)
 - JWT authentication
 
 **Frontend:**
@@ -138,7 +140,9 @@ See [ROADMAP.md](ROADMAP.md) for detailed development plan.
 ## Prerequisites
 
 - Docker & Docker Compose
-- HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
+- **AI Provider API Keys:**
+  - HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
+  - Replicate API token ([Get one here](https://replicate.com/account/api-tokens)) - **Optional**, only needed if using Replicate models
 
 **For local development:**
 - Python 3.13+ (recommended for best performance)
@@ -163,6 +167,7 @@ cp backend/.env.example backend/.env
 
 Edit `backend/.env` and set:
 - `HF_API_KEY` - Your HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
+- `REPLICATE_API_TOKEN` - Your Replicate API token ([Get one here](https://replicate.com/account/api-tokens)) - **Optional**, only needed if using Replicate models
 - `SECRET_KEY` - **CRITICAL**: Cryptographic secret for JWT token signing (minimum 32 characters)
   - Generate with: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
   - **NEVER use the example value in production**
@@ -172,6 +177,11 @@ Edit `backend/.env` and set:
 - `CORS_ORIGINS` - **IMPORTANT**: Must be in JSON array format
   - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
   - For production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
+- `MODELS_CONFIG` - Configure which AI models to use (supports both HuggingFace and Replicate providers)
+  - **IMPORTANT**: Must be on a **SINGLE LINE** for Docker compatibility (no line breaks)
+  - The `.env.example` file provides the correct single-line format
+  - See commented multi-line format in `.env.example` for reference only
+  - Each model must specify a `provider` field: `"huggingface"` or `"replicate"`
 
 **New in Phase 1.6:**
 - `SESSION_CLEANUP_HOURS` - How old sessions to delete (default: 24)

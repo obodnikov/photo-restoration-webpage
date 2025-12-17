@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     hf_api_timeout: int = 60
     hf_api_url: str = "https://api-inference.huggingface.co/models"
 
+    # Replicate
+    replicate_api_token: str = ""
+
     # Models configuration (JSON string)
     models_config: str = """[
         {
@@ -100,6 +103,16 @@ class Settings(BaseSettings):
             models = json.loads(v)
             if not isinstance(models, list):
                 raise ValueError("models_config must be a JSON array")
+
+            # Validate each model has required fields
+            for model in models:
+                if "id" not in model or "name" not in model or "model" not in model:
+                    raise ValueError("Each model must have 'id', 'name', and 'model' fields")
+
+                # If provider is specified, validate it
+                if "provider" in model and model["provider"] not in ["huggingface", "replicate"]:
+                    raise ValueError(f"Invalid provider '{model['provider']}'. Must be 'huggingface' or 'replicate'")
+
             return v
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in models_config: {e}")

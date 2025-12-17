@@ -14,6 +14,9 @@ httpx==0.28.1
 # HuggingFace Hub for Inference API
 huggingface-hub>=1.2.3
 
+# Replicate API for AI models
+replicate==1.0.7
+
 # Image processing
 Pillow==10.4.0
 
