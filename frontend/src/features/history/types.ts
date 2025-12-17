@@ -10,8 +10,8 @@ export interface HistoryItem {
   original_filename: string;
   model_id: string;
   created_at: string;
-  original_path: string;
-  processed_path: string;
+  original_url: string;
+  processed_url: string;
   model_parameters?: Record<string, unknown>;
 }
 

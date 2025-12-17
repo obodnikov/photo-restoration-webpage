@@ -128,8 +128,8 @@ export const HistoryPage: React.FC = () => {
               </div>
 
               <ImageComparison
-                originalUrl={`${baseUrl}${viewingItem.original_path}`}
-                processedUrl={`${baseUrl}${viewingItem.processed_path}`}
+                originalUrl={`${baseUrl}${viewingItem.original_url}`}
+                processedUrl={`${baseUrl}${viewingItem.processed_url}`}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
                 onDownload={handleDownloadViewing}

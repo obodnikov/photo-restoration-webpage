@@ -22,7 +22,7 @@ export const HistoryCard: React.FC<HistoryCardProps> = ({
   onDownload,
 }) => {
   const baseUrl = config.apiBaseUrl.replace('/api/v1', '');
-  const thumbnailUrl = `${baseUrl}${item.processed_path}`;
+  const thumbnailUrl = `${baseUrl}${item.processed_url}`;
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
