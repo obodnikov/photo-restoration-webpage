@@ -20,7 +20,23 @@ This directory contains environment-specific configuration files for the Photo R
 
 ### Initial Setup
 
-1. Copy the appropriate example file:
+⚠️ **CRITICAL**: The configuration system requires `default.json` to exist!
+
+**Step 1: Ensure `default.json` exists**
+
+The `default.json` file is committed to git and should already be present. However, if you're deploying with Docker volume mounts, you must copy it to your mounted directory:
+
+```bash
+# For Docker deployments with volume mounts
+# Example: -v /opt/retro/config:/app/config
+sudo cp backend/config/default.json /opt/retro/config/
+
+# Verify it exists
+ls -la /opt/retro/config/default.json
+```
+
+**Step 2: Create environment-specific config (optional but recommended)**
+
 ```bash
 # For development
 cp config/development.json.example config/development.json
@@ -32,25 +48,48 @@ cp config/production.json.example config/production.json
 cp config/staging.json.example config/staging.json
 ```
 
-2. Edit the file with your environment-specific settings
+**Step 3: Edit the environment-specific file with your settings**
 
-3. Set the environment variable:
+Edit `production.json` (or `development.json`) to customize for your environment.
+
+**Step 4: Set the environment variable**
+
 ```bash
 export APP_ENV=production  # or development, staging
 ```
 
 ### Configuration Loading Priority
 
-The application loads configuration in this order (highest to lowest priority):
+The application loads configuration in this order (each level overrides the previous):
 
-1. **Environment Variables** (from `.env` file)
-2. **Environment-specific config** (`config/{APP_ENV}.json`)
-3. **Default config** (`config/default.json`)
+1. **`config/default.json`** - Base configuration (**REQUIRED** - must exist!)
+2. **`config/{APP_ENV}.json`** - Environment-specific overrides (optional)
+3. **Environment Variables** (from `.env` file) - Highest priority overrides
 
-Example: If `APP_ENV=production`, the app loads:
-- `config/default.json` (base)
-- `config/production.json` (overrides defaults)
-- `.env` variables (override everything)
+**Example:** If `APP_ENV=production`, the app loads:
+1. `config/default.json` (base) - **MUST EXIST**
+2. `config/production.json` (overrides defaults) - optional
+3. `.env` variables (override everything) - optional
+
+### What Happens If `default.json` Is Missing?
+
+If `config/default.json` doesn't exist, the system will:
+- ❌ **Fall back to deprecated `.env`-only mode**
+- ⚠️ **Only load 1 hardcoded default model** instead of your configured models
+- ⚠️ Show warning: `Default config not found: /app/config/default.json`
+- ⚠️ Show warning: `⚠ Using .env-only configuration (DEPRECATED)`
+
+**How to verify config loaded correctly:**
+```bash
+# Check startup logs
+docker logs retro-backend 2>&1 | grep "Configuration source"
+
+# Expected (correct):
+# Configuration source: JSON config files
+
+# Wrong (default.json missing):
+# Configuration source: .env only (DEPRECATED)
+```
 
 ### Secrets vs Configuration
 
