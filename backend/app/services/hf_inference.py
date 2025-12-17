@@ -194,6 +194,13 @@ class HFInferenceService:
                     f"Model '{model_path}' is not available via Inference API. "
                     f"This model may require a dedicated endpoint or local deployment."
                 )
+            elif "bad request" in error_msg or "400" in error_msg:
+                # Bad request - likely model doesn't support this endpoint or parameters
+                raise HFModelError(
+                    f"Model '{model_path}' returned 400 Bad Request. "
+                    f"This model may not support the image-to-image task via Inference API. "
+                    f"Try a different model or check the model's documentation."
+                )
             else:
                 raise HFInferenceError(f"HuggingFace API error: {str(e)}")
 
