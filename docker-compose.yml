@@ -17,6 +17,7 @@ services:
       - ./backend/.env
     volumes:
       - backend_data:/data
+      - ./backend/config:/app/config:ro  # Config volume (read-only)
     networks:
       - photo-restoration-network
     healthcheck:

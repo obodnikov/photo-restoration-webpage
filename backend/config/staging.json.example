@@ -1,0 +1,21 @@
+{
+  "application": {
+    "debug": false,
+    "log_level": "INFO"
+  },
+  "server": {
+    "workers": 2
+  },
+  "cors": {
+    "origins": [
+      "https://staging.yourdomain.com"
+    ]
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///data/staging.db"
+  },
+  "session": {
+    "cleanup_hours": 12,
+    "cleanup_interval_hours": 3
+  }
+}

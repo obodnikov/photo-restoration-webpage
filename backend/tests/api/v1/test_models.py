@@ -63,14 +63,10 @@ def override_settings_protected(test_models_config):
 
 
 @pytest.fixture(autouse=True)
-def clear_models_cache_and_overrides():
-    """Automatically clear models cache and dependency overrides before/after each test."""
-    from app.api.v1.routes.models import _parse_models_config
-
-    _parse_models_config.cache_clear()
+def clear_dependency_overrides():
+    """Automatically clear dependency overrides before/after each test."""
     app.dependency_overrides.clear()
     yield
-    _parse_models_config.cache_clear()
     app.dependency_overrides.clear()
 
 
@@ -327,12 +323,10 @@ class TestModelsCaching:
         assert data2["total"] == 2
         assert data1 == data2
 
-    def test_cache_clear_refreshes_models(
+    def test_settings_override_refreshes_models(
         self, client: TestClient, override_settings_public, test_models_config
     ):
-        """Test that clearing cache refreshes models."""
-        from app.api.v1.routes.models import _parse_models_config
-
+        """Test that updating settings refreshes models."""
         app.dependency_overrides[get_settings] = lambda: override_settings_public
 
         # First request
@@ -341,9 +335,7 @@ class TestModelsCaching:
         data1 = response1.json()
         assert data1["total"] == 2
 
-        # Clear cache and update config
-        _parse_models_config.cache_clear()
-
+        # Update config with new settings
         new_config = [
             {
                 "id": "new-model",

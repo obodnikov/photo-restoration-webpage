@@ -1,0 +1,30 @@
+{
+  "application": {
+    "debug": false,
+    "log_level": "INFO"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "workers": 4
+  },
+  "cors": {
+    "origins": [
+      "https://yourdomain.com",
+      "https://www.yourdomain.com"
+    ]
+  },
+  "database": {
+    "url": "sqlite+aiosqlite:///data/photo_restoration.db",
+    "echo_sql": false
+  },
+  "session": {
+    "cleanup_hours": 24,
+    "cleanup_interval_hours": 6
+  },
+  "file_storage": {
+    "upload_dir": "/data/uploads",
+    "processed_dir": "/data/processed",
+    "max_upload_size_mb": 10
+  }
+}

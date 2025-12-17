@@ -158,35 +158,107 @@ git clone <repository-url>
 cd photo-restoration-webpage
 ```
 
-### 2. Configure environment variables
+### 2. Configure application (Phase 1.8.2+)
 
-**Backend:**
+**NEW Configuration System:**
+As of Phase 1.8.2, configuration is split between `.env` (secrets) and `config/*.json` files (settings).
+
+**Step 2a: Set up secrets (`.env` file)**
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Edit `backend/.env` and set:
+Edit `backend/.env` and set **secrets only**:
 - `HF_API_KEY` - Your HuggingFace API key ([Get one here](https://huggingface.co/settings/tokens))
-- `REPLICATE_API_TOKEN` - Your Replicate API token ([Get one here](https://replicate.com/account/api-tokens)) - **Optional**, only needed if using Replicate models
-- `SECRET_KEY` - **CRITICAL**: Cryptographic secret for JWT token signing (minimum 32 characters)
-  - Generate with: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
-  - **NEVER use the example value in production**
-  - Must be unique and random for security
+- `REPLICATE_API_TOKEN` - Your Replicate API token ([Get one here](https://replicate.com/account/api-tokens)) - **Optional**
+- `SECRET_KEY` - **CRITICAL**: JWT signing key (minimum 32 characters)
+  - Generate: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+  - **NEVER use default in production**
 - `AUTH_USERNAME` - Admin username (default: `admin`)
 - `AUTH_PASSWORD` - Admin password (**change from default!**)
-- `CORS_ORIGINS` - **IMPORTANT**: Must be in JSON array format
-  - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
-  - For production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
-- `MODELS_CONFIG` - Configure which AI models to use (supports both HuggingFace and Replicate providers)
-  - **IMPORTANT**: Must be on a **SINGLE LINE** for Docker compatibility (no line breaks)
-  - The `.env.example` file provides the correct single-line format
-  - See commented multi-line format in `.env.example` for reference only
-  - Each model must specify a `provider` field: `"huggingface"` or `"replicate"`
+- `APP_ENV` - Environment selection: `production`, `development`, `staging` (default: `production`)
 
-**New in Phase 1.6:**
-- `SESSION_CLEANUP_HOURS` - How old sessions to delete (default: 24)
-- `SESSION_CLEANUP_INTERVAL_HOURS` - How often to run cleanup task (default: 6)
-- `MAX_CONCURRENT_UPLOADS_PER_SESSION` - Concurrent processing limit per session (default: 3)
+**Step 2b: Set up configuration (`config/*.json` files)**
+
+⚠️ **IMPORTANT**: The configuration system requires TWO files:
+1. `default.json` - Base configuration with all defaults (**REQUIRED**)
+2. `{environment}.json` - Environment-specific overrides (optional but recommended)
+
+```bash
+# REQUIRED: Copy the base default configuration
+# This file is committed to git and contains all default settings
+cp backend/config/default.json /path/to/your/config/default.json
+
+# RECOMMENDED: Copy and customize environment-specific config
+# For production:
+cp backend/config/production.json.example backend/config/production.json
+
+# OR for development:
+cp backend/config/development.json.example backend/config/development.json
+```
+
+**For Docker deployments with volume mounts:**
+```bash
+# Both files must be in the mounted config directory
+# Example: -v /opt/retro/config:/app/config
+sudo cp backend/config/default.json /opt/retro/config/
+sudo cp backend/config/production.json.example /opt/retro/config/production.json
+```
+
+Edit `backend/config/production.json` (or `development.json`) for your environment:
+- `application` - App name, version, debug mode, log level
+- `server` - Host, port, workers
+- `cors.origins` - **IMPORTANT**: Allowed CORS origins (JSON array, human-readable!)
+  - Example: `["https://yourdomain.com", "https://www.yourdomain.com"]`
+- `models` - **NEW FORMAT**: Multi-line JSON for easy editing!
+  - No more single-line escaping issues
+  - Each model needs: `id`, `name`, `model`, `provider`, `category`, `description`
+- `database`, `file_storage`, `session`, `processing` - All other settings
+
+**Configuration Loading Priority:**
+
+The system loads configuration in this order (each level overrides the previous):
+1. `config/default.json` - **REQUIRED** base configuration (**MUST EXIST**)
+2. `config/{APP_ENV}.json` - Environment-specific overrides (e.g., `production.json`)
+3. Environment variables (`.env`) - **HIGHEST PRIORITY** overrides
+
+**What happens if `default.json` is missing?**
+- The system will fall back to deprecated `.env`-only mode
+- You'll only get 1 hardcoded model instead of your full model configuration
+- Logs will show: `⚠ Using .env-only configuration (DEPRECATED)`
+
+**Troubleshooting:**
+```bash
+# Check if default.json exists in your config directory
+ls -la /opt/retro/config/  # For Docker volume mounts
+ls -la backend/config/     # For local development
+
+# You should see both files:
+# - default.json (required)
+# - production.json (or development.json)
+
+# Check startup logs to verify config loaded correctly
+docker logs retro-backend 2>&1 | grep "Configuration source"
+# Should show: "Configuration source: JSON config files"
+# If it shows: "Configuration source: .env only (DEPRECATED)" - default.json is missing!
+```
+
+**Validate your configuration:**
+```bash
+cd backend
+python scripts/validate_config.py --env production
+```
+
+**Migration from old .env format:**
+If you have an existing `.env` with `MODELS_CONFIG`, migrate it:
+```bash
+cd backend
+python scripts/migrate_env_to_config.py --env-file .env --output config/production.json --update-env
+```
+
+**For detailed configuration reference:**
+- See [backend/config/README.md](backend/config/README.md)
+- Generate docs: `python backend/scripts/generate_config_docs.py`
 
 **Frontend:**
 ```bash

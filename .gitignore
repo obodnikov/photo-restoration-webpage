@@ -77,11 +77,20 @@ data/*.db-wal
 *.db-shm
 *.db-wal
 
-# Runtime configuration (user-specific overrides)
+# Runtime configuration (user-specific overrides) - OLD, DEPRECATED
 data/config.json
 data/config.json.tmp
 config.json
 config.json.tmp
+
+# Backend config files (Phase 1.8.2+)
+# Runtime environment-specific configs (not examples or defaults)
+backend/config/development.json
+backend/config/production.json
+backend/config/staging.json
+backend/config/schema.json
+backend/.env.example.backup
+backend/.env.example.updated
 
 # Node (if needed later)
 node_modules/
