@@ -178,7 +178,9 @@ Edit `backend/.env` and set:
   - Example: `CORS_ORIGINS=["http://localhost:3000","http://localhost"]`
   - For production: `CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]`
 - `MODELS_CONFIG` - Configure which AI models to use (supports both HuggingFace and Replicate providers)
-  - See `.env.example` for detailed multi-line format and examples
+  - **IMPORTANT**: Must be on a **SINGLE LINE** for Docker compatibility (no line breaks)
+  - The `.env.example` file provides the correct single-line format
+  - See commented multi-line format in `.env.example` for reference only
   - Each model must specify a `provider` field: `"huggingface"` or `"replicate"`
 
 **New in Phase 1.6:**
