@@ -112,10 +112,14 @@ class ReplicateInferenceService:
             image_data_uri = f"data:image/{input_image.format.lower()};base64,{base64.b64encode(image_bytes).decode()}"
 
             # Prepare input for Replicate
-            # Most Replicate models accept an "image" parameter
-            replicate_input = {"image": image_data_uri}
+            # Different models use different parameter names for the input image
+            # Common names: "image", "input_image", "img", "input"
+            # Check if model config specifies the input parameter name
+            input_param_name = model_config.get("input_param_name", "image")
 
-            # Add any additional parameters
+            replicate_input = {input_param_name: image_data_uri}
+
+            # Add any additional parameters from model configuration
             if request_params:
                 replicate_input.update(request_params)
 
