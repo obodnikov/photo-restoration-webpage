@@ -920,113 +920,6 @@ MODELS_CONFIG=[
 - [x] Test data and mocks ✅
 - [x] Coverage reporting (99% coverage) ✅
 
-**Backend - Remaining Tasks:**
-- [ ] Update existing tests for new config system compatibility
-- [ ] Add integration tests for config migration scripts
-- [ ] Test config hot reload functionality (when implemented in Phase 5)
-
-**Frontend Test Status:**
-- [x] 224 tests passing ✅
-- [x] Auth tests - 55 tests ✅
-- [x] Restoration feature tests - 40 tests ✅
-- [x] History feature tests - 20 tests ✅
-- [x] Shared component tests - 82 tests ✅
-- [x] Layout tests - 12 tests ✅
-- [x] Accessibility tests - 15 tests ✅
-
-**Frontend Test Infrastructure:**
-- [x] Vitest configuration ✅
-- [x] Test setup and utilities ✅
-- [x] Mock API client ✅
-- [x] Test data fixtures ✅
-
-**Frontend - Remaining Tasks:**
-- [ ] Add tests for any new features in Phase 2+
-- [ ] Maintain test coverage as new components are added
-
-**Test Coverage Goals:**
-- [x] Backend: ≥70% code coverage ✅ (Currently 99%)
-- [x] Frontend: ≥60% code coverage ✅
-- [x] All auth flows tested ✅
-- [x] All API endpoints tested ✅
-- [x] All error scenarios tested ✅
-
-**Test Automation:**
-- [x] npm script: `"test:coverage": "vitest run --coverage"` ✅
-- [x] npm script: `"test:watch": "vitest"` ✅
-- [x] Backend script: `pytest --cov=app --cov-report=html` ✅
-- [ ] Setup CI/CD pipeline (GitHub Actions)
-  - [ ] Run backend tests on PR
-  - [ ] Run frontend tests on PR
-  - [ ] Report coverage
-  - [ ] Fail PR if tests fail
-
----
-
-### 1.10 Documentation & Deployment
-
-**Note:** Most documentation is complete from phases 1.1-1.8.2. This phase focuses on final polish and deployment guides.
-
-**Documentation Status:**
-- [x] README.md with project description ✅
-- [x] Features list ✅
-- [x] Tech stack details ✅
-- [x] Setup instructions (Docker & local dev) ✅
-- [x] Environment variables documentation ✅
-- [x] ROADMAP.md with detailed development plan ✅
-- [x] Configuration documentation (Phase 1.8.2) ✅
-  - [x] Config directory README
-  - [x] Migration guide (.env to JSON)
-  - [x] Auto-generated config reference (script available)
-
-**Documentation - Remaining Tasks:**
-- [ ] Generate complete configuration reference
-  - [ ] Run: `python scripts/generate_config_docs.py --output docs/configuration.md`
-- [ ] Create API documentation
-  - [ ] Use FastAPI auto-generated docs
-  - [ ] Add detailed descriptions to all endpoints
-  - [ ] Add request/response examples
-- [ ] Create deployment guide
-  - [ ] Docker Compose deployment steps
-  - [ ] nginx configuration details
-  - [ ] SSL/HTTPS setup guide
-  - [ ] Environment variable configuration
-  - [ ] Configuration file management in Docker
-  - [ ] Multi-environment deployment (dev/staging/prod)
-
-**Docker Deployment:**
-- [x] Docker Compose stack works ✅
-- [x] nginx reverse proxy routing ✅
-- [x] Backend API through proxy ✅
-- [x] Frontend static serving ✅
-- [x] File upload/download through proxy ✅
-- [x] Database persistence (volume mounts) ✅
-- [x] Config persistence (volume mounts) ✅ (Phase 1.8.2)
-- [x] Docker images optimized (multi-stage builds) ✅
-- [x] Health check endpoints ✅
-  - [x] Backend: GET `/health` ✅
-  - [x] Frontend: nginx status ✅
-
-**Production Readiness:**
-- [x] Logging configuration ✅
-  - [x] Backend: structured JSON logs
-  - [x] Frontend: error tracking
-- [ ] Add monitoring hooks
-  - [x] Health endpoints ✅
-  - [ ] Metrics endpoints (optional)
-- [x] Security hardening ✅
-  - [x] CORS configuration ✅
-  - [ ] Rate limiting (planned for Phase 2.2)
-  - [x] Input sanitization ✅
-  - [x] File upload size limits ✅
-- [ ] Performance optimization
-  - [x] Image compression ✅
-  - [ ] Response caching headers
-  - [ ] Gzip compression in nginx
-
----
-
-## Phase 2: Pipeline Processing & Enhanced Features
 
 **Backend Test Infrastructure:**
 - [x] Basic pytest setup (pytest, pytest-asyncio installed)
@@ -1147,9 +1040,109 @@ MODELS_CONFIG=[
   - [ ] Large image upload (9.5MB) processed within timeout
   - [ ] Database queries are indexed and efficient
 
+**Backend - Remaining Tasks:**
+- [ ] Update existing tests for new config system compatibility
+- [ ] Add integration tests for config migration scripts
+- [ ] Test config hot reload functionality (when implemented in Phase 5)
+
+**Frontend Test Status:**
+- [x] 224 tests passing ✅
+- [x] Auth tests - 55 tests ✅
+- [x] Restoration feature tests - 40 tests ✅
+- [x] History feature tests - 20 tests ✅
+- [x] Shared component tests - 82 tests ✅
+- [x] Layout tests - 12 tests ✅
+- [x] Accessibility tests - 15 tests ✅
+
+**Frontend Test Infrastructure:**
+- [x] Vitest configuration ✅
+- [x] Test setup and utilities ✅
+- [x] Mock API client ✅
+- [x] Test data fixtures ✅
+
+**Frontend - Remaining Tasks:**
+- [ ] Add tests for any new features in Phase 2+
+- [ ] Maintain test coverage as new components are added
+
+**Test Coverage Goals:**
+- [x] Backend: ≥70% code coverage ✅ (Currently 99%)
+- [x] Frontend: ≥60% code coverage ✅
+- [x] All auth flows tested ✅
+- [x] All API endpoints tested ✅
+- [x] All error scenarios tested ✅
+
+**Test Automation:**
+- [x] npm script: `"test:coverage": "vitest run --coverage"` ✅
+- [x] npm script: `"test:watch": "vitest"` ✅
+- [x] Backend script: `pytest --cov=app --cov-report=html` ✅
+- [ ] Setup CI/CD pipeline (GitHub Actions)
+  - [ ] Run backend tests on PR
+  - [ ] Run frontend tests on PR
+  - [ ] Report coverage
+  - [ ] Fail PR if tests fail
+
 ---
 
 ### 1.10 Documentation & Deployment
+
+**Note:** Most documentation is complete from phases 1.1-1.8.2. This phase focuses on final polish and deployment guides.
+
+**Documentation Status:**
+- [x] README.md with project description ✅
+- [x] Features list ✅
+- [x] Tech stack details ✅
+- [x] Setup instructions (Docker & local dev) ✅
+- [x] Environment variables documentation ✅
+- [x] ROADMAP.md with detailed development plan ✅
+- [x] Configuration documentation (Phase 1.8.2) ✅
+  - [x] Config directory README
+  - [x] Migration guide (.env to JSON)
+  - [x] Auto-generated config reference (script available)
+
+**Documentation - Remaining Tasks:**
+- [ ] Generate complete configuration reference
+  - [ ] Run: `python scripts/generate_config_docs.py --output docs/configuration.md`
+- [ ] Create API documentation
+  - [ ] Use FastAPI auto-generated docs
+  - [ ] Add detailed descriptions to all endpoints
+  - [ ] Add request/response examples
+- [ ] Create deployment guide
+  - [ ] Docker Compose deployment steps
+  - [ ] nginx configuration details
+  - [ ] SSL/HTTPS setup guide
+  - [ ] Environment variable configuration
+  - [ ] Configuration file management in Docker
+  - [ ] Multi-environment deployment (dev/staging/prod)
+
+**Docker Deployment:**
+- [x] Docker Compose stack works ✅
+- [x] nginx reverse proxy routing ✅
+- [x] Backend API through proxy ✅
+- [x] Frontend static serving ✅
+- [x] File upload/download through proxy ✅
+- [x] Database persistence (volume mounts) ✅
+- [x] Config persistence (volume mounts) ✅ (Phase 1.8.2)
+- [x] Docker images optimized (multi-stage builds) ✅
+- [x] Health check endpoints ✅
+  - [x] Backend: GET `/health` ✅
+  - [x] Frontend: nginx status ✅
+
+**Production Readiness:**
+- [x] Logging configuration ✅
+  - [x] Backend: structured JSON logs
+  - [x] Frontend: error tracking
+- [ ] Add monitoring hooks
+  - [x] Health endpoints ✅
+  - [ ] Metrics endpoints (optional)
+- [x] Security hardening ✅
+  - [x] CORS configuration ✅
+  - [ ] Rate limiting (planned for Phase 2.2)
+  - [x] Input sanitization ✅
+  - [x] File upload size limits ✅
+- [ ] Performance optimization
+  - [x] Image compression ✅
+  - [ ] Response caching headers
+  - [ ] Gzip compression in nginx
 
 **Documentation:**
 - [ ] Update README.md with:
