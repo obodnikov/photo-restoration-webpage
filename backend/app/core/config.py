@@ -216,6 +216,33 @@ class Settings(BaseSettings):
         self._using_json_config = using_json
         self._config_data = config_data_dict
 
+        # Log configuration source and summary
+        if self._using_json_config:
+            models_count = len(self._config_data.get("models", []))
+            logger.info(f"✓ Configuration loaded from JSON files (APP_ENV={self.app_env})")
+            logger.info(f"  - Models: {models_count} configured")
+            logger.info(f"  - CORS origins: {len(self.cors_origins)} configured")
+            logger.info(f"  - Database: {self.database_url}")
+
+            if self.debug:
+                logger.debug("=== Configuration Details (DEBUG mode) ===")
+                logger.debug(f"  App: {self.app_name} v{self.app_version}")
+                logger.debug(f"  Server: {self.host}:{self.port}")
+                logger.debug(f"  Debug: {self.debug}")
+                logger.debug(f"  CORS origins: {self.cors_origins}")
+                logger.debug(f"  Models ({models_count}):")
+                for model in self._config_data.get("models", []):
+                    logger.debug(f"    - {model['id']}: {model['name']} ({model.get('provider', 'unknown')})")
+                logger.debug(f"  Upload dir: {self.upload_dir}")
+                logger.debug(f"  Processed dir: {self.processed_dir}")
+                logger.debug(f"  Max upload size: {self.max_upload_size / 1024 / 1024:.1f}MB")
+                logger.debug("=" * 50)
+        else:
+            logger.warning("⚠ Using .env-only configuration (DEPRECATED)")
+            logger.warning("  Please migrate to JSON config: python scripts/migrate_env_to_config.py")
+            if self.debug:
+                logger.debug(f"  Fallback models_config length: {len(self.models_config)} chars")
+
     @staticmethod
     def _flatten_config(config: ConfigFile) -> dict[str, Any]:
         """Flatten ConfigFile to match Settings field names."""

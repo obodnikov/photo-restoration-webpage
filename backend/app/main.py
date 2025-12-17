@@ -21,7 +21,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print(f"Starting {settings.app_name} v{settings.app_version}")
+    print(f"Environment: {settings.app_env}")
     print(f"Debug mode: {settings.debug}")
+    print(f"Configuration source: {'JSON config files' if settings.is_using_json_config() else '.env only (DEPRECATED)'}")
     print(f"HuggingFace API configured: {bool(settings.hf_api_key)}")
     print(f"Available models: {len(settings.get_models())}")
 
