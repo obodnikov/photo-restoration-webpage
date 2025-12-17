@@ -138,8 +138,14 @@ class TestSettingsLoading:
         }
         (config_dir / "default.json").write_text(json.dumps(config))
 
-        with patch("app.core.config.Path") as mock_path:
-            mock_path.return_value.parent.parent.parent = tmp_path
+        # Create a proper Path mock that returns the tmp_path when navigating up
+        def path_side_effect(*args, **kwargs):
+            if args and args[0] == __file__:
+                mock_file_path = tmp_path / "fake.py"
+                return mock_file_path
+            return Path(*args, **kwargs)
+
+        with patch("app.core.config.Path", side_effect=path_side_effect):
             settings = Settings(app_env="development")
 
         assert settings.app_name == "Test API"
