@@ -180,6 +180,9 @@ class Settings(BaseSettings):
         # Try to load from JSON config files first
         app_env = kwargs.get("app_env", "development")
 
+        using_json = False
+        config_data_dict = None
+
         try:
             config_data = load_config_from_files(app_env)
             if config_data:
@@ -192,8 +195,8 @@ class Settings(BaseSettings):
                 # Merge with kwargs (env vars override config files)
                 kwargs = {**flat_config, **kwargs}
 
-                self._using_json_config = True
-                self._config_data = config_data
+                using_json = True
+                config_data_dict = config_data
                 logger.info("Using new JSON config system")
         except FileNotFoundError:
             logger.warning("Config files not found, falling back to .env only (DEPRECATED)")
@@ -208,6 +211,10 @@ class Settings(BaseSettings):
             warnings.warn(f"Config file error: {e}. Falling back to .env only.", stacklevel=2)
 
         super().__init__(**kwargs)
+
+        # Set flags AFTER Pydantic initialization to prevent them from being reset
+        self._using_json_config = using_json
+        self._config_data = config_data_dict
 
     @staticmethod
     def _flatten_config(config: ConfigFile) -> dict[str, Any]:
