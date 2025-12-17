@@ -777,6 +777,16 @@ MODELS_CONFIG=[
   - [x] Add MODELS_CONFIG configuration instructions
 - [x] Update ROADMAP.md with Phase 1.8.1
 
+**Tests:**
+- [x] Create requirements.txt validation tests (`backend/tests/test_requirements.py`) - 14 tests ✅
+  - [x] Validate all package versions are correct
+  - [x] Verify replicate package is present with correct stable version (1.0.7)
+  - [x] Ensure no duplicate packages
+  - [x] Verify bcrypt version constraint for passlib compatibility
+  - [x] Test all critical packages are present
+  - [x] Validate version specifiers use valid operators
+  - [x] Test package importability (replicate, huggingface-hub, fastapi)
+
 **Completed:** December 17, 2024
 
 **Benefits:**
