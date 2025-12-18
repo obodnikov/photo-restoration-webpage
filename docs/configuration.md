@@ -448,6 +448,197 @@ Validate your configuration:
 python scripts/validate_config.py --env production
 ```
 
+## Replicate Model Schema Configuration
+
+For Replicate models, you can define a detailed schema that enables parameter validation, frontend UI generation, and custom constraints.
+
+### Schema Structure
+
+```json
+{
+  "id": "replicate-restore",
+  "model": "flux-kontext-apps/restore-image",
+  "provider": "replicate",
+  "replicate_schema": {
+    "input": {
+      "image": {
+        "param_name": "input_image",
+        "type": "uri",
+        "format": "image",
+        "required": true,
+        "description": "Image to restore"
+      },
+      "parameters": [
+        {
+          "name": "output_format",
+          "type": "enum",
+          "values": ["jpg", "png"],
+          "default": "png",
+          "required": false,
+          "description": "Output image format",
+          "ui_hidden": false,
+          "ui_group": "output"
+        },
+        {
+          "name": "quality",
+          "type": "integer",
+          "min": 1,
+          "max": 100,
+          "default": 80,
+          "required": false,
+          "description": "Output quality",
+          "ui_group": "quality"
+        }
+      ]
+    },
+    "output": {
+      "type": "uri",
+      "format": "image"
+    },
+    "custom": {
+      "max_file_size_mb": 10,
+      "supported_formats": ["jpg", "jpeg", "png", "webp"],
+      "estimated_time_seconds": 30
+    }
+  }
+}
+```
+
+### Schema Fields
+
+#### `input.image`
+- `param_name` (string): Replicate API parameter name for image input
+- `type` (string): Always "uri" for Replicate
+- `format` (string): "image"
+- `required` (boolean): Always true
+- `description` (string): Human-readable description
+
+#### `input.parameters[]`
+- `name` (string): Parameter name as expected by Replicate API
+- `type` (enum): "string", "integer", "float", "boolean", "enum"
+- `required` (boolean): Whether parameter is required
+- `description` (string): Parameter description
+- `default` (any): Default value if not provided
+- `min` / `max` (number): For integer/float types
+- `values` (array): For enum type - allowed values
+- `ui_hidden` (boolean): Hide from frontend UI
+- `ui_group` (string): Group parameters in UI (e.g., "output", "quality")
+
+#### `output`
+- `type` (enum): "uri", "base64", "json", "list"
+- `format` (string): "image", "text", etc.
+
+#### `custom` (Application-specific)
+- `max_file_size_mb` (number): Maximum input file size
+- `supported_formats` (array): Allowed input formats
+- `estimated_time_seconds` (number): Estimated processing time
+
+### Parameter Types
+
+**string**: Text value
+```json
+{"name": "prompt", "type": "string", "default": "enhance image"}
+```
+
+**integer**: Whole number with optional min/max
+```json
+{"name": "steps", "type": "integer", "min": 1, "max": 100, "default": 50}
+```
+
+**float**: Decimal number with optional min/max
+```json
+{"name": "scale", "type": "float", "min": 0.1, "max": 2.0, "default": 1.0}
+```
+
+**boolean**: True/false value
+```json
+{"name": "enable_upscale", "type": "boolean", "default": true}
+```
+
+**enum**: One of predefined values
+```json
+{"name": "format", "type": "enum", "values": ["jpg", "png"], "default": "png"}
+```
+
+### Generating Schemas from Replicate API
+
+Use the provided utility to fetch schemas automatically:
+
+```bash
+# Fetch schema for a model
+python backend/scripts/fetch_replicate_schema.py flux-kontext-apps/restore-image
+
+# Save to file
+python backend/scripts/fetch_replicate_schema.py google/upscaler -o schema.json
+
+# With API token
+export REPLICATE_API_TOKEN=your_token
+python backend/scripts/fetch_replicate_schema.py model-owner/model-name
+```
+
+The utility outputs a `replicate_schema` object that you can copy into your model configuration. You'll need to manually adjust:
+- `ui_hidden` flags
+- `ui_group` assignments
+- `custom.max_file_size_mb`
+- `custom.supported_formats`
+- `custom.estimated_time_seconds`
+
+### Frontend Integration
+
+Models with schemas automatically expose parameters in the API response:
+
+```json
+GET /api/v1/models
+
+{
+  "models": [
+    {
+      "id": "replicate-restore",
+      "name": "Replicate Photo Restore",
+      "schema": {
+        "parameters": [
+          {
+            "name": "output_format",
+            "type": "enum",
+            "values": ["jpg", "png"],
+            "default": "png",
+            "ui_group": "output"
+          }
+        ],
+        "custom": {
+          "max_file_size_mb": 10,
+          "supported_formats": ["jpg", "jpeg", "png"],
+          "estimated_time_seconds": 30
+        }
+      }
+    }
+  ]
+}
+```
+
+Parameters marked with `ui_hidden: true` are not included in the API response.
+
+### Using Parameters in Restoration Requests
+
+Pass parameters as JSON string in the `parameters` field:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/restore \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@photo.jpg" \
+  -F "model_id=replicate-restore" \
+  -F 'parameters={"output_format": "jpg", "quality": 95}'
+```
+
+Parameters are validated against the schema:
+- Type checking (integer, string, boolean, enum)
+- Range validation (min/max)
+- Enum value validation
+- Required parameter checking
+- Defaults applied for missing optional parameters
+
+Invalid parameters trigger warnings (logged) and fallback to defaults.
+
 ## Migration
 
 Migrate from `.env` to JSON config:

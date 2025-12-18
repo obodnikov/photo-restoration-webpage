@@ -4,6 +4,7 @@ Replicate API service.
 This module provides integration with Replicate's API
 for image processing tasks such as restoration, upscaling, and enhancement.
 """
+import base64
 import io
 import logging
 from typing import Any
@@ -12,6 +13,8 @@ import replicate
 from PIL import Image
 
 from app.core.config import Settings, get_settings
+from app.core.replicate_schema import ReplicateModelSchema
+from app.services.schema_validator import SchemaValidator
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -87,6 +90,7 @@ class ReplicateInferenceService:
             ReplicateRateLimitError: If rate limit exceeded
             ReplicateTimeoutError: If request times out
             ReplicateInferenceError: For other API errors
+            ValueError: If parameters or image validation fails
         """
         # Get model configuration
         model_config = self.settings.get_model_by_id(model_id)
@@ -96,34 +100,61 @@ class ReplicateInferenceService:
         model_path = model_config["model"]
         model_category = model_config.get("category", "restore")
 
-        # Get model parameters
-        request_params = parameters or model_config.get("parameters", {})
-
         logger.info(f"Processing image with Replicate model: {model_path}, category: {model_category}")
 
         try:
-            # Validate input image (just for logging)
+            # Validate input image
             input_image = Image.open(io.BytesIO(image_bytes))
             logger.info(f"Input image: {input_image.format}, {input_image.size}, {input_image.mode}")
 
+            # Check if model has replicate_schema
+            schema_config = model_config.get("replicate_schema")
+            if schema_config:
+                # Use schema-based validation
+                logger.info("Using schema-based parameter validation")
+                schema = ReplicateModelSchema(**schema_config)
+                validator = SchemaValidator(schema)
+
+                # Validate image constraints
+                validator.validate_image_constraints(
+                    image_bytes,
+                    input_image.format or "png"
+                )
+
+                # Merge user parameters with model defaults
+                user_params = parameters or {}
+                model_defaults = model_config.get("parameters", {})
+                merged_params = {**model_defaults, **user_params}
+
+                # Validate and normalize parameters
+                validated_params = validator.validate_parameters(merged_params)
+
+                # Get image parameter name from schema
+                input_param_name = schema.input.image.param_name
+
+                # Log warnings if any
+                if validator.has_warnings():
+                    logger.warning(
+                        f"Parameter validation warnings: "
+                        f"{[str(w) for w in validator.get_warnings()]}"
+                    )
+            else:
+                # Fallback to legacy behavior (for backward compatibility)
+                logger.info("No schema found, using legacy parameter handling")
+                input_param_name = model_config.get("input_param_name", "image")
+                validated_params = parameters or model_config.get("parameters", {})
+
             # Convert image bytes to data URI for Replicate
-            # Replicate accepts images as URLs or data URIs
-            import base64
             image_data_uri = f"data:image/{input_image.format.lower()};base64,{base64.b64encode(image_bytes).decode()}"
 
-            # Prepare input for Replicate
-            # Different models use different parameter names for the input image
-            # Common names: "image", "input_image", "img", "input"
-            # Check if model config specifies the input parameter name
-            input_param_name = model_config.get("input_param_name", "image")
-
+            # Build Replicate API input
             replicate_input = {input_param_name: image_data_uri}
+            replicate_input.update(validated_params)
 
-            # Add any additional parameters from model configuration
-            if request_params:
-                replicate_input.update(request_params)
-
-            logger.info(f"Calling Replicate model {model_path} with parameters: {list(replicate_input.keys())}")
+            logger.info(
+                f"Calling Replicate model {model_path} with parameters: "
+                f"{list(replicate_input.keys())}"
+            )
 
             # Run the model
             # Note: replicate.run is synchronous, we're wrapping it for async compatibility

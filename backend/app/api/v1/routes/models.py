@@ -5,8 +5,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.api.v1.schemas.model import ModelInfo, ModelListResponse
+from app.api.v1.schemas.model import (
+    CustomSchemaResponse,
+    ModelInfo,
+    ModelListResponse,
+    ModelSchemaResponse,
+    ParameterSchemaResponse,
+)
 from app.core.config import Settings, get_settings
+from app.core.replicate_schema import ReplicateModelSchema
 from app.core.security import get_current_user
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -21,10 +28,63 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
         settings: Application settings instance
 
     Returns:
-        List of ModelInfo objects
+        List of ModelInfo objects with schema information
     """
     models_data = settings.get_models()
-    return [ModelInfo(**model) for model in models_data]
+    models = []
+
+    for model_data in models_data:
+        model_dict = dict(model_data)
+
+        # Check if model has replicate_schema
+        if "replicate_schema" in model_dict:
+            try:
+                # Parse and validate schema
+                schema_data = model_dict["replicate_schema"]
+                schema = ReplicateModelSchema(**schema_data)
+
+                # Build schema response for frontend (only UI-visible parameters)
+                parameters = []
+                for param in schema.get_ui_visible_parameters():
+                    parameters.append(
+                        ParameterSchemaResponse(
+                            name=param.name,
+                            type=param.type,
+                            required=param.required,
+                            description=param.description,
+                            default=param.default,
+                            min=param.min,
+                            max=param.max,
+                            values=param.values,
+                            ui_group=param.ui_group,
+                        )
+                    )
+
+                # Build custom schema response
+                custom = CustomSchemaResponse(
+                    max_file_size_mb=schema.custom.max_file_size_mb,
+                    supported_formats=schema.custom.supported_formats,
+                    estimated_time_seconds=schema.custom.estimated_time_seconds,
+                )
+
+                # Add schema to model dict
+                model_dict["schema"] = ModelSchemaResponse(
+                    parameters=parameters,
+                    custom=custom,
+                )
+
+                # Remove replicate_schema from response (internal use only)
+                del model_dict["replicate_schema"]
+            except Exception as e:
+                # Log error but don't fail - just omit schema
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to parse replicate_schema for model {model_dict.get('id')}: {e}"
+                )
+
+        models.append(ModelInfo(**model_dict))
+
+    return models
 
 
 async def check_auth_if_required(

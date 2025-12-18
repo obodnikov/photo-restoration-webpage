@@ -229,6 +229,7 @@ async def release_concurrent_slot(session_id: str) -> None:
 async def restore_image(
     file: UploadFile = File(..., description="Image file to process"),
     model_id: str = Form(..., description="Model ID to use for processing"),
+    parameters: str = Form(None, description="Optional model parameters (JSON string)"),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user),
 ) -> RestoreResponse:
@@ -353,6 +354,19 @@ async def restore_image(
             f"for session {session_id}"
         )
 
+        # Parse parameters if provided
+        parsed_parameters = None
+        if parameters:
+            try:
+                import json
+                parsed_parameters = json.loads(parameters)
+                logger.info(f"Using user-provided parameters: {list(parsed_parameters.keys())}")
+            except json.JSONDecodeError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid parameters JSON: {str(e)}",
+                )
+
         # Process image with appropriate provider
         try:
             if provider == "replicate":
@@ -361,6 +375,7 @@ async def restore_image(
                 processed_bytes = await replicate_service.process_image(
                     model_id=model_id,
                     image_bytes=preprocessed_bytes,
+                    parameters=parsed_parameters,
                 )
             else:
                 # Use HuggingFace service (default)
