@@ -78,7 +78,76 @@ async def check_auth_if_required(
     return username
 
 
-@router.get("", response_model=ModelListResponse)
+@router.get(
+    "",
+    response_model=ModelListResponse,
+    summary="List available AI models",
+    description="""
+    Get a list of all available AI models for image processing.
+
+    **Model Information Includes:**
+    - Model ID (for use in restoration requests)
+    - Display name
+    - Provider (HuggingFace or Replicate)
+    - Category (upscale, enhance, restore)
+    - Description
+    - Enabled status
+    - Default parameters
+
+    **Authentication:**
+    - Optional (configurable via MODELS_REQUIRE_AUTH)
+    - By default, models list is public
+
+    **Example Response:**
+    ```json
+    {
+        "models": [
+            {
+                "id": "swin2sr-2x",
+                "name": "Swin2SR 2x Upscale",
+                "provider": "huggingface",
+                "category": "upscale",
+                "description": "Fast 2x upscaling for images",
+                "enabled": true
+            }
+        ],
+        "total": 4
+    }
+    ```
+    """,
+    responses={
+        200: {
+            "description": "List of available models",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "models": [
+                            {
+                                "id": "swin2sr-2x",
+                                "name": "Swin2SR 2x Upscale",
+                                "model": "caidas/swin2SR-classical-sr-x2-64",
+                                "provider": "huggingface",
+                                "category": "upscale",
+                                "description": "Fast 2x upscaling for images",
+                                "enabled": True,
+                                "parameters": {"scale": 2}
+                            }
+                        ],
+                        "total": 1
+                    }
+                }
+            }
+        },
+        403: {
+            "description": "Authentication required (if MODELS_REQUIRE_AUTH=true)",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Authentication required"}
+                }
+            }
+        }
+    }
+)
 async def list_models(
     settings: Annotated[Settings, Depends(get_settings)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,

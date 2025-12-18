@@ -1,7 +1,7 @@
 {
   "application": {
     "name": "Photo Restoration API - Test",
-    "version": "1.8.2",
+    "version": "1.0.0-test",
     "debug": true,
     "log_level": "DEBUG"
   },
@@ -11,33 +11,57 @@
     "workers": 1
   },
   "cors": {
-    "origins": ["*"]
+    "origins": ["http://localhost:3000", "http://testserver"]
   },
   "security": {
     "algorithm": "HS256",
-    "access_token_expire_minutes": 60,
-    "remember_me_expire_days": 1
+    "access_token_expire_minutes": 1440,
+    "remember_me_expire_days": 7
   },
   "api_providers": {
     "huggingface": {
       "api_url": "https://api-inference.huggingface.co/models",
-      "timeout_seconds": 30
+      "timeout_seconds": 60
     },
     "replicate": {
-      "timeout_seconds": 30
+      "timeout_seconds": 120
     }
   },
   "models": [
     {
-      "id": "test-model",
-      "name": "Test Model",
-      "model": "test/model",
+      "id": "swin2sr-2x",
+      "name": "Swin2SR 2x Upscale",
+      "model": "caidas/swin2SR-classical-sr-x2-64",
       "provider": "huggingface",
-      "category": "test",
-      "description": "Test model for unit tests",
+      "category": "upscale",
+      "description": "Fast 2x upscaling",
       "enabled": true,
-      "parameters": {},
-      "tags": ["test"],
+      "parameters": {"scale": 2},
+      "tags": ["upscale"],
+      "version": "1.0"
+    },
+    {
+      "id": "swin2sr-4x",
+      "name": "Swin2SR 4x Upscale",
+      "model": "caidas/swin2SR-classical-sr-x4-64",
+      "provider": "huggingface",
+      "category": "upscale",
+      "description": "Fast 4x upscaling",
+      "enabled": true,
+      "parameters": {"scale": 4},
+      "tags": ["upscale"],
+      "version": "1.0"
+    },
+    {
+      "id": "qwen-edit",
+      "name": "Qwen Image Enhance",
+      "model": "Qwen/Qwen-Image-Edit-2509",
+      "provider": "huggingface",
+      "category": "enhance",
+      "description": "AI-powered enhancement and restoration",
+      "enabled": true,
+      "parameters": {"prompt": "enhance details, remove noise and artifacts"},
+      "tags": ["enhance"],
       "version": "1.0"
     }
   ],
@@ -52,17 +76,17 @@
   "file_storage": {
     "upload_dir": "./test_data/uploads",
     "processed_dir": "./test_data/processed",
-    "max_upload_size_mb": 5,
+    "max_upload_size_mb": 10,
     "allowed_extensions": [".jpg", ".jpeg", ".png"],
     "image_quality": 85
   },
   "session": {
-    "cleanup_hours": 1,
-    "cleanup_interval_hours": 24,
-    "max_age_hours": 2
+    "cleanup_hours": 24,
+    "cleanup_interval_hours": 6,
+    "max_age_hours": 48
   },
   "processing": {
-    "max_concurrent_uploads_per_session": 1,
+    "max_concurrent_uploads_per_session": 3,
     "queue_size": 10
   }
 }

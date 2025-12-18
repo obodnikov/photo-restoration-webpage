@@ -4,6 +4,7 @@ Session management service.
 This module handles user sessions, image storage, and history tracking
 for the photo restoration application.
 """
+import logging
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,6 +16,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.db.models import ProcessedImage, Session
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class SessionManagerError(Exception):

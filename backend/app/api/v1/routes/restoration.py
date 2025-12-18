@@ -107,8 +107,124 @@ async def release_concurrent_slot(session_id: str) -> None:
     "",
     response_model=RestoreResponse,
     status_code=status.HTTP_200_OK,
-    summary="Restore image",
-    description="Upload and process an image using AI model",
+    summary="Restore/enhance image",
+    description="""
+    Upload and process an image using AI models for restoration, upscaling, or enhancement.
+
+    **Processing Flow:**
+    1. Upload image file (JPEG or PNG)
+    2. Select AI model for processing
+    3. Image is processed using HuggingFace or Replicate AI
+    4. Receive URLs for original and processed images
+
+    **Supported Models:**
+    - `swin2sr-2x`: 2x upscaling (fast)
+    - `swin2sr-4x`: 4x upscaling (fast)
+    - `qwen-edit`: AI enhancement and restoration
+    - `replicate-restore`: Advanced photo restoration (if configured)
+
+    **File Requirements:**
+    - Formats: JPEG, PNG
+    - Max size: 10 MB (configurable)
+    - Dimensions: No strict limits (model-dependent)
+
+    **Authentication:**
+    - Requires valid JWT token in Authorization header
+    - Token obtained from `/api/v1/auth/login`
+
+    **Rate Limits:**
+    - Max 3 concurrent uploads per session
+
+    **Example using cURL:**
+    ```bash
+    curl -X POST "http://localhost:8000/api/v1/restore" \\
+      -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
+      -F "file=@photo.jpg" \\
+      -F "model_id=swin2sr-2x"
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "image_id": "abc123...",
+        "original_url": "/uploads/abc123_photo.jpg",
+        "processed_url": "/processed/abc123_photo.jpg",
+        "model_used": "swin2sr-2x",
+        "created_at": "2024-12-18T10:30:00Z"
+    }
+    ```
+    """,
+    responses={
+        200: {
+            "description": "Image processed successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "image_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "original_url": "/uploads/550e8400_old_photo.jpg",
+                        "processed_url": "/processed/550e8400_old_photo.jpg",
+                        "model_used": "swin2sr-2x",
+                        "created_at": "2024-12-18T10:30:00Z"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid file format or model ID",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "invalid_format": {
+                            "value": {"detail": "Only JPEG and PNG formats are supported"}
+                        },
+                        "invalid_model": {
+                            "value": {"detail": "Unknown model: invalid-model-id"}
+                        }
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Not authenticated or invalid token",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Not authenticated"}
+                }
+            }
+        },
+        413: {
+            "description": "File too large",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "File size (15 MB) exceeds maximum allowed size (10 MB)"}
+                }
+            }
+        },
+        429: {
+            "description": "Too many concurrent uploads",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Maximum 3 concurrent uploads allowed per session"}
+                }
+            }
+        },
+        502: {
+            "description": "AI model API error",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "HuggingFace API rate limit exceeded"}
+                }
+            }
+        },
+        504: {
+            "description": "Processing timeout",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Request to HuggingFace API timed out after 60s"}
+                }
+            }
+        }
+    }
 )
 async def restore_image(
     file: UploadFile = File(..., description="Image file to process"),
@@ -158,24 +274,33 @@ async def restore_image(
             detail="Invalid token: missing session information",
         )
 
+    logger.debug(f"Restore request - User: {user.get('sub')}, Session: {session_id}, Model: {model_id}, File: {file.filename}")
+
     try:
         # Check concurrent upload limit
+        logger.debug(f"Checking concurrent upload limit for session {session_id}")
         await check_concurrent_limit(session_id)
+        logger.debug(f"Concurrent upload check passed for session {session_id}")
 
         # Validate uploaded file
         try:
+            logger.debug(f"Validating upload file: {file.filename} ({file.content_type})")
             await validate_upload_file(file, settings)
+            logger.debug(f"File validation passed for: {file.filename}")
         except ImageFormatError as e:
+            logger.warning(f"Invalid image format: {file.filename} - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
             )
         except ImageSizeError as e:
+            logger.warning(f"Image size error: {file.filename} - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=str(e),
             )
         except ImageValidationError as e:
+            logger.warning(f"Image validation error: {file.filename} - {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
@@ -192,8 +317,11 @@ async def restore_image(
 
         # Read file bytes
         try:
+            logger.debug(f"Reading file bytes: {file.filename}")
             image_bytes = await read_upload_file_bytes(file)
+            logger.debug(f"Read {len(image_bytes)} bytes from {file.filename}")
         except ImageValidationError as e:
+            logger.error(f"Failed to read file {file.filename}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to read file: {str(e)}",
@@ -201,8 +329,11 @@ async def restore_image(
 
         # Preprocess image
         try:
+            logger.debug(f"Preprocessing image for model")
             preprocessed_bytes = preprocess_image_for_model(image_bytes)
+            logger.debug(f"Preprocessed image: {len(preprocessed_bytes)} bytes")
         except ImageValidationError as e:
+            logger.error(f"Image preprocessing failed: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid image data: {str(e)}",

@@ -39,7 +39,58 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
     summary="User login",
-    description="Authenticate user with username and password, returns JWT token",
+    description="""
+    Authenticate user with username and password, returns JWT access token.
+
+    **Authentication Flow:**
+    1. Submit username and password
+    2. Receive JWT access token
+    3. Include token in subsequent requests: `Authorization: Bearer {token}`
+
+    **Token Expiration:**
+    - Standard login: 24 hours (1440 minutes)
+    - Remember Me: 7 days
+
+    **Example Request:**
+    ```json
+    {
+        "username": "admin",
+        "password": "your_password",
+        "remember_me": false
+    }
+    ```
+
+    **Example Response:**
+    ```json
+    {
+        "access_token": "eyJhbGciOiJIUzI1NiIs...",
+        "token_type": "bearer",
+        "expires_in": 86400
+    }
+    ```
+    """,
+    responses={
+        200: {
+            "description": "Successfully authenticated",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                        "token_type": "bearer",
+                        "expires_in": 86400
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Invalid credentials",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invalid credentials"}
+                }
+            }
+        }
+    }
 )
 async def login(
     credentials: LoginRequest,
