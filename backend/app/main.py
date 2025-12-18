@@ -1,6 +1,7 @@
 """Main FastAPI application entry point."""
 from contextlib import asynccontextmanager
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,44 +16,73 @@ from app.services.cleanup import (
     cleanup_old_sessions,
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    print(f"Starting {settings.app_name} v{settings.app_version}")
-    print(f"Environment: {settings.app_env}")
-    print(f"Debug mode: {settings.debug}")
-    print(f"Configuration source: {'JSON config files' if settings.is_using_json_config() else '.env only (DEPRECATED)'}")
-    print(f"HuggingFace API configured: {bool(settings.hf_api_key)}")
-    print(f"Available models: {len(settings.get_models())}")
+    logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    logger.info(f"Environment: {settings.app_env}")
+    logger.info(f"Debug mode: {settings.debug}")
+
+    config_source = 'JSON config files' if settings.is_using_json_config() else '.env only (DEPRECATED)'
+    logger.info(f"Configuration source: {config_source}")
+
+    logger.info(f"HuggingFace API configured: {bool(settings.hf_api_key)}")
+
+    models = settings.get_models()
+    logger.info(f"Available models: {len(models)}")
+
+    if settings.debug:
+        logger.debug("=== DEBUG MODE ENABLED ===")
+        logger.debug(f"Config directory: {settings.upload_dir.parent}")
+        logger.debug(f"Upload directory: {settings.upload_dir}")
+        logger.debug(f"Processed directory: {settings.processed_dir}")
+        logger.debug(f"Database URL: {settings.database_url}")
+        logger.debug(f"CORS origins: {settings.cors_origins}")
+        logger.debug("Models configuration:")
+        for model in models:
+            logger.debug(f"  - {model['id']}: {model['name']} ({model['provider']})")
 
     # Ensure data directories exist
+    logger.debug(f"Creating data directories if they don't exist...")
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     settings.processed_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Data directories ready")
 
     # Initialize database
-    print("Initializing database...")
+    logger.info("Initializing database...")
     await init_db()
-    print("Database initialized")
+    logger.info("Database initialized successfully")
 
     # Run initial cleanup
-    print("Running initial session cleanup...")
+    logger.info("Running initial session cleanup...")
     await cleanup_old_sessions()
+    logger.info("Initial cleanup completed")
 
     # Start cleanup scheduler
-    print(
+    logger.info(
         f"Starting cleanup scheduler (interval: {settings.session_cleanup_interval_hours}h, "
-        f"cleanup threshold: {settings.session_cleanup_hours}h)..."
+        f"cleanup threshold: {settings.session_cleanup_hours}h)"
     )
     start_cleanup_scheduler()
+    logger.info("Application startup complete")
 
     yield
 
     # Shutdown
-    print("Shutting down...")
+    logger.info("Shutting down application...")
     stop_cleanup_scheduler()
+    logger.debug("Cleanup scheduler stopped")
     await close_db()
+    logger.info("Application shutdown complete")
 
 
 # Create FastAPI app

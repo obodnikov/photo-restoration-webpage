@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Auto-generated configuration documentation. Last updated: 2025-12-17 16:12
+Auto-generated configuration documentation. Last updated: 2025-12-18 09:14
 
 ## Table of Contents
 
