@@ -87,10 +87,60 @@
       "category": "restore",
       "description": "Advanced photo restoration using Replicate AI",
       "enabled": true,
-      "input_param_name": "input_image",
-      "parameters": {},
       "tags": ["restore", "replicate", "advanced"],
-      "version": "1.0"
+      "version": "1.0",
+      "replicate_schema": {
+        "input": {
+          "image": {
+            "param_name": "input_image",
+            "type": "uri",
+            "format": "image",
+            "required": true,
+            "description": "Image to restore (jpeg, png, gif, webp)"
+          },
+          "parameters": [
+            {
+              "name": "seed",
+              "type": "integer",
+              "required": false,
+              "description": "Random seed for reproducible generation",
+              "ui_hidden": true
+            },
+            {
+              "name": "output_format",
+              "type": "enum",
+              "values": ["jpg", "png"],
+              "default": "png",
+              "required": false,
+              "description": "Output image format",
+              "ui_group": "output"
+            },
+            {
+              "name": "safety_tolerance",
+              "type": "integer",
+              "min": 0,
+              "max": 2,
+              "default": 2,
+              "required": false,
+              "description": "Safety level (0=strict, 2=permissive)",
+              "ui_hidden": true
+            }
+          ]
+        },
+        "output": {
+          "type": "uri",
+          "format": "image"
+        },
+        "custom": {
+          "max_file_size_mb": 10,
+          "supported_formats": ["jpg", "jpeg", "png", "webp", "gif"],
+          "estimated_time_seconds": 30
+        }
+      },
+      "parameters": {
+        "output_format": "png",
+        "safety_tolerance": 2
+      }
     }
   ],
   "models_api": {
