@@ -6,9 +6,10 @@ Tests admin user creation and seeding logic.
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from unittest.mock import patch
 
 from app.core.config import Settings
-from app.core.security import verify_password
+from app.core.security import get_password_hash, verify_password
 from app.db.models import User
 from app.db.seed import seed_admin_user
 
@@ -26,7 +27,9 @@ class TestAdminSeeding:
             auth_full_name="Admin User",
         )
 
-        await seed_admin_user(db_session, settings)
+        # Mock get_settings to return our test settings
+        with patch('app.db.seed.get_settings', return_value=settings):
+            await seed_admin_user(db_session)
 
         # Verify admin user created
         result = await db_session.execute(
@@ -53,10 +56,12 @@ class TestAdminSeeding:
         )
 
         # Seed first time
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Seed again (should not create duplicate)
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Verify only one admin exists
         result = await db_session.execute(select(User))
@@ -64,19 +69,21 @@ class TestAdminSeeding:
         assert len(users) == 1
         assert users[0].username == "admin"
 
-    async def test_seed_admin_updates_existing(self, db_session: AsyncSession):
-        """Seeding updates existing admin user."""
+    async def test_seed_admin_skips_existing(self, db_session: AsyncSession):
+        """Seeding skips if admin user already exists."""
         # Create admin manually
         admin = User(
             username="admin",
             email="old@example.com",
             full_name="Old Name",
-            hashed_password="old_hash",
+            hashed_password=get_password_hash("OldPass123"),
             role="admin",
         )
         db_session.add(admin)
         await db_session.commit()
         await db_session.refresh(admin)
+
+        original_id = admin.id
 
         # Seed with new credentials
         settings = Settings(
@@ -86,13 +93,15 @@ class TestAdminSeeding:
             auth_full_name="New Name",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
-        # Verify updated
+        # Verify NOT updated (existing user preserved)
         await db_session.refresh(admin)
-        assert admin.email == "new@example.com"
-        assert admin.full_name == "New Name"
-        assert verify_password("NewPass123", admin.hashed_password)
+        assert admin.id == original_id
+        assert admin.email == "old@example.com"  # Unchanged
+        assert admin.full_name == "Old Name"  # Unchanged
+        assert verify_password("OldPass123", admin.hashed_password)  # Old password still works
 
     async def test_seed_admin_normalizes_username(self, db_session: AsyncSession):
         """Seeding normalizes username to lowercase."""
@@ -103,7 +112,8 @@ class TestAdminSeeding:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Should be stored as lowercase
         result = await db_session.execute(
@@ -122,7 +132,8 @@ class TestAdminSeeding:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         result = await db_session.execute(
             select(User).where(User.username == "admin")
@@ -131,7 +142,7 @@ class TestAdminSeeding:
         assert admin.email == "admin@example.com"
 
     async def test_seed_admin_with_existing_non_admin(self, db_session: AsyncSession):
-        """Seeding works even if username exists as non-admin."""
+        """Seeding skips if username exists even as non-admin."""
         # Create regular user with same username
         user = User(
             username="admin",
@@ -150,19 +161,25 @@ class TestAdminSeeding:
             auth_full_name="Admin User",
         )
 
-        # Should update to admin role
-        await seed_admin_user(db_session, settings)
+        # Should skip (not update existing user)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
-        # Verify updated to admin
+        # Verify NOT updated (existing user preserved)
         result = await db_session.execute(
             select(User).where(User.username == "admin")
         )
         admin = result.scalar_one_or_none()
-        assert admin.role == "admin"
-        assert admin.email == "admin@example.com"
+        assert admin.role == "user"  # Still user, not admin
+        assert admin.email == "user@example.com"  # Original email
 
     async def test_seed_logs_creation(self, db_session: AsyncSession, caplog):
         """Seeding logs admin user creation."""
+        import logging
+
+        # Set log level to capture INFO messages
+        caplog.set_level(logging.INFO)
+
         settings = Settings(
             auth_username="admin",
             auth_password="Pass123",
@@ -170,13 +187,15 @@ class TestAdminSeeding:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
-        # Check logs
-        assert any("Created admin user" in record.message for record in caplog.records)
+        # Check logs (case-insensitive)
+        log_messages = [record.message.lower() for record in caplog.records]
+        assert any("created admin user" in msg for msg in log_messages)
 
     async def test_seed_preserves_other_fields(self, db_session: AsyncSession):
-        """Seeding preserves created_at and other fields."""
+        """Seeding skips if user exists, preserving all fields."""
         # Create admin
         settings = Settings(
             auth_username="admin",
@@ -185,31 +204,34 @@ class TestAdminSeeding:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         result = await db_session.execute(
             select(User).where(User.username == "admin")
         )
         admin = result.scalar_one_or_none()
         original_created_at = admin.created_at
+        original_full_name = admin.full_name
 
-        # Seed again
+        # Seed again (should skip, not update)
         settings.auth_full_name = "Updated Admin"
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
-        # created_at should be preserved
+        # All fields should be preserved (not updated)
         await db_session.refresh(admin)
         assert admin.created_at == original_created_at
-        assert admin.full_name == "Updated Admin"
+        assert admin.full_name == original_full_name  # NOT updated
 
     async def test_seed_with_case_insensitive_lookup(self, db_session: AsyncSession):
-        """Seeding finds existing user case-insensitively."""
+        """Seeding finds existing user case-insensitively and skips."""
         # Create admin with lowercase username
         admin = User(
             username="admin",
             email="admin@example.com",
             full_name="Admin",
-            hashed_password="old",
+            hashed_password=get_password_hash("OldPass123"),
             role="admin",
         )
         db_session.add(admin)
@@ -223,13 +245,15 @@ class TestAdminSeeding:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
-        # Should find and update existing admin (not create new)
+        # Should find existing admin (not create new) and skip (not update)
         result = await db_session.execute(select(User))
         users = result.scalars().all()
         assert len(users) == 1
-        assert verify_password("NewPass123", users[0].hashed_password)
+        # Password should NOT be updated (old password still works)
+        assert verify_password("OldPass123", users[0].hashed_password)
 
 
 @pytest.mark.unit
@@ -246,7 +270,8 @@ class TestSeedingUnit:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         result = await db_session.execute(
             select(User).where(User.username == "admin")
@@ -272,7 +297,8 @@ class TestSeedingIntegration:
         )
 
         # Seed
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Verify admin exists and can authenticate
         result = await db_session.execute(
@@ -285,7 +311,7 @@ class TestSeedingIntegration:
 
     @pytest.mark.asyncio
     async def test_seed_rollback_on_error(self, db_session: AsyncSession):
-        """Seeding handles errors gracefully."""
+        """Seeding is idempotent - second seed skips existing user."""
         settings = Settings(
             auth_username="admin",
             auth_password="Pass123",
@@ -294,7 +320,8 @@ class TestSeedingIntegration:
         )
 
         # First seed succeeds
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Verify admin created
         result = await db_session.execute(
@@ -302,13 +329,15 @@ class TestSeedingIntegration:
         )
         admin = result.scalar_one_or_none()
         assert admin is not None
+        original_full_name = admin.full_name
 
-        # Second seed (update) should also succeed
+        # Second seed should skip (idempotent)
         settings.auth_full_name = "Updated Admin"
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         await db_session.refresh(admin)
-        assert admin.full_name == "Updated Admin"
+        assert admin.full_name == original_full_name  # NOT updated
 
 
 @pytest.mark.security
@@ -325,7 +354,8 @@ class TestSeedingSecurity:
             auth_full_name="Admin",
         )
 
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         result = await db_session.execute(
             select(User).where(User.username == "admin")
@@ -348,7 +378,8 @@ class TestSeedingSecurity:
         )
 
         # Should handle safely (parameterized queries)
-        await seed_admin_user(db_session, settings)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            await seed_admin_user(db_session)
 
         # Table should still exist
         result = await db_session.execute(select(User))

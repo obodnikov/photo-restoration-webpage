@@ -94,13 +94,23 @@ async def seed_admin_user(db: AsyncSession) -> None:
         await db.commit()
         await db.refresh(admin_user)
     except Exception as e:
-        # Handle race condition: if another instance created the user simultaneously,
-        # the unique constraint will fail. This is expected and safe to ignore.
         await db.rollback()
-        logger.info(
-            f"Admin user creation skipped - likely already created by another instance: {e}"
-        )
-        return
+
+        # Only handle IntegrityError (unique constraint violations) from race conditions
+        # All other database errors should be raised to alert operators
+        error_str = str(e).lower()
+        if "unique" in error_str or "integrity" in error_str or "constraint" in error_str:
+            # Expected race condition: another instance created the user simultaneously
+            logger.info(
+                f"Admin user '{normalized_username}' already exists (race condition during creation)"
+            )
+            return
+        else:
+            # Unexpected database error - re-raise to fail startup
+            logger.error(
+                f"Failed to create admin user due to unexpected database error: {e}"
+            )
+            raise
 
     logger.info(
         f"Created admin user: {admin_user.username} ({admin_user.email}) with ID {admin_user.id}"
