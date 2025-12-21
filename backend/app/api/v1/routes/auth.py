@@ -119,8 +119,8 @@ async def login(
     # Log login attempt (don't log password!)
     logger.info(f"Login attempt for user: {credentials.username}")
 
-    # Authenticate user
-    user = authenticate_user(credentials.username, credentials.password)
+    # Authenticate user against database
+    user = await authenticate_user(credentials.username, credentials.password, db)
 
     if user is None:
         # Log failed attempt with details for debugging
@@ -134,10 +134,22 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Update last_login timestamp
+    from sqlalchemy import select, update
+    from app.db.models import User as UserModel
+    from datetime import datetime
+
+    await db.execute(
+        update(UserModel)
+        .where(UserModel.id == user["id"])
+        .values(last_login=datetime.utcnow())
+    )
+    await db.commit()
+
     # Create new session for this login
     session_manager = SessionManager()
-    session = await session_manager.create_session(db)
-    logger.info(f"Created session {session.session_id} for user {credentials.username}")
+    session = await session_manager.create_session(db, user["id"])
+    logger.info(f"Created session {session.session_id} for user {credentials.username} (user_id={user['id']})")
 
     # Calculate token expiration
     # If remember_me is True, extend token lifetime (7 days for MVP)
@@ -153,11 +165,14 @@ async def login(
             f"(expires in {settings.access_token_expire_minutes} minutes)"
         )
 
-    # Create JWT token with username and session_id
+    # Create JWT token with user data and session_id
     access_token = create_access_token(
         data={
             "sub": user["username"],
-            "session_id": session.session_id
+            "user_id": user["id"],
+            "role": user["role"],
+            "session_id": session.session_id,
+            "password_must_change": user["password_must_change"],
         },
         expires_delta=expires_delta
     )

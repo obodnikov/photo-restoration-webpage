@@ -96,9 +96,14 @@ async def configure_sqlite(engine: AsyncEngine) -> None:
 
 async def init_db() -> None:
     """
-    Initialize database: create tables and configure SQLite.
+    Initialize database: create tables, configure SQLite, and seed initial data.
 
     This should be called once during application startup.
+    Performs:
+    1. Creates database engine
+    2. Configures SQLite (WAL mode, foreign keys, etc.)
+    3. Creates all tables
+    4. Seeds initial data (admin user)
     """
     global _engine, _async_session_factory
 
@@ -122,6 +127,19 @@ async def init_db() -> None:
             autoflush=False,  # Manual flush control
             autocommit=False,  # Manual commit control
         )
+
+    # Seed initial data (admin user)
+    from app.db.seed import seed_database
+
+    async with _async_session_factory() as session:
+        try:
+            await seed_database(session)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to seed database: {e}")
+            # Don't fail startup if seeding fails
+            pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

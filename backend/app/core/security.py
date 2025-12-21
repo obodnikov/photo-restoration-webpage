@@ -146,46 +146,67 @@ async def get_current_user(
         raise credentials_exception
 
     username: str = payload.get("sub")
+    user_id: int = payload.get("user_id")
+    role: str = payload.get("role")
     session_id: str = payload.get("session_id")
+    password_must_change: bool = payload.get("password_must_change", False)
 
-    logger.info(f"Token verified - username: {username}, session_id: {session_id}")
+    logger.info(f"Token verified - username: {username}, user_id: {user_id}, role: {role}, session_id: {session_id}")
 
-    if username is None:
-        logger.error("Token payload missing 'sub' (username)")
+    if username is None or user_id is None:
+        logger.error("Token payload missing required fields (username or user_id)")
         raise credentials_exception
 
-    # For MVP, we return minimal user data including session_id
-    # In Phase 2.x, this will query the database
+    # Return user data from token
     return {
         "username": username,
-        "session_id": session_id
+        "user_id": user_id,
+        "role": role,
+        "session_id": session_id,
+        "password_must_change": password_must_change,
     }
 
 
-def authenticate_user(username: str, password: str) -> Optional[dict]:
+async def authenticate_user(username: str, password: str, db) -> Optional[dict]:
     """
-    Authenticate a user with username and password.
+    Authenticate a user with username and password (database-backed).
 
-    For MVP: Uses hardcoded credentials from environment variables.
-    Phase 2.x: Will query database for user credentials.
+    Phase 2.4: Authenticates against database users with hashed passwords.
 
     Args:
         username: Username to authenticate
         password: Plain text password to verify
+        db: Database session (AsyncSession)
 
     Returns:
-        User dict if authentication successful, None otherwise
+        User dict with id, username, email, full_name, role if authentication successful
+        None otherwise
     """
-    settings = get_settings()
+    from sqlalchemy import select
+    from app.db.models import User
 
-    # MVP: Check against hardcoded credentials from .env
-    if username != settings.auth_username:
+    # Query user from database
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # User not found
         return None
 
-    # For MVP with hardcoded credentials, do simple password comparison
-    # In production Phase 2.x, passwords will be pre-hashed in database
-    # and we'll use verify_password(password, user.hashed_password)
-    if password != settings.auth_password:
+    if not user.is_active:
+        # User account is disabled
         return None
 
-    return {"username": username}
+    # Verify password against hashed password
+    if not verify_password(password, user.hashed_password):
+        return None
+
+    # Return user data (excluding sensitive fields)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "password_must_change": user.password_must_change,
+    }
