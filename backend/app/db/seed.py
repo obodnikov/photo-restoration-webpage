@@ -6,6 +6,7 @@ This module provides functions to seed the database with initial data:
 """
 import logging
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -93,24 +94,21 @@ async def seed_admin_user(db: AsyncSession) -> None:
     try:
         await db.commit()
         await db.refresh(admin_user)
-    except Exception as e:
+    except IntegrityError:
+        # Expected race condition: another instance created the user simultaneously
+        # with a conflicting username or email (unique constraint violation)
         await db.rollback()
-
-        # Only handle IntegrityError (unique constraint violations) from race conditions
-        # All other database errors should be raised to alert operators
-        error_str = str(e).lower()
-        if "unique" in error_str or "integrity" in error_str or "constraint" in error_str:
-            # Expected race condition: another instance created the user simultaneously
-            logger.info(
-                f"Admin user '{normalized_username}' already exists (race condition during creation)"
-            )
-            return
-        else:
-            # Unexpected database error - re-raise to fail startup
-            logger.error(
-                f"Failed to create admin user due to unexpected database error: {e}"
-            )
-            raise
+        logger.info(
+            f"Admin user '{normalized_username}' already exists (race condition during creation)"
+        )
+        return
+    except Exception as e:
+        # Unexpected database error - re-raise to fail startup and alert operators
+        await db.rollback()
+        logger.error(
+            f"Failed to create admin user due to database error: {e}"
+        )
+        raise
 
     logger.info(
         f"Created admin user: {admin_user.username} ({admin_user.email}) with ID {admin_user.id}"

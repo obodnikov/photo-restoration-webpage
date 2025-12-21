@@ -385,3 +385,33 @@ class TestSeedingSecurity:
         result = await db_session.execute(select(User))
         users = result.scalars().all()
         assert len(users) >= 0  # Query worked
+
+    @pytest.mark.asyncio
+    async def test_seed_reraises_non_integrity_errors(self, db_session: AsyncSession):
+        """Seeding re-raises non-IntegrityError exceptions."""
+        from unittest.mock import AsyncMock
+        from sqlalchemy.exc import OperationalError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        # Mock commit to raise OperationalError (e.g., disk full, connection lost)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_commit():
+                raise OperationalError("Disk full", None, None)
+
+            db_session.commit = mock_commit
+
+            try:
+                # Should re-raise OperationalError, not swallow it
+                with pytest.raises(OperationalError):
+                    await seed_admin_user(db_session)
+            finally:
+                # Restore original commit
+                db_session.commit = original_commit
