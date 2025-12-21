@@ -3,6 +3,7 @@ User management schemas for request/response models.
 
 This module defines Pydantic models for user-related API operations.
 """
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -45,7 +46,7 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_username(cls, v: str) -> str:
         """Validate username format."""
-        if not v.isalnum() and "_" not in v and "-" not in v:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", v):
             raise ValueError(
                 "Username can only contain letters, numbers, underscores, and hyphens"
             )

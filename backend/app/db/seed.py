@@ -51,20 +51,24 @@ async def seed_admin_user(db: AsyncSession) -> None:
         )
         return
 
-    # Check if admin user already exists
+    # Normalize username and email (consistent with UserCreate validator)
+    normalized_username = settings.auth_username.lower()
+    normalized_email = settings.auth_email.lower()
+
+    # Check if admin user already exists (use normalized username)
     result = await db.execute(
-        select(User).where(User.username == settings.auth_username)
+        select(User).where(User.username == normalized_username)
     )
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        logger.info(f"Admin user '{settings.auth_username}' already exists, skipping seed")
+        logger.info(f"Admin user '{normalized_username}' already exists, skipping seed")
         return
 
-    # Create admin user
+    # Create admin user with normalized credentials
     admin_user = User(
-        username=settings.auth_username,
-        email=settings.auth_email,
+        username=normalized_username,
+        email=normalized_email,
         full_name=settings.auth_full_name,
         hashed_password=get_password_hash(settings.auth_password),
         role="admin",

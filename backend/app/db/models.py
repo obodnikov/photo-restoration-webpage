@@ -150,6 +150,11 @@ class Session(Base):
             f"user_id={self.user_id}, created_at={self.created_at})>"
         )
 
+    @property
+    def image_count(self) -> int:
+        """Get count of processed images in this session."""
+        return len(self.processed_images) if self.processed_images else 0
+
     def to_dict(self) -> dict:
         """Convert session to dictionary."""
         return {
@@ -158,7 +163,7 @@ class Session(Base):
             "user_id": self.user_id,
             "created_at": self.created_at.isoformat(),
             "last_accessed": self.last_accessed.isoformat(),
-            "image_count": len(self.processed_images) if self.processed_images else 0,
+            "image_count": self.image_count,
         }
 
 
