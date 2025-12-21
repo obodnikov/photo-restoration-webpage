@@ -502,8 +502,11 @@ async def get_history(
             detail="Invalid token: missing user information",
         )
 
+    from sqlalchemy.exc import SQLAlchemyError
+
     try:
         # Get ALL user's images across ALL sessions, ordered by most recent first
+        # This ensures users can ONLY see their own images, not other users' images
         query = (
             select(ProcessedImage)
             .join(ProcessedImage.session)
@@ -540,8 +543,8 @@ async def get_history(
         ]
 
         logger.debug(
-            f"User {user['username']} retrieved {len(items)} images "
-            f"(total: {total}, offset: {offset}, limit: {limit})"
+            f"User {user['username']} (ID: {user_id}) retrieved {len(items)} images "
+            f"from {total} total (offset: {offset}, limit: {limit})"
         )
 
         return HistoryResponse(
@@ -551,8 +554,18 @@ async def get_history(
             offset=offset,
         )
 
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error retrieving history for user {user_id}: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error while retrieving image history",
+        )
     except Exception as e:
-        logger.error(f"Error retrieving history for user {user_id}: {e}")
+        logger.error(
+            f"Unexpected error retrieving history for user {user_id}: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve image history",
