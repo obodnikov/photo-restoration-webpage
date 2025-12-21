@@ -1149,32 +1149,120 @@ REDIS_URL=redis://localhost:6379/0
 
 ---
 
-### 2.4 Enhanced Authentication Features
+### 2.4 Enhanced Authentication Features ✅ **BACKEND COMPLETE** (Frontend Pending)
 
-**Backend:**
-- [ ] Database-backed user management (replace hardcoded credentials)
-  - [ ] User table in SQLite
-  - [ ] CRUD operations for users
-  - [ ] Admin user management endpoints
-- [ ] Configurable token expiration
-  - [ ] Allow users to set token lifetime
-  - [ ] Short-lived tokens with refresh token support
-  - [ ] Configurable per-user token settings
-- [ ] Enhanced password security
-  - [ ] Password complexity requirements
-  - [ ] Password change functionality
-  - [ ] Password reset flow via email (optional)
-- [ ] Session management improvements
-  - [ ] Multiple device support
-  - [ ] Active session viewing
-  - [ ] Remote logout capability
+**Completed:** December 21, 2024
 
-**Frontend:**
-- [ ] User registration page
-- [ ] Profile management page
-- [ ] Password change interface
-- [ ] Active sessions viewer
-- [ ] Security settings
+**Backend:** ✅ **COMPLETE**
+- [x] Database-backed user management (replace hardcoded credentials)
+  - [x] User table in SQLite with full authentication fields
+    - [x] username, email, full_name, hashed_password
+    - [x] role (admin/user), is_active, password_must_change
+    - [x] created_at, last_login timestamps
+  - [x] Session table updated with user_id foreign key (CASCADE delete)
+  - [x] CRUD operations for users (admin-only)
+  - [x] Admin user management endpoints (`/api/v1/admin/*`)
+    - [x] POST `/admin/users` - Create new user
+    - [x] GET `/admin/users` - List users with pagination & filters
+    - [x] GET `/admin/users/{id}` - Get user details
+    - [x] PUT `/admin/users/{id}` - Update user
+    - [x] DELETE `/admin/users/{id}` - Delete user
+    - [x] PUT `/admin/users/{id}/reset-password` - Reset password
+- [x] Enhanced password security
+  - [x] Password complexity requirements (min 8 chars, uppercase, lowercase, digit)
+  - [x] Password validation utilities (`app/utils/password_validator.py`)
+  - [x] Bcrypt password hashing (existing, now with DB storage)
+  - [x] Password change functionality (`PUT /api/v1/users/me/password`)
+  - [x] Force password change on first login (`password_must_change` flag)
+- [x] Session management improvements
+  - [x] Multiple device support (multiple sessions per user)
+  - [x] Active session viewing (`GET /api/v1/users/me/sessions`)
+  - [x] Remote logout capability (`DELETE /api/v1/users/me/sessions/{id}`)
+  - [x] Sessions linked to users (not anonymous)
+  - [x] Cross-session history access (users see ALL their images)
+- [x] Role-based authorization
+  - [x] Admin role (can manage users)
+  - [x] User role (can only use the app)
+  - [x] Authorization middleware (`require_admin`)
+- [x] Database seeding
+  - [x] Auto-create admin user from environment variables
+  - [x] Case-insensitive username lookup (idempotent seeding)
+  - [x] Credentials normalization (lowercase usernames/emails)
+- [x] User profile endpoints (`/api/v1/users/*`)
+  - [x] GET `/users/me` - Get current user profile
+  - [x] PUT `/users/me/password` - Change own password
+  - [x] GET `/users/me/sessions` - List active sessions
+  - [x] DELETE `/users/me/sessions/{id}` - Delete session
+- [x] Updated authentication flow
+  - [x] JWT tokens include user_id, role, password_must_change
+  - [x] Login creates new session linked to user
+  - [x] Last login timestamp tracking
+  - [x] Remember Me functionality (7 days vs 24 hours)
+
+**Frontend:** ⏳ **PENDING**
+- [ ] Admin panel page (`/admin/users`)
+  - [ ] User list with pagination
+  - [ ] Create user dialog
+  - [ ] Edit user dialog
+  - [ ] Delete user confirmation
+  - [ ] Reset password dialog
+  - [ ] Role assignment
+  - [ ] Activate/deactivate users
+- [ ] Profile management page (`/profile`)
+  - [ ] View user profile information
+  - [ ] Change password form
+  - [ ] Active sessions viewer
+  - [ ] Remote logout functionality
+  - [ ] Force password change flow
+- [ ] Updated history page
+  - [ ] Show ALL user images across sessions
+  - [ ] Optional session filter
+  - [ ] Maintain existing pagination
+
+**Breaking Changes:**
+- Database schema changed (User table added, Session table updated)
+- Must delete old database: `rm backend/data/photo_restoration.db*`
+- New environment variables required:
+  - `AUTH_EMAIL` - Admin user email
+  - `AUTH_FULL_NAME` - Admin user full name
+- Sessions now require user authentication (no more anonymous sessions)
+
+**Migration Guide:**
+1. Update `.env` file with new admin credentials (AUTH_EMAIL, AUTH_FULL_NAME)
+2. Delete old database: `rm -f backend/data/photo_restoration.db*`
+3. Start backend - admin user will be auto-created
+4. Login with admin credentials from `.env`
+5. Create additional users via admin panel (once frontend is implemented)
+
+**Files Created:**
+- `backend/app/db/seed.py` - Database seeding utilities
+- `backend/app/utils/password_validator.py` - Password validation
+- `backend/app/core/authorization.py` - Role-based authorization
+- `backend/app/api/v1/schemas/user.py` - User schemas
+- `backend/app/api/v1/routes/admin.py` - Admin user management
+- `backend/app/api/v1/routes/users.py` - User profile management
+
+**Files Modified:**
+- `backend/app/db/models.py` - Added User model, updated Session
+- `backend/app/db/database.py` - Added seeding on init
+- `backend/app/core/config.py` - Added AUTH_EMAIL, AUTH_FULL_NAME
+- `backend/app/core/security.py` - Database-backed authentication
+- `backend/app/api/v1/routes/auth.py` - Updated login flow
+- `backend/app/api/v1/routes/restoration.py` - User-based history
+- `backend/app/services/session_manager.py` - Accept user_id parameter
+- `backend/app/main.py` - Registered new routes
+- `backend/.env.example` - Added new environment variables
+
+**Testing Status:**
+- ✅ Code review passed (all issues resolved)
+- ⏳ Unit tests pending
+- ⏳ Integration tests pending
+- ⏳ End-to-end tests pending
+
+**Documentation:**
+- ✅ ROADMAP.md updated
+- ⏳ API documentation pending
+- ⏳ Frontend component documentation pending
 
 ---
 

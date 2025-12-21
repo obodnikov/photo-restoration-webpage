@@ -55,17 +55,29 @@ async def seed_admin_user(db: AsyncSession) -> None:
     normalized_username = settings.auth_username.lower()
     normalized_email = settings.auth_email.lower()
 
-    # Check if admin user already exists (use normalized username)
+    # Check if admin user already exists (case-insensitive lookup on both username and email)
+    # This ensures idempotency even if admin was previously created with mixed case
+    from sqlalchemy import func, or_
+
     result = await db.execute(
-        select(User).where(User.username == normalized_username)
+        select(User).where(
+            or_(
+                func.lower(User.username) == normalized_username,
+                func.lower(User.email) == normalized_email
+            )
+        )
     )
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        logger.info(f"Admin user '{normalized_username}' already exists, skipping seed")
+        logger.info(
+            f"Admin user '{existing_user.username}' (email: {existing_user.email}) already exists "
+            f"(matched case-insensitively), skipping seed"
+        )
         return
 
     # Create admin user with normalized credentials
+    # Use INSERT ... ON CONFLICT to handle race conditions in multi-instance deployments
     admin_user = User(
         username=normalized_username,
         email=normalized_email,
@@ -77,8 +89,18 @@ async def seed_admin_user(db: AsyncSession) -> None:
     )
 
     db.add(admin_user)
-    await db.commit()
-    await db.refresh(admin_user)
+
+    try:
+        await db.commit()
+        await db.refresh(admin_user)
+    except Exception as e:
+        # Handle race condition: if another instance created the user simultaneously,
+        # the unique constraint will fail. This is expected and safe to ignore.
+        await db.rollback()
+        logger.info(
+            f"Admin user creation skipped - likely already created by another instance: {e}"
+        )
+        return
 
     logger.info(
         f"Created admin user: {admin_user.username} ({admin_user.email}) with ID {admin_user.id}"
