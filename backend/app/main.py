@@ -9,6 +9,8 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.api.v1.routes import auth_router, models_router, restoration_router
+from app.api.v1.routes.admin import router as admin_router
+from app.api.v1.routes.users import router as users_router
 from app.db.database import init_db, close_db
 from app.services.cleanup import (
     start_cleanup_scheduler,
@@ -121,6 +123,8 @@ app.mount(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(models_router, prefix="/api/v1")
 app.include_router(restoration_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")  # Admin user management
+app.include_router(users_router, prefix="/api/v1")  # User profile management
 
 
 # Health check endpoint

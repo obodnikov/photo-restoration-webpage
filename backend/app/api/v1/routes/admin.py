@@ -152,7 +152,7 @@ async def list_users(
         f"Admin {current_user['username']} listing users (skip={skip}, limit={limit})"
     )
 
-    # Build query
+    # Build base query
     query = select(User)
 
     # Apply filters
@@ -161,13 +161,20 @@ async def list_users(
     if is_active is not None:
         query = query.where(User.is_active == is_active)
 
-    # Get total count
-    count_result = await db.execute(query)
-    total = len(count_result.scalars().all())
+    # Get total count efficiently using SQL COUNT
+    from sqlalchemy import func
+    count_query = select(func.count(User.id))
+    if role:
+        count_query = count_query.where(User.role == role)
+    if is_active is not None:
+        count_query = count_query.where(User.is_active == is_active)
+
+    count_result = await db.execute(count_query)
+    total = count_result.scalar()
 
     # Get paginated results
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
+    paginated_query = query.offset(skip).limit(limit)
+    result = await db.execute(paginated_query)
     users = result.scalars().all()
 
     return UserListResponse(
