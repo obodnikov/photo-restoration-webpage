@@ -17,7 +17,9 @@ export const ProfilePage: React.FC = () => {
     isLoadingProfile,
     isLoadingSessions,
     isChangingPassword,
-    error,
+    profileError,
+    sessionsError,
+    mutationError,
     changePassword,
     deleteSession,
   } = useProfile();
@@ -34,12 +36,12 @@ export const ProfilePage: React.FC = () => {
   }
 
   // Show error if profile failed to load
-  if (error && !profile) {
+  if (profileError && !profile) {
     return (
       <div className="profile-page">
         <div className="container">
           <ErrorMessage
-            message={error}
+            message={profileError}
             title="Failed to Load Profile"
           />
         </div>
@@ -62,8 +64,9 @@ export const ProfilePage: React.FC = () => {
           </p>
         </div>
 
-        {error && (
-          <ErrorMessage message={error} />
+        {/* Show mutation errors (password change, session deletion) */}
+        {mutationError && (
+          <ErrorMessage message={mutationError} />
         )}
 
         <div className="profile-grid">
@@ -89,6 +92,7 @@ export const ProfilePage: React.FC = () => {
                 sessions={sessions}
                 onDeleteSession={deleteSession}
                 isLoading={isLoadingSessions}
+                error={sessionsError}
               />
             )}
           </div>

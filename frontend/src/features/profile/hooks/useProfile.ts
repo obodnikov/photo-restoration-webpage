@@ -12,21 +12,25 @@ export function useProfile() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Separate error states for better UX
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   /**
    * Fetch user profile
    */
   const fetchProfile = useCallback(async () => {
     setIsLoadingProfile(true);
-    setError(null);
+    setProfileError(null);
 
     try {
       const data = await profileService.getProfile();
       setProfile(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load profile';
-      setError(message);
+      setProfileError(message);
       console.error('Error fetching profile:', err);
     } finally {
       setIsLoadingProfile(false);
@@ -38,14 +42,14 @@ export function useProfile() {
    */
   const fetchSessions = useCallback(async () => {
     setIsLoadingSessions(true);
-    setError(null);
+    setSessionsError(null);
 
     try {
       const data = await profileService.getSessions();
       setSessions(data.sessions);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load sessions';
-      setError(message);
+      setSessionsError(message);
       console.error('Error fetching sessions:', err);
     } finally {
       setIsLoadingSessions(false);
@@ -58,7 +62,7 @@ export function useProfile() {
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
       setIsChangingPassword(true);
-      setError(null);
+      setMutationError(null);
 
       try {
         await profileService.changePassword({
@@ -66,11 +70,14 @@ export function useProfile() {
           new_password: newPassword,
         });
 
+        // Clear any previous error on success
+        setMutationError(null);
+
         // Refresh profile to clear password_must_change flag if it was set
         await fetchProfile();
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to change password';
-        setError(message);
+        setMutationError(message);
         throw err; // Re-throw so the form can handle it
       } finally {
         setIsChangingPassword(false);
@@ -83,16 +90,19 @@ export function useProfile() {
    * Delete a session (remote logout)
    */
   const deleteSession = useCallback(async (sessionId: string) => {
-    setError(null);
+    setMutationError(null);
 
     try {
       await profileService.deleteSession(sessionId);
 
       // Remove the session from local state
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+
+      // Clear any previous error on success
+      setMutationError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete session';
-      setError(message);
+      setMutationError(message);
       throw err; // Re-throw so the component can handle it
     }
   }, []);
@@ -111,7 +121,9 @@ export function useProfile() {
     isLoadingProfile,
     isLoadingSessions,
     isChangingPassword,
-    error,
+    profileError,
+    sessionsError,
+    mutationError,
     changePassword,
     deleteSession,
     refreshProfile: fetchProfile,
