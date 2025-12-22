@@ -8,6 +8,7 @@ import { initializeAuthStore, setupTokenExpiryCheck } from '../services/authStor
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RestorationPage } from '../features/restoration/pages/RestorationPage';
 import { HistoryPage } from '../features/history/pages/HistoryPage';
+import { ProfilePage } from '../features/profile/pages/ProfilePage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { Layout } from '../components/Layout';
 import '../styles/base.css';
@@ -16,6 +17,7 @@ import '../styles/components/shared.css';
 import '../styles/components/auth.css';
 import '../styles/components/restoration.css';
 import '../styles/components/history.css';
+import '../styles/components/profile.css';
 
 export function App() {
   // Initialize auth store from localStorage on app start
@@ -47,6 +49,16 @@ export function App() {
             <Layout>
               <ProtectedRoute>
                 <HistoryPage />
+              </ProtectedRoute>
+            </Layout>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <Layout>
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             </Layout>
           }

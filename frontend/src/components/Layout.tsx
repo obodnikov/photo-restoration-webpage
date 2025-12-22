@@ -69,6 +69,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   >
                     History
                   </Link>
+                  <Link
+                    to="/profile"
+                    className={`nav-link ${isActivePath('/profile') ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    Profile
+                  </Link>
                   <button onClick={handleLogout} className="btn btn-secondary btn-small">
                     Logout
                   </button>
