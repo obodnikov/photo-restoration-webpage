@@ -4,113 +4,52 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 
 ## Project Status
 
-**Version:** 0.8.0
-**Current Phase:** Phase 1 - MVP (In Progress)
-**Completed:** Phase 1.1 ✅ | Phase 1.2 ✅ | Phase 1.3 ✅ | Phase 1.4 ✅ | Phase 1.5 ✅ | Phase 1.6 ✅ | Phase 1.7 ✅ | Phase 1.8 ✅
+**Version:** 1.0.0
+**Current Phase:** Phase 2 - Enhanced Features
+**Latest:** Phase 2.4 Complete ✅ (Enhanced Authentication with Admin Panel + Profile Management)
+**Phase 1 Complete:** All 8 phases ✅ (Infrastructure, Auth, Models, HF Integration, Session Management, Restoration API, Frontend Features, UI/UX)
 
 ## Features
 
-### Phase 1.1 - Infrastructure ✅ COMPLETE
-- ✅ FastAPI backend with async support
-- ✅ React + TypeScript frontend with Vite
-- ✅ Docker deployment with nginx reverse proxy
-- ✅ sqowe brand design system
-- ✅ Health check endpoints
+### Core Functionality ✅
+- **Image Restoration** - AI-powered photo restoration with drag-and-drop upload
+- **Multiple AI Providers** - HuggingFace + Replicate integration
+- **Model Selection** - Choose from various upscaling and enhancement models
+- **Before/After Comparison** - Interactive image viewer with 3 display modes
+- **History Management** - View, download, and manage all processed images
+- **Session Management** - Automatic cleanup and file organization
 
-### Phase 1.2 - Authentication ✅ COMPLETE
-- ✅ JWT token-based authentication
-- ✅ Login system with sqowe branding
-- ✅ Protected routes
-- ✅ Auth state management (Zustand)
-- ✅ Token persistence in localStorage
-- ✅ Auto-logout on token expiration
-- ✅ "Remember Me" functionality (7 days)
+### Authentication & User Management ✅
+- **JWT Authentication** - Secure token-based auth with Remember Me (7 days)
+- **Database-Backed Users** - SQLite user management with role-based access
+- **Admin Panel** - User CRUD operations, role management, password reset
+- **Profile Management** - View profile, change password, manage active sessions
+- **Multi-Device Support** - Multiple sessions per user with remote logout
+- **Password Security** - Complexity requirements, bcrypt hashing, force change on first login
 
-### Phase 1.3 - AI Models Configuration ✅ COMPLETE
-- ✅ Models configuration API (`GET /api/v1/models`)
-- ✅ Individual model details (`GET /api/v1/models/{id}`)
-- ✅ Configurable authentication (MODELS_REQUIRE_AUTH)
-- ✅ Smart caching for performance
-- ✅ Model schema with tags and version support
-- ✅ 17 comprehensive tests
+### Technical Features ✅
+- **Async Architecture** - FastAPI + SQLAlchemy async for high performance
+- **Multi-Provider Support** - Configurable HuggingFace + Replicate models
+- **File Storage** - Session-based organization with UUID prefixes
+- **Background Cleanup** - Automated removal of old sessions and files
+- **Responsive Design** - Mobile-first with sqowe brand styling
+- **Accessibility** - WCAG AA compliance with comprehensive testing
+- **Comprehensive Tests** - 224 frontend + 279 backend tests (99% coverage)
 
-### Phase 1.4 - HuggingFace Integration ✅ COMPLETE
-- ✅ HFInferenceService for model processing
-- ✅ Image validation and conversion utilities
-- ✅ Comprehensive error handling (rate limits, timeouts, server errors)
-- ✅ Custom exception classes (HFRateLimitError, HFTimeoutError, etc.)
-- ✅ Model status checking
-- ✅ Test data with mock HF API
-- ✅ 60 comprehensive tests (23 HF service + 37 image utilities)
+### Configuration & Deployment ✅
+- **JSON Configuration** - Structured config files with Pydantic validation
+- **Environment Support** - Dev, staging, production configs
+- **Docker Deployment** - Multi-stage builds with nginx reverse proxy
+- **Health Checks** - Backend API and database monitoring
+- **Debug Logging** - Detailed logging with DEBUG environment variable
 
-### Phase 1.5 - Session Management & History ✅ COMPLETE
-- ✅ SQLAlchemy async database models (Session, ProcessedImage)
-- ✅ SQLite database with WAL mode and async support
-- ✅ SessionManager service (create, retrieve, cleanup)
-- ✅ Session-based file storage (uploads, processed images)
-- ✅ Automated session cleanup (24-hour inactivity)
-- ✅ Session history with pagination
-- ✅ Cascade delete (session + files)
-- ✅ 59 comprehensive tests (11 models + 19 database + 29 session manager)
+### In Progress & Planned
+- ⏳ **Testing & QA** - Unit/integration tests for Phase 2.4 features
+- **Phase 2 Next** - Model pipelines, batch processing, rate limiting
+- **Phase 3 Planned** - OwnCloud integration, video frame restoration
+- **Phase 4 Planned** - Production polish, monitoring, security hardening
 
-### Phase 1.6 - Image Restoration API ✅ COMPLETE
-- ✅ Complete restoration workflow (`POST /api/v1/restore`)
-  - ✅ Image validation (format, size, content)
-  - ✅ HuggingFace model integration
-  - ✅ File storage with UUID prefix + original filename
-  - ✅ Database metadata storage
-  - ✅ Concurrent upload limiting per session (configurable)
-- ✅ History endpoints
-  - ✅ `GET /api/v1/restore/history` - paginated session history
-  - ✅ `GET /api/v1/restore/{image_id}` - get image details
-  - ✅ `GET /api/v1/restore/{image_id}/download` - download processed image
-  - ✅ `DELETE /api/v1/restore/{image_id}` - delete image and files
-- ✅ Background cleanup service
-  - ✅ APScheduler integration
-  - ✅ Periodic session cleanup (configurable interval)
-  - ✅ Run on startup + scheduled execution
-- ✅ Comprehensive error handling
-  - ✅ HF API errors mapped to HTTP codes (429→503, timeout→504, errors→502)
-  - ✅ User-friendly error messages
-- ✅ Session creation on login (new session per login)
-- ✅ User isolation (cannot access other sessions' images)
-- ✅ 61 comprehensive tests (11 validation + 13 models + 18 integration + 8 cleanup + 11 static)
-
-### Phase 1.7 - Frontend Core Features ✅ COMPLETE
-- ✅ Complete image restoration workflow with drag & drop upload
-- ✅ Model selection with descriptions from API
-- ✅ Real-time processing status with progress tracking
-- ✅ Image comparison viewer with 3 modes (Original, Restored, Compare)
-- ✅ Full restoration history with pagination
-- ✅ Download and delete functionality
-- ✅ Layout with header/footer (sqowe branding)
-- ✅ Responsive design (mobile, tablet, desktop)
-- ✅ Shared UI components (Button, Card, Loader, ErrorMessage)
-- ✅ 115 comprehensive frontend tests (60 new tests for Phase 1.7)
-
-### Phase 1.8 - UI/UX Implementation ✅ COMPLETE
-- ✅ Input component with form validation and error handling
-- ✅ Modal component with full accessibility support
-- ✅ Mobile hamburger navigation menu
-- ✅ Enhanced responsive design (mobile < 768px, tablet 768-1023px, desktop 1024px+)
-- ✅ Touch-friendly targets (44x44px minimum)
-- ✅ Form styles with focus states and validation
-- ✅ 109+ comprehensive tests:
-  - ✅ 82 component tests (Button, Card, Input, TextArea, Modal, Loader, ErrorMessage)
-  - ✅ 12 layout tests (header, navigation, mobile menu, footer)
-  - ✅ 15+ accessibility tests (ARIA, keyboard, contrast with axe-core)
-- ✅ Accessibility compliance (WCAG AA standards)
-
-### Phase 1.9+ - In Progress
-- ⏳ Complete testing infrastructure and QA
-- ⏳ Documentation and deployment
-
-### Planned Features
-- **Phase 2**: Model pipelines, batch processing, additional models
-- **Phase 3**: OwnCloud integration, multi-user support, video frame restoration
-- **Phase 4**: Production polish, monitoring, security hardening
-
-See [ROADMAP.md](ROADMAP.md) for detailed development plan.
+📖 See [ROADMAP.md](ROADMAP.md) for detailed development plan and [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) for future enhancements.
 
 ## Tech Stack
 
