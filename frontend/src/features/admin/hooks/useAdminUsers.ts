@@ -117,12 +117,24 @@ export function useAdminUsers() {
           setCurrentPage(newTotalPages);
         } else if (users.length === 1 && currentPage < newTotalPages) {
           // Removed last user on this page but not last page, refetch to show next page users
-          await fetchUsers();
+          // Wrap in try-catch so refresh failures don't appear as delete failures
+          try {
+            await fetchUsers();
+          } catch (refreshErr) {
+            // Ignore refresh errors - deletion was successful
+            console.warn('Failed to refresh user list after deletion:', refreshErr);
+          }
         }
       } catch (err) {
         // Refetch to ensure UI is consistent with server state
         // This handles all edge cases including multiple in-flight deletions
-        await fetchUsers();
+        // Guard the recovery fetch so it doesn't swallow the original error
+        try {
+          await fetchUsers();
+        } catch (fetchErr) {
+          // Ignore recovery fetch errors - we want to report the original error
+          console.warn('Failed to refresh user list after deletion error:', fetchErr);
+        }
 
         const message = err instanceof Error ? err.message : 'Failed to delete user';
         setError(message);
