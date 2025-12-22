@@ -2,7 +2,7 @@
  * Custom hook for admin user management
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import * as adminService from '../services/adminService';
 import type {
   AdminUser,
@@ -17,6 +17,9 @@ export function useAdminUsers() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track in-flight deletions to prevent race conditions
+  const deletingUsersRef = useRef<Set<number>>(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,58 +94,59 @@ export function useAdminUsers() {
 
   /**
    * Delete user
+   *
+   * Deletes user on backend, then refetches the current page.
+   * If the current page becomes empty, navigates to a valid page.
    */
   const deleteUser = useCallback(
     async (userId: number): Promise<void> => {
       setError(null);
 
+      // Prevent concurrent deletions of the same user
+      if (deletingUsersRef.current.has(userId)) {
+        const message = 'Delete operation already in progress for this user';
+        setError(message);
+        throw new Error(message);
+      }
+
+      // Mark user as being deleted
+      deletingUsersRef.current.add(userId);
+
       try {
-        // Calculate new total after deletion
-        const newTotal = total - 1;
-        const newTotalPages = Math.ceil(newTotal / itemsPerPage);
-
-        // Optimistically remove user and update total
-        setUsers((prev) => prev.filter((user) => user.id !== userId));
-        setTotal(newTotal);
-
-        // Perform the delete operation
+        // Perform the delete operation on the backend first
         await adminService.deleteUser(userId);
 
-        // Handle page navigation after successful deletion
-        if (newTotal === 0) {
-          // No users left, reset to first page
-          setCurrentPage(1);
-        } else if (currentPage > newTotalPages) {
-          // Current page becomes invalid, move to last valid page
-          setCurrentPage(newTotalPages);
-        } else if (users.length === 1 && currentPage < newTotalPages) {
-          // Removed last user on this page but not last page, refetch to show next page users
-          // Wrap in try-catch so refresh failures don't appear as delete failures
-          try {
-            await fetchUsers();
-          } catch (refreshErr) {
-            // Ignore refresh errors - deletion was successful
-            console.warn('Failed to refresh user list after deletion:', refreshErr);
+        // Refetch the current page to get updated data
+        const skip = (currentPage - 1) * itemsPerPage;
+        const response = await adminService.getUsers(skip, itemsPerPage, filters);
+
+        // Update state with response
+        setUsers(response.users);
+        setTotal(response.total);
+
+        // If current page is now empty but there are still users, navigate to a valid page
+        if (response.users.length === 0 && response.total > 0) {
+          const newTotalPages = Math.ceil(response.total / itemsPerPage);
+          const validPage = Math.min(currentPage, newTotalPages);
+          if (validPage !== currentPage) {
+            setCurrentPage(validPage);
+          } else if (currentPage > 1) {
+            // Edge case: current page is valid but empty, go to previous
+            setCurrentPage(currentPage - 1);
           }
         }
       } catch (err) {
-        // Refetch to ensure UI is consistent with server state
-        // This handles all edge cases including multiple in-flight deletions
-        // Guard the recovery fetch so it doesn't swallow the original error
-        try {
-          await fetchUsers();
-        } catch (fetchErr) {
-          // Ignore recovery fetch errors - we want to report the original error
-          console.warn('Failed to refresh user list after deletion error:', fetchErr);
-        }
-
         const message = err instanceof Error ? err.message : 'Failed to delete user';
         setError(message);
+        console.error(`Failed to delete user ${userId}:`, err);
         throw err;
+      } finally {
+        deletingUsersRef.current.delete(userId);
       }
     },
-    [currentPage, total, itemsPerPage, users, fetchUsers]
+    [currentPage, itemsPerPage, filters]
   );
+
 
   /**
    * Reset user password
