@@ -277,28 +277,50 @@ class Session(Base):
 
 ### 9. **Step 2: Updated History Component**
 **Context:** Phase 2.4 roadmap
-**Status:** Not started
+**Status:** ✅ PARTIALLY COMPLETE - UI text updated
+**Effort:** 1-2 hours for optional filter
+**Priority:** MEDIUM (optional session filter is nice-to-have)
+
+**Completed:**
+- ✅ UI text updated to clarify cross-session behavior
+- ✅ Backend already returns cross-session history via `/restore/history` endpoint
+- ✅ Frontend already uses correct endpoint
+
+**Optional Enhancement - Session Filter:**
+**Status:** Not implemented (added to technical debts)
 **Effort:** 1-2 hours
-**Priority:** HIGH (next phase 2.4 task)
 
-**Requirements:**
-- Modify history to show ALL user images across sessions (not just current session)
-- Add optional session filter dropdown
-- Maintain existing pagination
-- Update history service to call new `/users/me/history` endpoint
+**Two Implementation Approaches:**
 
-**Backend Status:** ✅ Complete (cross-session history already implemented)
+**Approach A: Client-side filtering** (Recommended)
+- Fetch user's sessions from `/users/me/sessions` (reuse profileService)
+- Add dropdown above history list: "All Sessions" | "Current Session" | specific sessions
+- Filter items client-side based on selection
+- Pros: No backend changes, faster implementation
+- Cons: Filters all loaded items (pagination still shows total count)
 
-**Frontend Changes Needed:**
-- Update `historyService.ts` to use `/users/me/history` instead of session-specific endpoint
-- Update HistoryPage to fetch user history instead of session history
-- Add optional session filter UI
-- Update tests
+**Implementation Tasks:**
+1. Add session filter dropdown to HistoryPage
+2. Fetch sessions list on mount (reuse profile service)
+3. Add filter state to useHistory hook
+4. Filter displayed items based on selected session
+5. Add filter UI above HistoryList component
+6. Style filter dropdown following sqowe brand guidelines
+7. Add tests for filtering functionality
 
-**Files to Modify:**
-- `frontend/src/features/history/services/historyService.ts`
-- `frontend/src/features/history/pages/HistoryPage.tsx`
-- `frontend/src/features/history/hooks/useHistory.ts`
+**Approach B: Server-side filtering** (More complete, requires backend changes)
+- Add `?session_id=xxx` query parameter to `/restore/history` endpoint
+- Backend filters before pagination
+- Update frontend to pass session_id parameter
+- Pros: Proper pagination, accurate counts
+- Cons: Requires backend changes, more effort
+
+**Files to Modify (Approach A):**
+- `frontend/src/features/history/pages/HistoryPage.tsx` - Add filter UI
+- `frontend/src/features/history/hooks/useHistory.ts` - Add client-side filtering
+- `frontend/src/features/history/components/HistoryFilterBar.tsx` - New component (optional)
+- `frontend/src/styles/components/history.css` - Style filter dropdown
+- `frontend/src/features/history/__tests__/useHistory.test.ts` - Add filter tests
 
 ---
 

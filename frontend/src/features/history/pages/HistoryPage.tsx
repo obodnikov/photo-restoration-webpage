@@ -90,7 +90,7 @@ export const HistoryPage: React.FC = () => {
         <div className="page-header">
           <h1>Restoration History</h1>
           <p className="page-subtitle">
-            View, download, or delete your restored images
+            View, download, or delete all your restored images from any device or session
           </p>
         </div>
 
