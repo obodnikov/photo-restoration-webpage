@@ -2,7 +2,7 @@
  * Custom hook for admin user management
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import * as adminService from '../services/adminService';
 import type {
   AdminUser,
@@ -17,6 +17,9 @@ export function useAdminUsers() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Track in-flight deletions to prevent race conditions
+  const deletingUsersRef = useRef<Set<number>>(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,48 +94,59 @@ export function useAdminUsers() {
 
   /**
    * Delete user
+   *
+   * Deletes user on backend, then refetches the current page.
+   * If the current page becomes empty, navigates to a valid page.
    */
   const deleteUser = useCallback(
     async (userId: number): Promise<void> => {
       setError(null);
 
+      // Prevent concurrent deletions of the same user
+      if (deletingUsersRef.current.has(userId)) {
+        const message = 'Delete operation already in progress for this user';
+        setError(message);
+        throw new Error(message);
+      }
+
+      // Mark user as being deleted
+      deletingUsersRef.current.add(userId);
+
       try {
+        // Perform the delete operation on the backend first
         await adminService.deleteUser(userId);
 
-        // Calculate new total after deletion
-        const newTotal = total - 1;
-        const newTotalPages = Math.ceil(newTotal / itemsPerPage);
+        // Refetch the current page to get updated data
+        const skip = (currentPage - 1) * itemsPerPage;
+        const response = await adminService.getUsers(skip, itemsPerPage, filters);
 
-        // If current page becomes invalid (e.g., deleting last user on last page)
-        // move to the previous page or refetch
-        if (currentPage > newTotalPages && newTotalPages > 0) {
-          // Move to the last valid page
-          setCurrentPage(newTotalPages);
-          // Fetch will be triggered by useEffect when currentPage changes
-        } else if (newTotal === 0) {
-          // No users left, clear the list
-          setUsers([]);
-          setTotal(0);
-          setCurrentPage(1);
-        } else {
-          // Page is still valid, just remove from local state
-          setUsers((prev) => prev.filter((user) => user.id !== userId));
-          setTotal(newTotal);
+        // Update state with response
+        setUsers(response.users);
+        setTotal(response.total);
 
-          // If we removed the last user on this page but it's not the last page,
-          // refetch to show users from the next page
-          if (users.length === 1 && currentPage < newTotalPages) {
-            await fetchUsers();
+        // If current page is now empty but there are still users, navigate to a valid page
+        if (response.users.length === 0 && response.total > 0) {
+          const newTotalPages = Math.ceil(response.total / itemsPerPage);
+          const validPage = Math.min(currentPage, newTotalPages);
+          if (validPage !== currentPage) {
+            setCurrentPage(validPage);
+          } else if (currentPage > 1) {
+            // Edge case: current page is valid but empty, go to previous
+            setCurrentPage(currentPage - 1);
           }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete user';
         setError(message);
+        console.error(`Failed to delete user ${userId}:`, err);
         throw err;
+      } finally {
+        deletingUsersRef.current.delete(userId);
       }
     },
-    [currentPage, total, itemsPerPage, users.length, fetchUsers]
+    [currentPage, itemsPerPage, filters]
   );
+
 
   /**
    * Reset user password
