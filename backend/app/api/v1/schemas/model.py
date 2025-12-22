@@ -66,8 +66,9 @@ class ModelInfo(BaseModel):
     )
     tags: list[str] = Field(default_factory=list, description="Model tags for filtering/search")
     version: str | None = Field(None, description="Model version")
-    schema: ModelSchemaResponse | None = Field(
+    model_schema: ModelSchemaResponse | None = Field(
         None,
+        alias="schema",
         description="Model schema (for Replicate models with parameter validation)"
     )
 
