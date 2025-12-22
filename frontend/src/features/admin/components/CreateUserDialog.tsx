@@ -89,6 +89,14 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
   const handleClose = () => {
     if (!isLoading) {
+      // Clear all form state to prevent leaking sensitive data
+      setUsername('');
+      setEmail('');
+      setFullName('');
+      setPassword('');
+      setRole('user');
+      setPasswordMustChange(true);
+      setShowPassword(false);
       setError(null);
       onClose();
     }

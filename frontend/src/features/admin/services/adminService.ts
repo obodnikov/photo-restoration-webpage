@@ -78,7 +78,8 @@ export async function resetUserPassword(
 }
 
 /**
- * Generate a random secure password
+ * Generate a cryptographically secure random password
+ * Uses window.crypto.getRandomValues() for secure randomness
  */
 export function generateRandomPassword(length: number = 12): string {
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -87,21 +88,39 @@ export function generateRandomPassword(length: number = 12): string {
   const special = '!@#$%^&*';
   const allChars = uppercase + lowercase + numbers + special;
 
-  let password = '';
+  /**
+   * Get a cryptographically secure random integer between 0 and max-1
+   */
+  const getSecureRandomInt = (max: number): number => {
+    const randomBuffer = new Uint32Array(1);
+    crypto.getRandomValues(randomBuffer);
+    return randomBuffer[0] % max;
+  };
+
+  /**
+   * Get a random character from a character set
+   */
+  const getRandomChar = (charset: string): string => {
+    return charset[getSecureRandomInt(charset.length)];
+  };
 
   // Ensure at least one of each required character type
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
+  const password: string[] = [
+    getRandomChar(uppercase),
+    getRandomChar(lowercase),
+    getRandomChar(numbers),
+  ];
 
-  // Fill the rest randomly
+  // Fill the rest randomly from all characters
   for (let i = password.length; i < length; i++) {
-    password += allChars[Math.floor(Math.random() * allChars.length)];
+    password.push(getRandomChar(allChars));
   }
 
-  // Shuffle the password
-  return password
-    .split('')
-    .sort(() => Math.random() - 0.5)
-    .join('');
+  // Shuffle the password array using Fisher-Yates algorithm with crypto.getRandomValues
+  for (let i = password.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    [password[i], password[j]] = [password[j], password[i]];
+  }
+
+  return password.join('');
 }

@@ -98,16 +98,40 @@ export function useAdminUsers() {
 
       try {
         await adminService.deleteUser(userId);
-        // Remove from local state
-        setUsers((prev) => prev.filter((user) => user.id !== userId));
-        setTotal((prev) => prev - 1);
+
+        // Calculate new total after deletion
+        const newTotal = total - 1;
+        const newTotalPages = Math.ceil(newTotal / itemsPerPage);
+
+        // If current page becomes invalid (e.g., deleting last user on last page)
+        // move to the previous page or refetch
+        if (currentPage > newTotalPages && newTotalPages > 0) {
+          // Move to the last valid page
+          setCurrentPage(newTotalPages);
+          // Fetch will be triggered by useEffect when currentPage changes
+        } else if (newTotal === 0) {
+          // No users left, clear the list
+          setUsers([]);
+          setTotal(0);
+          setCurrentPage(1);
+        } else {
+          // Page is still valid, just remove from local state
+          setUsers((prev) => prev.filter((user) => user.id !== userId));
+          setTotal(newTotal);
+
+          // If we removed the last user on this page but it's not the last page,
+          // refetch to show users from the next page
+          if (users.length === 1 && currentPage < newTotalPages) {
+            await fetchUsers();
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete user';
         setError(message);
         throw err;
       }
     },
-    []
+    [currentPage, total, itemsPerPage, users.length, fetchUsers]
   );
 
   /**

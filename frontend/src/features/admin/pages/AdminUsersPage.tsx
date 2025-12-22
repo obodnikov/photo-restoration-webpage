@@ -13,7 +13,12 @@ import { ResetPasswordDialog } from '../components/ResetPasswordDialog';
 import { Button } from '../../../components/Button';
 import { Loader } from '../../../components/Loader';
 import { ErrorMessage } from '../../../components/ErrorMessage';
-import type { AdminUser } from '../types';
+import type {
+  AdminUser,
+  CreateUserRequest,
+  UpdateUserRequest,
+  ResetPasswordRequest,
+} from '../types';
 
 export const AdminUsersPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
@@ -49,7 +54,7 @@ export const AdminUsersPage: React.FC = () => {
   // Get current user ID for highlighting
   const currentUserId = users.find((u) => u.username === user?.username)?.id;
 
-  const handleCreateUser = async (userData: any) => {
+  const handleCreateUser = async (userData: CreateUserRequest) => {
     setIsCreating(true);
     try {
       await createUser(userData);
@@ -58,7 +63,7 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
-  const handleUpdateUser = async (userId: number, userData: any) => {
+  const handleUpdateUser = async (userId: number, userData: UpdateUserRequest) => {
     setIsUpdating(true);
     try {
       await updateUser(userId, userData);
@@ -76,7 +81,7 @@ export const AdminUsersPage: React.FC = () => {
     }
   };
 
-  const handleResetPassword = async (userId: number, passwordData: any) => {
+  const handleResetPassword = async (userId: number, passwordData: ResetPasswordRequest) => {
     setIsResettingPassword(true);
     try {
       await resetPassword(userId, passwordData);
