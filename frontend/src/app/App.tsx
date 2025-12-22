@@ -9,7 +9,9 @@ import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RestorationPage } from '../features/restoration/pages/RestorationPage';
 import { HistoryPage } from '../features/history/pages/HistoryPage';
 import { ProfilePage } from '../features/profile/pages/ProfilePage';
+import { AdminUsersPage } from '../features/admin/pages/AdminUsersPage';
 import { ProtectedRoute } from './ProtectedRoute';
+import { AdminRoute } from '../components/AdminRoute';
 import { Layout } from '../components/Layout';
 import '../styles/base.css';
 import '../styles/layout.css';
@@ -18,6 +20,7 @@ import '../styles/components/auth.css';
 import '../styles/components/restoration.css';
 import '../styles/components/history.css';
 import '../styles/components/profile.css';
+import '../styles/components/admin.css';
 
 export function App() {
   // Initialize auth store from localStorage on app start
@@ -60,6 +63,16 @@ export function App() {
               <ProtectedRoute>
                 <ProfilePage />
               </ProtectedRoute>
+            </Layout>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <Layout>
+              <AdminRoute>
+                <AdminUsersPage />
+              </AdminRoute>
             </Layout>
           }
         />
