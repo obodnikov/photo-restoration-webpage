@@ -32,7 +32,7 @@ Successfully implemented comprehensive backend test suite for Phase 2.4 Enhanced
 
 ### 3. Database Seeding Tests
 **File**: `backend/tests/db/test_seed.py`
-**Tests**: 14 passing (after fixes)
+**Tests**: 15 passing (after fixes)
 
 - Admin user creation from environment variables
 - Idempotent seeding (skip if user exists)
@@ -41,8 +41,9 @@ Successfully implemented comprehensive backend test suite for Phase 2.4 Enhanced
 - Password hashing security
 - SQL injection prevention
 - Logging verification
+- **Non-IntegrityError re-raising** (NEW - ensures OperationalError etc. are not swallowed)
 
-**Critical Fix Applied**: Exception handling in `seed.py` now only catches IntegrityError (unique constraint violations) and re-raises all other database errors to alert operators.
+**Critical Fix Applied**: Exception handling in `seed.py` now catches **specific SQLAlchemy IntegrityError** (unique constraint violations) and re-raises all other database errors to alert operators. Previous string-based matching could still swallow NOT NULL constraints, check constraints, etc.
 
 ### 4. Authorization Tests
 **File**: `backend/tests/core/test_authorization.py`
@@ -90,22 +91,31 @@ Successfully implemented comprehensive backend test suite for Phase 2.4 Enhanced
 ## Files Modified
 
 ### 1. `backend/app/db/seed.py`
-**Critical Security Fix**: Changed exception handling to only catch unique constraint violations:
+**Critical Security Fix**: Changed exception handling to catch **specific IntegrityError** only:
 
 ```python
-except Exception as e:
+from sqlalchemy.exc import IntegrityError
+
+try:
+    await db.commit()
+    await db.refresh(admin_user)
+except IntegrityError:
+    # Expected race condition: unique constraint violation
     await db.rollback()
-    error_str = str(e).lower()
-    if "unique" in error_str or "integrity" in error_str or "constraint" in error_str:
-        logger.info(f"Admin user already exists (race condition)")
-        return
-    else:
-        # Re-raise unexpected errors to fail startup
-        logger.error(f"Failed to create admin user: {e}")
-        raise
+    logger.info(f"Admin user already exists (race condition)")
+    return
+except Exception as e:
+    # Unexpected database error - re-raise to fail startup
+    await db.rollback()
+    logger.error(f"Failed to create admin user: {e}")
+    raise
 ```
 
-**Why This Matters**: Prevents silently swallowing serious database errors (schema issues, disk full, permissions) that operators need to know about.
+**Why This Matters**:
+- String-based matching (previous fix) could still swallow NOT NULL constraints, CHECK constraints, foreign key violations
+- Type-based exception handling is explicit and safe
+- Only genuine uniqueness race conditions are suppressed
+- All other DB errors (OperationalError, schema issues, disk full, permissions) now properly alert operators
 
 ### 2. `backend/tests/conftest.py`
 **Fixed AsyncClient configuration**:
@@ -127,13 +137,13 @@ async def async_client(test_settings: Settings) -> AsyncGenerator[AsyncClient, N
 $ pytest tests/utils/test_password_validator.py tests/db/test_user_model.py \
          tests/db/test_seed.py tests/core/test_authorization.py -v
 
-65 passed, 59 warnings in 11.41s
+66 passed, 59 warnings in 11.29s
 ```
 
 ### Breakdown:
 - ✅ 24 password validation tests
 - ✅ 15 user model tests
-- ✅ 14 database seeding tests
+- ✅ 15 database seeding tests (+1 new security test for OperationalError re-raising)
 - ✅ 12 authorization tests
 
 ## Key Fixes Applied
