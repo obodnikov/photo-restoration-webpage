@@ -16,7 +16,7 @@ export interface CreateUserDialogProps {
   isLoading?: boolean;
 }
 
-export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
+const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -267,3 +267,6 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     </Modal>
   );
 };
+
+// Export memoized version to prevent unnecessary re-renders
+export const CreateUserDialog = React.memo(CreateUserDialogComponent);
