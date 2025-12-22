@@ -1,0 +1,385 @@
+/**
+ * Profile page styles - sqowe branded
+ */
+
+.profile-page {
+  padding: var(--space-3xl) 0;
+  min-height: calc(100vh - 200px);
+}
+
+.profile-page .container {
+  max-width: var(--container-lg);
+}
+
+/* Page header */
+.profile-page .page-header {
+  margin-bottom: var(--space-3xl);
+  text-align: center;
+}
+
+.profile-page .page-header h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-bold);
+  color: var(--sqowe-dark-ground);
+  margin-bottom: var(--space-md);
+}
+
+.profile-page .page-description {
+  font-size: var(--font-size-h6);
+  color: var(--sqowe-dark-purple);
+  font-weight: var(--font-light);
+}
+
+/* Profile grid layout */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-xl);
+}
+
+@media (min-width: 1024px) {
+  .profile-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profile-section-full {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Profile View Component */
+.profile-view .profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 2px solid var(--sqowe-light-grey);
+}
+
+.profile-view .profile-header h2 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-bold);
+  color: var(--sqowe-dark-purple);
+  margin: 0;
+}
+
+.profile-view .badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-view .badge-admin {
+  background-color: var(--sqowe-dark-purple);
+  color: white;
+}
+
+.profile-view .badge-user {
+  background-color: var(--sqowe-light-grey);
+  color: var(--sqowe-dark-ground);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.profile-field label {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-medium);
+  color: var(--sqowe-dark-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-field .profile-value {
+  font-size: var(--font-size-body);
+  color: var(--sqowe-dark-ground);
+}
+
+.profile-field .status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-medium);
+}
+
+.profile-field .status-badge.active {
+  background-color: #10b981;
+  color: white;
+}
+
+.profile-field .status-badge.inactive {
+  background-color: #ef4444;
+  color: white;
+}
+
+/* Change Password Form */
+.change-password-form h2 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-bold);
+  color: var(--sqowe-dark-purple);
+  margin-bottom: var(--space-md);
+}
+
+.change-password-form .form-description {
+  font-size: var(--font-size-small);
+  color: var(--sqowe-dark-purple);
+  margin-bottom: var(--space-xl);
+  line-height: var(--line-height-relaxed);
+}
+
+.change-password-form .form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.change-password-form label {
+  display: block;
+  font-weight: var(--font-medium);
+  color: var(--sqowe-dark-purple);
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-size-small);
+}
+
+.change-password-form input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-primary);
+  font-size: var(--font-size-body);
+  color: var(--sqowe-dark-ground);
+  background: white;
+  border: 2px solid var(--sqowe-light-grey);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.change-password-form input:focus {
+  outline: none;
+  border-color: var(--sqowe-light-purple);
+  box-shadow: 0 0 0 3px rgba(142, 136, 163, 0.1);
+}
+
+.change-password-form input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f5f5f5;
+}
+
+.change-password-form .form-help {
+  display: block;
+  font-size: var(--font-size-small);
+  color: var(--sqowe-light-grey);
+  margin-top: var(--space-xs);
+}
+
+.change-password-form .form-actions {
+  margin-top: var(--space-xl);
+}
+
+.change-password-form .success-message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background-color: #d1fae5;
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  color: #065f46;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-medium);
+  margin-bottom: var(--space-lg);
+}
+
+.change-password-form .success-dismiss {
+  background: none;
+  border: none;
+  color: #065f46;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.change-password-form .success-dismiss:hover {
+  background-color: rgba(16, 185, 129, 0.2);
+}
+
+.change-password-form .success-dismiss:focus {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
+}
+
+/* Sessions List */
+.sessions-list .sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-lg);
+  border-bottom: 2px solid var(--sqowe-light-grey);
+}
+
+.sessions-list .sessions-header h2 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-bold);
+  color: var(--sqowe-dark-purple);
+  margin: 0;
+}
+
+.sessions-list .sessions-count {
+  font-size: var(--font-size-small);
+  color: var(--sqowe-light-grey);
+  font-weight: var(--font-medium);
+}
+
+.sessions-list .form-description {
+  font-size: var(--font-size-small);
+  color: var(--sqowe-dark-purple);
+  margin-bottom: var(--space-xl);
+  line-height: var(--line-height-relaxed);
+}
+
+.sessions-list .empty-state {
+  text-align: center;
+  padding: var(--space-3xl);
+  color: var(--sqowe-light-grey);
+  font-size: var(--font-size-body);
+}
+
+.sessions-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg);
+  background-color: #fafafa;
+  border: 1px solid var(--sqowe-light-grey);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.session-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--sqowe-light-purple);
+}
+
+.session-item.current {
+  background-color: #f3f0ff;
+  border-color: var(--sqowe-light-purple);
+  border-width: 2px;
+}
+
+.session-info {
+  flex: 1;
+}
+
+.session-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.current-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--sqowe-light-purple);
+  color: white;
+  border-radius: 4px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+  align-self: flex-start;
+}
+
+.session-dates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.session-field {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: var(--font-size-small);
+}
+
+.session-label {
+  font-weight: var(--font-medium);
+  color: var(--sqowe-dark-purple);
+  min-width: 80px;
+}
+
+.session-value {
+  color: var(--sqowe-dark-ground);
+}
+
+.session-actions {
+  margin-left: var(--space-lg);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .profile-page {
+    padding: var(--space-2xl) 0;
+  }
+
+  .profile-page .page-header {
+    margin-bottom: var(--space-2xl);
+  }
+
+  .profile-page .page-header h1 {
+    font-size: var(--font-size-h2);
+  }
+
+  .session-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+
+  .session-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .session-actions .btn {
+    width: 100%;
+  }
+
+  .session-field {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .session-label {
+    min-width: auto;
+  }
+}
