@@ -17,6 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
   // Use selectors to prevent unnecessary re-renders
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const checkTokenExpiry = useAuthStore((state) => state.checkTokenExpiry);
 
@@ -37,6 +38,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     console.log('[ProtectedRoute] Not authenticated, redirecting to login');
     // Redirect to login, but save the attempted location
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check if user must change password
+  // Note: /change-password route is NOT wrapped with ProtectedRoute, so this guard
+  // prevents access to all OTHER protected routes until password is changed
+  if (user?.password_must_change && location.pathname !== '/change-password') {
+    console.log('[ProtectedRoute] User must change password, redirecting to /change-password');
+    return <Navigate to="/change-password" replace />;
   }
 
   return <>{children}</>;

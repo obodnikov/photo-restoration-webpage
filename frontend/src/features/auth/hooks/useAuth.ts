@@ -30,7 +30,7 @@ export function useAuth() {
   /**
    * Decode JWT token payload
    */
-  const decodeToken = (token: string): { sub: string; role: 'admin' | 'user' } => {
+  const decodeToken = (token: string): { sub: string; role: 'admin' | 'user'; password_must_change: boolean } => {
     try {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -40,11 +40,22 @@ export function useAuth() {
           .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
           .join('')
       );
-      return JSON.parse(jsonPayload);
+      const payload = JSON.parse(jsonPayload);
+
+      // Explicit handling for password_must_change field
+      if (payload.password_must_change === undefined) {
+        console.warn('[useAuth] JWT token missing password_must_change field, defaulting to false');
+      }
+
+      return {
+        sub: payload.sub || '',
+        role: payload.role || 'user',
+        password_must_change: payload.password_must_change ?? false,
+      };
     } catch (error) {
       console.error('Failed to decode token:', error);
       // Fallback to default if decode fails
-      return { sub: '', role: 'user' };
+      return { sub: '', role: 'user', password_must_change: false };
     }
   };
 
@@ -65,10 +76,17 @@ export function useAuth() {
       setAuth(response.access_token, response.expires_in, {
         username: payload.sub,
         role: payload.role,
+        password_must_change: payload.password_must_change,
       });
 
-      // Navigate to home page
-      navigate('/');
+      // Check if password must be changed
+      if (payload.password_must_change) {
+        // Redirect to forced password change page
+        navigate('/change-password');
+      } else {
+        // Navigate to home page
+        navigate('/');
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);

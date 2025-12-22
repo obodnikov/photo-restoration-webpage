@@ -721,3 +721,68 @@ export const SessionsList = React.memo<SessionsListProps>(({
 **Last Updated:** 2025-12-22
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
 **Maintainer:** Development Team
+
+## Frontend - Force Password Change Feature
+
+### 19. **Test Coverage for ForcePasswordChangePage Component**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** Feature complete, tests recommended
+**Effort:** ~2 hours
+**Priority:** LOW
+
+**Missing Test Coverage:**
+- Form rendering and field presence
+- Password validation rules (length, uppercase, lowercase, digit)
+- Password mismatch validation
+- Same-as-current password validation
+- Successful submission flow and redirect to login
+- API error handling
+- Loading state management
+- Logout button functionality
+
+**Rationale:**
+The ForcePasswordChangePage is a security-critical component that forces users to change passwords on first login. Comprehensive tests would ensure robustness.
+
+**File:** `frontend/src/features/auth/__tests__/ForcePasswordChangePage.test.tsx` (to be created)
+
+---
+
+### 20. **Test Coverage for RequirePasswordChangeRoute Component**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** Feature complete, tests recommended
+**Effort:** ~30 minutes
+**Priority:** LOW
+
+**Missing Test Coverage:**
+- Authenticated user with password_must_change=true can access
+- Authenticated user with password_must_change=false redirects to home
+- Unauthenticated user redirects to login
+- Component renders children when conditions are met
+
+**Rationale:**
+Route guard logic should be tested to prevent regressions in access control.
+
+**File:** `frontend/src/features/auth/__tests__/RequirePasswordChangeRoute.test.tsx` (to be created)
+
+---
+
+### 21. **Test Coverage for Updated useAuth Hook**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** Feature complete, tests recommended
+**Effort:** ~1 hour
+**Priority:** LOW
+
+**Missing Test Coverage:**
+- JWT token decoding with password_must_change field
+- JWT token decoding without password_must_change field (defaults to false)
+- Warning log when password_must_change is missing
+- Login redirect to /change-password when flag is true
+- Login redirect to / when flag is false
+- Token decode error handling
+
+**Rationale:**
+The updated decodeToken function includes critical security logic that should be thoroughly tested.
+
+**File:** `frontend/src/features/auth/__tests__/useAuth.test.ts` (to be updated)
+
+---

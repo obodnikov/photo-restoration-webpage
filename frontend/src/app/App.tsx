@@ -6,12 +6,14 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { initializeAuthStore, setupTokenExpiryCheck } from '../services/authStore';
 import { LoginPage } from '../features/auth/pages/LoginPage';
+import { ForcePasswordChangePage } from '../features/auth/pages/ForcePasswordChangePage';
 import { RestorationPage } from '../features/restoration/pages/RestorationPage';
 import { HistoryPage } from '../features/history/pages/HistoryPage';
 import { ProfilePage } from '../features/profile/pages/ProfilePage';
 import { AdminUsersPage } from '../features/admin/pages/AdminUsersPage';
 import { ProtectedRoute } from './ProtectedRoute';
 import { AdminRoute } from '../components/AdminRoute';
+import { RequirePasswordChangeRoute } from '../components/RequirePasswordChangeRoute';
 import { Layout } from '../components/Layout';
 import '../styles/base.css';
 import '../styles/layout.css';
@@ -21,6 +23,7 @@ import '../styles/components/restoration.css';
 import '../styles/components/history.css';
 import '../styles/components/profile.css';
 import '../styles/components/admin.css';
+import '../styles/components/force-password-change.css';
 
 export function App() {
   // Initialize auth store from localStorage on app start
@@ -34,6 +37,16 @@ export function App() {
       <Routes>
         {/* Public routes - no Layout wrapper */}
         <Route path="/login" element={<LoginPage />} />
+
+        {/* Force password change route - special protected route */}
+        <Route
+          path="/change-password"
+          element={
+            <RequirePasswordChangeRoute>
+              <ForcePasswordChangePage />
+            </RequirePasswordChangeRoute>
+          }
+        />
 
         {/* Protected routes - with Layout wrapper */}
         <Route
