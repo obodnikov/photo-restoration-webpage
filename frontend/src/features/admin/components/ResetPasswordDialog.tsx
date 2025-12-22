@@ -27,6 +27,7 @@ export const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [passwordMustChange, setPasswordMustChange] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordGenerationError, setPasswordGenerationError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleGeneratePassword = () => {
@@ -34,16 +35,17 @@ export const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
       const password = generateRandomPassword(12);
       setNewPassword(password);
       setShowPassword(true); // Show so admin can copy it
-      setError(null); // Clear any previous errors
+      setPasswordGenerationError(null); // Clear any previous password generation errors
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate password';
-      setError(message);
+      setPasswordGenerationError(message);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPasswordGenerationError(null);
 
     if (!user) return;
 
@@ -88,6 +90,7 @@ export const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const handleClose = () => {
     if (!isLoading) {
       setError(null);
+      setPasswordGenerationError(null);
       setNewPassword('');
       setPasswordMustChange(true);
       setShowPassword(false);
@@ -107,6 +110,7 @@ export const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
     >
       <form onSubmit={handleSubmit} className="admin-form">
         {error && <ErrorMessage message={error} />}
+        {passwordGenerationError && <ErrorMessage message={passwordGenerationError} />}
 
         <div className="info-message">
           <p>

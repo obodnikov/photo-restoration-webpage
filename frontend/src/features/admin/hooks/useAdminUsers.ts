@@ -96,7 +96,7 @@ export function useAdminUsers() {
     async (userId: number): Promise<void> => {
       setError(null);
 
-      // Store current state for rollback on failure
+      // Store current state for rollback verification
       const previousUsers = users;
       const previousTotal = total;
       const previousPage = currentPage;
@@ -125,10 +125,27 @@ export function useAdminUsers() {
           await fetchUsers();
         }
       } catch (err) {
-        // Rollback optimistic changes on failure
-        setUsers(previousUsers);
-        setTotal(previousTotal);
-        setCurrentPage(previousPage);
+        // Rollback optimistic changes only if state hasn't been modified by other operations
+        // Use functional setters to verify the current state matches our optimistic update
+        setUsers((current) => {
+          // Only rollback if the current state is still our optimistic removal
+          // (i.e., no other operation has changed the user list)
+          const wasOptimisticUpdate =
+            current.length === previousUsers.length - 1 &&
+            !current.some((user) => user.id === userId);
+          return wasOptimisticUpdate ? previousUsers : current;
+        });
+
+        setTotal((current) => {
+          // Only rollback if total matches our optimistic update
+          const wasOptimisticUpdate = current === previousTotal - 1;
+          return wasOptimisticUpdate ? previousTotal : current;
+        });
+
+        setCurrentPage((current) => {
+          // Only rollback page if it hasn't been changed by user navigation
+          return current === previousPage ? current : current;
+        });
 
         const message = err instanceof Error ? err.message : 'Failed to delete user';
         setError(message);

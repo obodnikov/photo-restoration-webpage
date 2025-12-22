@@ -29,6 +29,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   const [role, setRole] = useState<'admin' | 'user'>('user');
   const [passwordMustChange, setPasswordMustChange] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordGenerationError, setPasswordGenerationError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleGeneratePassword = () => {
@@ -36,16 +37,17 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       const newPassword = generateRandomPassword(12);
       setPassword(newPassword);
       setShowPassword(true); // Show password so admin can copy it
-      setError(null); // Clear any previous errors
+      setPasswordGenerationError(null); // Clear any previous password generation errors
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate password';
-      setError(message);
+      setPasswordGenerationError(message);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setPasswordGenerationError(null);
 
     // Validate password strength
     if (password.length < 8) {
@@ -104,6 +106,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       setPasswordMustChange(true);
       setShowPassword(false);
       setError(null);
+      setPasswordGenerationError(null);
       onClose();
     }
   };
@@ -118,6 +121,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     >
       <form onSubmit={handleSubmit} className="admin-form">
         {error && <ErrorMessage message={error} />}
+        {passwordGenerationError && <ErrorMessage message={passwordGenerationError} />}
 
         <div className="form-group">
           <label htmlFor="create-username" className="form-label">
