@@ -1,7 +1,7 @@
 """Model schemas for API responses."""
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ParameterSchemaResponse(BaseModel):
@@ -53,6 +53,11 @@ class ModelParameters(BaseModel):
 class ModelInfo(BaseModel):
     """Model information schema."""
 
+    # Configure to use alias for serialization (API responses)
+    # populate_by_name allows both 'schema' and 'model_schema' for input (deserialization)
+    # FastAPI uses by_alias=True by default, which will use serialization_alias="schema"
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str = Field(..., description="Unique model identifier")
     name: str = Field(..., description="Human-readable model name")
     model: str = Field(..., description="Model path (HuggingFace or Replicate)")
@@ -69,6 +74,7 @@ class ModelInfo(BaseModel):
     model_schema: ModelSchemaResponse | None = Field(
         None,
         alias="schema",
+        serialization_alias="schema",
         description="Model schema (for Replicate models with parameter validation)"
     )
 
