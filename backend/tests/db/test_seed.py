@@ -601,6 +601,48 @@ class TestDatabaseSpecificIntegrityErrors:
                 db_session.commit = original_commit
 
     @pytest.mark.asyncio
+    async def test_postgresql_asyncpg_unique_violation_detected(self, db_session: AsyncSession):
+        """PostgreSQL asyncpg unique violations (sqlstate 23505) are properly detected and suppressed."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_asyncpg_unique_violation():
+                # Create mock asyncpg unique violation error
+                # asyncpg uses sqlstate instead of pgcode
+                class AsyncpgError:
+                    def __init__(self):
+                        self.sqlstate = "23505"  # PostgreSQL unique_violation SQLSTATE
+                    def __str__(self):
+                        return "duplicate key value violates unique constraint"
+
+                orig_error = AsyncpgError()
+
+                integrity_error = IntegrityError(
+                    "duplicate key value violates unique constraint",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_asyncpg_unique_violation
+
+            try:
+                # Should NOT raise - asyncpg unique violations are suppressed
+                await seed_admin_user(db_session)
+            finally:
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
     async def test_postgresql_not_null_violation_reraised(self, db_session: AsyncSession):
         """PostgreSQL NOT NULL violations (pgcode 23502) are re-raised."""
         from sqlalchemy.exc import IntegrityError

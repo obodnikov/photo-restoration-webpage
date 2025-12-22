@@ -25,9 +25,11 @@ def is_unique_violation(error: IntegrityError) -> bool:
     integrity errors like NOT NULL, CHECK, or foreign key violations.
 
     Supports:
-    - PostgreSQL: SQLSTATE 23505
+    - PostgreSQL: SQLSTATE 23505 (checks both pgcode and sqlstate attributes)
+      - pgcode: psycopg2 (sync driver)
+      - sqlstate: asyncpg (async driver)
     - SQLite: Error message contains "UNIQUE constraint failed"
-    - MySQL: Error code 1062
+    - MySQL: Error code 1062 (errno attribute)
 
     Args:
         error: The IntegrityError to inspect
@@ -43,8 +45,12 @@ def is_unique_violation(error: IntegrityError) -> bool:
     error_msg = str(error.orig).lower()
 
     # PostgreSQL: Check SQLSTATE code
-    if hasattr(error.orig, "pgcode"):
-        return error.orig.pgcode == "23505"  # unique_violation
+    # - pgcode: Used by psycopg2 (sync driver)
+    # - sqlstate: Used by asyncpg (async driver)
+    if hasattr(error.orig, "pgcode") and error.orig.pgcode == "23505":
+        return True  # unique_violation
+    if hasattr(error.orig, "sqlstate") and error.orig.sqlstate == "23505":
+        return True  # unique_violation (asyncpg)
 
     # SQLite: Check error message
     if "unique constraint failed" in error_msg:
