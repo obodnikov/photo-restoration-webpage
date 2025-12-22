@@ -35,7 +35,8 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
-  // Show error if profile failed to load
+  // Show error if initial profile fetch failed (no data available yet)
+  // Note: This handles the case where profile has never been successfully loaded
   if (profileError && !profile) {
     return (
       <div className="profile-page">
@@ -63,6 +64,18 @@ export const ProfilePage: React.FC = () => {
             Manage your account settings, password, and active sessions
           </p>
         </div>
+
+        {/* Show profile refresh errors
+            Note: This handles subsequent fetchProfile() failures after initial load.
+            When a refresh fails, profileError is set but profile retains stale data.
+            This ensures users see the error even when stale profile data is displayed.
+        */}
+        {profileError && profile && (
+          <ErrorMessage
+            message={profileError}
+            title="Failed to Refresh Profile"
+          />
+        )}
 
         {/* Show mutation errors (password change, session deletion) */}
         {mutationError && (
