@@ -8,6 +8,47 @@
   margin-bottom: var(--space-4xl);
 }
 
+/* ========== Session Filter Styles ========== */
+.history-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-lg);
+}
+
+.filter-label {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-medium);
+  color: var(--sqowe-dark-purple);
+  margin: 0;
+}
+
+.filter-select {
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  background: white;
+  border: 2px solid var(--sqowe-light-grey);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+  cursor: pointer;
+  min-width: 200px;
+}
+
+.filter-select:hover {
+  border-color: var(--sqowe-light-purple);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--sqowe-light-purple);
+  box-shadow: 0 0 0 3px rgba(142, 136, 163, 0.1);
+}
+
 /* ========== History List Styles ========== */
 .history-grid {
   display: grid;
@@ -171,6 +212,16 @@
 @media (max-width: 768px) {
   .history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .history-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-select {
+    width: 100%;
+    min-width: 0;
   }
 
   .viewer-header {

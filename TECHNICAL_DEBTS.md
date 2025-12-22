@@ -277,50 +277,71 @@ class Session(Base):
 
 ### 9. **Step 2: Updated History Component**
 **Context:** Phase 2.4 roadmap
-**Status:** ✅ PARTIALLY COMPLETE - UI text updated
-**Effort:** 1-2 hours for optional filter
-**Priority:** MEDIUM (optional session filter is nice-to-have)
+**Status:** ✅ **COMPLETE**
+**Implementation Date:** 2024-12-22
+**Approach Used:** Approach A (Client-side filtering)
 
-**Completed:**
+**Completed Features:**
 - ✅ UI text updated to clarify cross-session behavior
 - ✅ Backend already returns cross-session history via `/restore/history` endpoint
 - ✅ Frontend already uses correct endpoint
+- ✅ Session filter dropdown implemented with two options:
+  - "All Sessions" (default) - Shows all user images
+  - "Current Session Only" - Filters to images from current session
+- ✅ Client-side filtering based on current session start time
+- ✅ Styled following sqowe brand guidelines
+- ✅ Responsive design for mobile/tablet
+- ✅ TypeScript compilation successful
 
-**Optional Enhancement - Session Filter:**
-**Status:** Not implemented (added to technical debts)
-**Effort:** 1-2 hours
+**Implementation Details:**
+- Filter dropdown added to HistoryPage header
+- Filtering logic in useHistory hook using session start time from auth storage
+- Compares image creation timestamps with current session login time
+- No backend changes required
 
-**Two Implementation Approaches:**
+**Files Modified:**
+- `frontend/src/features/history/pages/HistoryPage.tsx` - Added filter UI
+- `frontend/src/features/history/hooks/useHistory.ts` - Added filtering logic and state
+- `frontend/src/styles/components/history.css` - Added filter styles
 
-**Approach A: Client-side filtering** (Recommended)
-- Fetch user's sessions from `/users/me/sessions` (reuse profileService)
-- Add dropdown above history list: "All Sessions" | "Current Session" | specific sessions
-- Filter items client-side based on selection
-- Pros: No backend changes, faster implementation
-- Cons: Filters all loaded items (pagination still shows total count)
+**Note:** Since backend HistoryItemResponse doesn't include session_id per item, the filter uses timestamp comparison with current session start time. For full session-by-session filtering (including past sessions), see **Enhancement Item #14** below.
 
-**Implementation Tasks:**
-1. Add session filter dropdown to HistoryPage
-2. Fetch sessions list on mount (reuse profile service)
-3. Add filter state to useHistory hook
-4. Filter displayed items based on selected session
-5. Add filter UI above HistoryList component
-6. Style filter dropdown following sqowe brand guidelines
-7. Add tests for filtering functionality
+---
 
-**Approach B: Server-side filtering** (More complete, requires backend changes)
+### 14. **Enhanced Session Filter with Historical Session Selection** (Future Enhancement)
+**Context:** Extension of Phase 2.4 Step 2
+**Status:** Not implemented
+**Effort:** 2-3 hours (requires backend changes)
+**Priority:** LOW
+
+**Current Implementation:**
+- Filter has two options: "All Sessions" and "Current Session Only"
+- Works by comparing timestamps with current session start time
+
+**Proposed Enhancement:**
+Add ability to filter by any historical session:
+- Dropdown shows: "All Sessions" | "Current Session" | individual past sessions
+- Requires backend to add `session_id` to `HistoryItemResponse` schema
+- OR implement server-side filtering with `?session_id=xxx` query parameter
+
+**Implementation Approach (Backend changes required):**
+1. Add `session_id: int` field to `HistoryItemResponse` schema
+2. Update `/restore/history` endpoint to include session_id in response
+3. Frontend: Fetch user's session list from `/users/me/sessions`
+4. Frontend: Show all sessions in dropdown
+5. Frontend: Filter items by matching session_id
+
+**Files to Modify:**
+- `backend/app/api/v1/schemas/restoration.py` - Add session_id to HistoryItemResponse
+- `backend/app/api/v1/routes/restoration.py` - Include session_id in history response
+- `frontend/src/features/history/hooks/useHistory.ts` - Fetch sessions list, filter by session_id
+- `frontend/src/features/history/pages/HistoryPage.tsx` - Update dropdown options dynamically
+
+**Alternative Approach (Server-side filtering):**
 - Add `?session_id=xxx` query parameter to `/restore/history` endpoint
 - Backend filters before pagination
-- Update frontend to pass session_id parameter
-- Pros: Proper pagination, accurate counts
-- Cons: Requires backend changes, more effort
-
-**Files to Modify (Approach A):**
-- `frontend/src/features/history/pages/HistoryPage.tsx` - Add filter UI
-- `frontend/src/features/history/hooks/useHistory.ts` - Add client-side filtering
-- `frontend/src/features/history/components/HistoryFilterBar.tsx` - New component (optional)
-- `frontend/src/styles/components/history.css` - Style filter dropdown
-- `frontend/src/features/history/__tests__/useHistory.test.ts` - Add filter tests
+- Better performance for users with many images
+- Accurate pagination counts per session
 
 ---
 
@@ -453,12 +474,19 @@ export const SessionsList = React.memo<SessionsListProps>(({
 
 ## Summary
 
-**Total Items:** 13
-**High Priority:** 2 (Steps 2 & 3 of Phase 2.4)
+**Total Items:** 14
+**High Priority:** 1 (Step 3 of Phase 2.4 - Admin Panel)
 **Medium Priority:** 4 (Testing improvements, session metadata)
-**Low Priority:** 7 (UX enhancements, documentation, optimization)
+**Low Priority:** 9 (UX enhancements, documentation, optimization, enhanced session filter)
 
-**Estimated Total Effort:** 20-25 hours
+**Completed in Phase 2.4:**
+- ✅ Step 1: User Profile Page (Complete)
+- ✅ Step 2: Updated History Component (Complete)
+
+**Remaining Phase 2.4 Task:**
+- ❌ Step 3: Admin Panel (HIGH priority, 3-4 hours)
+
+**Estimated Total Effort for Remaining Items:** 23-28 hours
 
 ---
 
