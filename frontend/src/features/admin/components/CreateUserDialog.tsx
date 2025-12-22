@@ -2,7 +2,7 @@
  * Create User Dialog component
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -32,7 +32,7 @@ const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
   const [passwordGenerationError, setPasswordGenerationError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleGeneratePassword = () => {
+  const handleGeneratePassword = useCallback(() => {
     try {
       const newPassword = generateRandomPassword(12);
       setPassword(newPassword);
@@ -42,7 +42,7 @@ const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
       const message = err instanceof Error ? err.message : 'Failed to generate password';
       setPasswordGenerationError(message);
     }
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
       // Clear all form state to prevent leaking sensitive data
       setUsername('');
@@ -109,7 +109,7 @@ const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
       setPasswordGenerationError(null);
       onClose();
     }
-  };
+  }, [isLoading, onClose]);
 
   return (
     <Modal
