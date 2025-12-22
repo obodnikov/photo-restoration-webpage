@@ -136,7 +136,7 @@ const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
             required
             minLength={3}
             maxLength={50}
-            pattern="[A-Za-z0-9_-]+"
+            pattern="[A-Za-z0-9_\-]+"
             title="Username can only contain letters, numbers, underscores, and hyphens"
             disabled={isLoading}
             autoComplete="off"
