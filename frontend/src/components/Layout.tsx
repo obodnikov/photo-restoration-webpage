@@ -14,7 +14,10 @@ export interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user, clearAuth } = useAuthStore();
+  // Use selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Check if user is admin

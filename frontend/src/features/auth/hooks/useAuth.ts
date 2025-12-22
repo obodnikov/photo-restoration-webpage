@@ -18,7 +18,11 @@ import type { LoginCredentials } from '../types';
  */
 export function useAuth() {
   const navigate = useNavigate();
-  const { isAuthenticated, user, setAuth, clearAuth } = useAuthStore();
+  // Use selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

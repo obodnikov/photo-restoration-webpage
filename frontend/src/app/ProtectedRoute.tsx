@@ -15,7 +15,10 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
-  const { isAuthenticated, hasHydrated, checkTokenExpiry } = useAuthStore();
+  // Use selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const checkTokenExpiry = useAuthStore((state) => state.checkTokenExpiry);
 
   // Check token expiry on every render
   useEffect(() => {
