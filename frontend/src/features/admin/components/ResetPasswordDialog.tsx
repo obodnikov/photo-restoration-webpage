@@ -30,9 +30,15 @@ export const ResetPasswordDialog: React.FC<ResetPasswordDialogProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   const handleGeneratePassword = () => {
-    const password = generateRandomPassword(12);
-    setNewPassword(password);
-    setShowPassword(true); // Show so admin can copy it
+    try {
+      const password = generateRandomPassword(12);
+      setNewPassword(password);
+      setShowPassword(true); // Show so admin can copy it
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate password';
+      setError(message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

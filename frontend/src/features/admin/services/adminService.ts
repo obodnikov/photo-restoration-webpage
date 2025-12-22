@@ -78,10 +78,28 @@ export async function resetUserPassword(
 }
 
 /**
+ * Check if Web Crypto API is available
+ */
+function isCryptoAvailable(): boolean {
+  return typeof window !== 'undefined' &&
+         window.crypto !== undefined &&
+         typeof window.crypto.getRandomValues === 'function';
+}
+
+/**
  * Generate a cryptographically secure random password
  * Uses window.crypto.getRandomValues() for secure randomness
+ * Throws error if Web Crypto API is unavailable (production safety)
  */
 export function generateRandomPassword(length: number = 12): string {
+  // Ensure Web Crypto API is available in production
+  if (!isCryptoAvailable()) {
+    throw new Error(
+      'Web Crypto API is not available. Secure password generation requires a modern browser with crypto support. ' +
+      'Please ensure your application is running in a secure context (HTTPS) and the browser supports the Web Crypto API.'
+    );
+  }
+
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const lowercase = 'abcdefghijklmnopqrstuvwxyz';
   const numbers = '0123456789';
@@ -93,7 +111,7 @@ export function generateRandomPassword(length: number = 12): string {
    */
   const getSecureRandomInt = (max: number): number => {
     const randomBuffer = new Uint32Array(1);
-    crypto.getRandomValues(randomBuffer);
+    window.crypto.getRandomValues(randomBuffer);
     return randomBuffer[0] % max;
   };
 
@@ -116,7 +134,7 @@ export function generateRandomPassword(length: number = 12): string {
     password.push(getRandomChar(allChars));
   }
 
-  // Shuffle the password array using Fisher-Yates algorithm with crypto.getRandomValues
+  // Shuffle the password array using Fisher-Yates algorithm with secure randomness
   for (let i = password.length - 1; i > 0; i--) {
     const j = getSecureRandomInt(i + 1);
     [password[i], password[j]] = [password[j], password[i]];

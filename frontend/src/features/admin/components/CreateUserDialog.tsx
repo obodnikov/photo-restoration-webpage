@@ -32,9 +32,15 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   const handleGeneratePassword = () => {
-    const newPassword = generateRandomPassword(12);
-    setPassword(newPassword);
-    setShowPassword(true); // Show password so admin can copy it
+    try {
+      const newPassword = generateRandomPassword(12);
+      setPassword(newPassword);
+      setShowPassword(true); // Show password so admin can copy it
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to generate password';
+      setError(message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
