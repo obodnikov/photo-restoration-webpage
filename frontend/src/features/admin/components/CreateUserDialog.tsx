@@ -2,7 +2,7 @@
  * Create User Dialog component
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -16,7 +16,7 @@ export interface CreateUserDialogProps {
   isLoading?: boolean;
 }
 
-export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
+const CreateUserDialogComponent: React.FC<CreateUserDialogProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -32,7 +32,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   const [passwordGenerationError, setPasswordGenerationError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleGeneratePassword = () => {
+  const handleGeneratePassword = useCallback(() => {
     try {
       const newPassword = generateRandomPassword(12);
       setPassword(newPassword);
@@ -42,7 +42,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       const message = err instanceof Error ? err.message : 'Failed to generate password';
       setPasswordGenerationError(message);
     }
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +95,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
       // Clear all form state to prevent leaking sensitive data
       setUsername('');
@@ -109,7 +109,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       setPasswordGenerationError(null);
       onClose();
     }
-  };
+  }, [isLoading, onClose]);
 
   return (
     <Modal
@@ -136,7 +136,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
             required
             minLength={3}
             maxLength={50}
-            pattern="[A-Za-z0-9_-]+"
+            pattern="[A-Za-z0-9_\-]+"
             title="Username can only contain letters, numbers, underscores, and hyphens"
             disabled={isLoading}
             autoComplete="off"
@@ -267,3 +267,6 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     </Modal>
   );
 };
+
+// Export memoized version to prevent unnecessary re-renders
+export const CreateUserDialog = React.memo(CreateUserDialogComponent);

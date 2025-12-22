@@ -26,6 +26,7 @@ export interface TokenResponse {
 export interface User {
   username: string;
   role: 'admin' | 'user';
+  password_must_change: boolean;
 }
 
 /**

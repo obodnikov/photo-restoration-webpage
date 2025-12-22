@@ -2,7 +2,7 @@
  * Admin Users Page - Main admin panel for user management
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useAuthStore } from '../../../services/authStore';
 import { useAdminUsers } from '../hooks/useAdminUsers';
 import { UserList } from '../components/UserList';
@@ -51,59 +51,82 @@ export const AdminUsersPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // Get current user ID for highlighting
-  const currentUserId = users.find((u) => u.username === user?.username)?.id;
+  // Memoize current user ID calculation to prevent unnecessary re-renders
+  const currentUserId = useMemo(
+    () => users.find((u) => u.username === user?.username)?.id,
+    [users, user?.username]
+  );
 
-  const handleCreateUser = async (userData: CreateUserRequest) => {
+  const handleCreateUser = useCallback(async (userData: CreateUserRequest) => {
     setIsCreating(true);
     try {
       await createUser(userData);
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [createUser]);
 
-  const handleUpdateUser = async (userId: number, userData: UpdateUserRequest) => {
+  const handleUpdateUser = useCallback(async (userId: number, userData: UpdateUserRequest) => {
     setIsUpdating(true);
     try {
       await updateUser(userId, userData);
     } finally {
       setIsUpdating(false);
     }
-  };
+  }, [updateUser]);
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = useCallback(async (userId: number) => {
     setIsDeleting(true);
     try {
       await deleteUser(userId);
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, [deleteUser]);
 
-  const handleResetPassword = async (userId: number, passwordData: ResetPasswordRequest) => {
+  const handleResetPassword = useCallback(async (userId: number, passwordData: ResetPasswordRequest) => {
     setIsResettingPassword(true);
     try {
       await resetPassword(userId, passwordData);
     } finally {
       setIsResettingPassword(false);
     }
-  };
+  }, [resetPassword]);
 
-  const handleEdit = (user: AdminUser) => {
+  const handleEdit = useCallback((user: AdminUser) => {
     setSelectedUser(user);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (user: AdminUser) => {
+  const handleDelete = useCallback((user: AdminUser) => {
     setSelectedUser(user);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleResetPasswordClick = (user: AdminUser) => {
+  const handleResetPasswordClick = useCallback((user: AdminUser) => {
     setSelectedUser(user);
     setIsResetPasswordDialogOpen(true);
-  };
+  }, []);
+
+  // Memoize dialog close handlers to prevent unnecessary re-renders
+  const handleCloseCreateDialog = useCallback(() => {
+    setIsCreateDialogOpen(false);
+  }, []);
+
+  const handleCloseEditDialog = useCallback(() => {
+    setIsEditDialogOpen(false);
+    setSelectedUser(null);
+  }, []);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+    setSelectedUser(null);
+  }, []);
+
+  const handleCloseResetPasswordDialog = useCallback(() => {
+    setIsResetPasswordDialogOpen(false);
+    setSelectedUser(null);
+  }, []);
 
   return (
     <div className="admin-users-page">
@@ -148,17 +171,14 @@ export const AdminUsersPage: React.FC = () => {
         {/* Dialogs */}
         <CreateUserDialog
           isOpen={isCreateDialogOpen}
-          onClose={() => setIsCreateDialogOpen(false)}
+          onClose={handleCloseCreateDialog}
           onSubmit={handleCreateUser}
           isLoading={isCreating}
         />
 
         <EditUserDialog
           isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setSelectedUser(null);
-          }}
+          onClose={handleCloseEditDialog}
           onSubmit={handleUpdateUser}
           user={selectedUser}
           isLoading={isUpdating}
@@ -166,10 +186,7 @@ export const AdminUsersPage: React.FC = () => {
 
         <DeleteUserDialog
           isOpen={isDeleteDialogOpen}
-          onClose={() => {
-            setIsDeleteDialogOpen(false);
-            setSelectedUser(null);
-          }}
+          onClose={handleCloseDeleteDialog}
           onConfirm={handleDeleteUser}
           user={selectedUser}
           isLoading={isDeleting}
@@ -177,10 +194,7 @@ export const AdminUsersPage: React.FC = () => {
 
         <ResetPasswordDialog
           isOpen={isResetPasswordDialogOpen}
-          onClose={() => {
-            setIsResetPasswordDialogOpen(false);
-            setSelectedUser(null);
-          }}
+          onClose={handleCloseResetPasswordDialog}
           onSubmit={handleResetPassword}
           user={selectedUser}
           isLoading={isResettingPassword}

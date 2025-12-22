@@ -2,7 +2,7 @@
  * Custom hook for admin user management
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import * as adminService from '../services/adminService';
 import type {
   AdminUser,
@@ -25,11 +25,15 @@ export function useAdminUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
 
-  // Filters
-  const [filters, setFilters] = useState<UserListFilters>({
-    role: null,
-    is_active: null,
-  });
+  // Filters - using separate state for each filter value
+  const [roleFilter, setRoleFilter] = useState<'admin' | 'user' | null>(null);
+  const [isActiveFilter, setIsActiveFilter] = useState<boolean | null>(null);
+
+  // Memoize filters object to prevent unnecessary re-renders
+  const filters = useMemo<UserListFilters>(() => ({
+    role: roleFilter,
+    is_active: isActiveFilter,
+  }), [roleFilter, isActiveFilter]);
 
   /**
    * Fetch users list
@@ -174,7 +178,8 @@ export function useAdminUsers() {
    * Update filters
    */
   const updateFilters = useCallback((newFilters: UserListFilters) => {
-    setFilters(newFilters);
+    setRoleFilter(newFilters.role ?? null);
+    setIsActiveFilter(newFilters.is_active ?? null);
     setCurrentPage(1); // Reset to first page when filters change
   }, []);
 
@@ -190,8 +195,8 @@ export function useAdminUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(total / itemsPerPage);
+  // Memoize total pages calculation to prevent unnecessary re-renders
+  const totalPages = useMemo(() => Math.ceil(total / itemsPerPage), [total, itemsPerPage]);
 
   return {
     users,
