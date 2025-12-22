@@ -52,16 +52,65 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
       if (sessionFilter === 'current') {
         console.log('[useHistory] Fetching all items for current session filter');
 
-        // Fetch all items (use large limit to get everything)
-        const response = await fetchHistory(1000, 0);
+        // Fetch ALL items by fetching until we get everything
+        // This handles users with >1000 items
+        let allItems: HistoryItem[] = [];
+        let offset = 0;
+        const limit = 1000;
+        let hasMore = true;
+        let consecutiveErrors = 0;
+        const maxErrors = 3;
+
+        while (hasMore) {
+          try {
+            const response = await fetchHistory(limit, offset);
+            allItems = [...allItems, ...response.items];
+
+            // Check if we've fetched everything based on batch size
+            // More robust: stop when we get fewer items than requested
+            const receivedFullBatch = response.items.length === limit;
+            hasMore = receivedFullBatch;
+
+            offset += limit;
+
+            console.log('[useHistory] Fetched batch:', {
+              batchSize: response.items.length,
+              totalFetched: allItems.length,
+              backendTotal: response.total,
+              hasMore,
+              receivedFullBatch
+            });
+
+            // Reset error counter on successful fetch
+            consecutiveErrors = 0;
+
+            // Safety check to prevent infinite loop
+            if (offset > 10000) {
+              console.warn('[useHistory] Reached safety limit of 10,000 items');
+              break;
+            }
+          } catch (err) {
+            consecutiveErrors++;
+            console.error('[useHistory] Error fetching batch at offset', offset, ':', err);
+
+            if (consecutiveErrors >= maxErrors) {
+              console.error('[useHistory] Too many consecutive errors, stopping bulk fetch');
+              setError(`Failed to load all history items. Showing ${allItems.length} items loaded so far.`);
+              break;
+            }
+
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
 
         console.log('[useHistory] All history loaded for filtering:', {
-          totalItems: response.items.length,
+          totalItems: allItems.length,
         });
 
         // Store all items for filtering
-        setAllHistoryItems(response.items);
-        setTotal(response.items.length);
+        // NOTE: total will be set by the filtering effect after filtering is applied
+        setAllHistoryItems(allItems);
       } else {
         // Normal pagination - fetch only current page
         const offset = (currentPage - 1) * pageSize;
@@ -98,7 +147,16 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
   };
 
   const changePage = (page: number) => {
-    setCurrentPage(page);
+    // Clamp page to valid range
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    const validPage = Math.min(Math.max(1, page), maxPage);
+    setCurrentPage(validPage);
+  };
+
+  const handleSetSessionFilter = (filter: SessionFilter) => {
+    // Reset to page 1 when changing filters
+    setCurrentPage(1);
+    setSessionFilter(filter);
   };
 
   const removeItem = async (imageId: string) => {
@@ -164,7 +222,7 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
       if (error?.includes('Unable to filter by current session')) {
         setError(null);
       }
-      // Show all loaded items (paginated)
+      // Show all loaded items (paginated by backend)
       setItems(allHistoryItems);
     } else if (sessionFilter === 'current') {
       // Check if we have session start time
@@ -204,11 +262,22 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
           return itemTime >= sessionStartTime;
         });
 
-        setItems(filtered);
-        setTotal(filtered.length); // Update total to reflect filtered count
+        // Update total to reflect filtered count
+        setTotal(filtered.length);
+
+        // Perform in-memory pagination
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedItems = filtered.slice(startIndex, endIndex);
+
+        setItems(paginatedItems);
+
         console.log('[useHistory] Filtered to current session:', {
           total: allHistoryItems.length,
           filtered: filtered.length,
+          currentPage,
+          pageSize,
+          showing: paginatedItems.length,
           sessionStart: currentSessionStart,
         });
       } catch (err) {
@@ -220,10 +289,20 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
       // If current session filter selected but no session start time, show all
       setItems(allHistoryItems);
     }
-  }, [sessionFilter, allHistoryItems, currentSessionStart]);
+  }, [sessionFilter, allHistoryItems, currentSessionStart, currentPage, pageSize]);
 
   // Load history when page, pageSize, or filter changes
   useEffect(() => {
+    // In 'current' session mode, we already have all data loaded
+    // Only reload if we're switching filters or if we don't have data yet
+    const isCurrentSessionMode = sessionFilter === 'current';
+    const alreadyHaveData = allHistoryItems.length > 0;
+
+    if (isCurrentSessionMode && alreadyHaveData) {
+      console.log('[useHistory] Skipping reload in current session mode (already have all data)');
+      return;
+    }
+
     loadHistory();
   }, [currentPage, pageSize, sessionFilter]);
 
@@ -240,6 +319,6 @@ export function useHistory(initialPageSize: number = 20): UseHistoryResult {
     changePage,
     removeItem,
     setPageSize,
-    setSessionFilter,
+    setSessionFilter: handleSetSessionFilter,
   };
 }
