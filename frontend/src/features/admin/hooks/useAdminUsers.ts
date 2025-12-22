@@ -195,8 +195,8 @@ export function useAdminUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(total / itemsPerPage);
+  // Memoize total pages calculation to prevent unnecessary re-renders
+  const totalPages = useMemo(() => Math.ceil(total / itemsPerPage), [total, itemsPerPage]);
 
   return {
     users,
