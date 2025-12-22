@@ -389,7 +389,6 @@ class TestSeedingSecurity:
     @pytest.mark.asyncio
     async def test_seed_reraises_non_integrity_errors(self, db_session: AsyncSession):
         """Seeding re-raises non-IntegrityError exceptions."""
-        from unittest.mock import AsyncMock
         from sqlalchemy.exc import OperationalError
 
         settings = Settings(
@@ -414,4 +413,353 @@ class TestSeedingSecurity:
                     await seed_admin_user(db_session)
             finally:
                 # Restore original commit
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_seed_reraises_not_null_integrity_error(self, db_session: AsyncSession):
+        """Seeding re-raises IntegrityError for NOT NULL violations."""
+        from unittest.mock import MagicMock
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        # Mock commit to raise IntegrityError with NOT NULL violation
+        # SQLite format: "NOT NULL constraint failed: users.username"
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_commit():
+                # Create a mock sqlite3.IntegrityError
+                orig_error = Exception("NOT NULL constraint failed: users.email")
+                integrity_error = IntegrityError(
+                    "NOT NULL constraint failed",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_commit
+
+            try:
+                # Should re-raise IntegrityError for NOT NULL violations
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+
+                # Verify it's the NOT NULL error
+                assert "NOT NULL" in str(exc_info.value)
+            finally:
+                # Restore original commit
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_seed_reraises_check_constraint_error(self, db_session: AsyncSession):
+        """Seeding re-raises IntegrityError for CHECK constraint violations."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        # Mock commit to raise IntegrityError with CHECK constraint violation
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_commit():
+                # Create a mock CHECK constraint error
+                orig_error = Exception("CHECK constraint failed: users")
+                integrity_error = IntegrityError(
+                    "CHECK constraint failed",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_commit
+
+            try:
+                # Should re-raise IntegrityError for CHECK constraint violations
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+
+                # Verify it's the CHECK constraint error
+                assert "CHECK" in str(exc_info.value)
+            finally:
+                # Restore original commit
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_seed_suppresses_only_unique_violations(self, db_session: AsyncSession):
+        """Seeding suppresses UNIQUE violations but re-raises other IntegrityErrors."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        # Test 1: UNIQUE violation should be suppressed (no exception)
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_unique_violation():
+                # SQLite UNIQUE constraint violation
+                orig_error = Exception("UNIQUE constraint failed: users.username")
+                integrity_error = IntegrityError(
+                    "UNIQUE constraint failed",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_unique_violation
+
+            try:
+                # Should NOT raise - UNIQUE violations are suppressed
+                await seed_admin_user(db_session)
+            finally:
+                db_session.commit = original_commit
+
+        # Test 2: Foreign key violation should be re-raised
+        with patch("app.db.seed.get_settings", return_value=settings):
+            async def mock_fk_violation():
+                orig_error = Exception("FOREIGN KEY constraint failed")
+                integrity_error = IntegrityError(
+                    "FOREIGN KEY constraint failed",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_fk_violation
+
+            try:
+                # Should re-raise - FK violations are NOT suppressed
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+                assert "FOREIGN KEY" in str(exc_info.value)
+            finally:
+                db_session.commit = original_commit
+
+
+@pytest.mark.security
+class TestDatabaseSpecificIntegrityErrors:
+    """Test database-specific integrity error detection."""
+
+    @pytest.mark.asyncio
+    async def test_postgresql_unique_violation_detected(self, db_session: AsyncSession):
+        """PostgreSQL unique violations (pgcode 23505) are properly detected and suppressed."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_pg_unique_violation():
+                # Create mock PostgreSQL unique violation error
+                class PostgreSQLError:
+                    def __init__(self):
+                        self.pgcode = "23505"  # PostgreSQL unique_violation SQLSTATE
+                    def __str__(self):
+                        return "duplicate key value violates unique constraint"
+
+                orig_error = PostgreSQLError()
+
+                integrity_error = IntegrityError(
+                    "duplicate key value violates unique constraint",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_pg_unique_violation
+
+            try:
+                # Should NOT raise - PostgreSQL unique violations are suppressed
+                await seed_admin_user(db_session)
+            finally:
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_postgresql_not_null_violation_reraised(self, db_session: AsyncSession):
+        """PostgreSQL NOT NULL violations (pgcode 23502) are re-raised."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_pg_not_null_violation():
+                # Create mock PostgreSQL NOT NULL violation error
+                class PostgreSQLError:
+                    def __init__(self):
+                        self.pgcode = "23502"  # PostgreSQL not_null_violation SQLSTATE
+                    def __str__(self):
+                        return "null value in column violates not-null constraint"
+
+                orig_error = PostgreSQLError()
+
+                integrity_error = IntegrityError(
+                    "null value in column violates not-null constraint",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_pg_not_null_violation
+
+            try:
+                # Should re-raise - PostgreSQL NOT NULL violations are NOT suppressed
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+                assert "not-null constraint" in str(exc_info.value)
+            finally:
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_mysql_unique_violation_detected(self, db_session: AsyncSession):
+        """MySQL unique violations (errno 1062) are properly detected and suppressed."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_mysql_unique_violation():
+                # Create mock MySQL unique violation error
+                # Use a simple object with errno attribute
+                class MySQLError:
+                    def __init__(self):
+                        self.errno = 1062  # MySQL ER_DUP_ENTRY
+                    def __str__(self):
+                        return "Duplicate entry 'admin' for key 'users.username'"
+
+                orig_error = MySQLError()
+
+                integrity_error = IntegrityError(
+                    "Duplicate entry 'admin' for key 'users.username'",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_mysql_unique_violation
+
+            try:
+                # Should NOT raise - MySQL unique violations are suppressed
+                await seed_admin_user(db_session)
+            finally:
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_mysql_foreign_key_violation_reraised(self, db_session: AsyncSession):
+        """MySQL foreign key violations (errno 1452) are re-raised."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_mysql_fk_violation():
+                # Create mock MySQL foreign key violation error
+                class MySQLError:
+                    def __init__(self):
+                        self.errno = 1452  # MySQL ER_NO_REFERENCED_ROW_2
+                    def __str__(self):
+                        return "Cannot add or update a child row: a foreign key constraint fails"
+
+                orig_error = MySQLError()
+
+                integrity_error = IntegrityError(
+                    "Cannot add or update a child row: a foreign key constraint fails",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_mysql_fk_violation
+
+            try:
+                # Should re-raise - MySQL FK violations are NOT suppressed
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+                assert "foreign key constraint fails" in str(exc_info.value)
+            finally:
+                db_session.commit = original_commit
+
+    @pytest.mark.asyncio
+    async def test_sqlite_foreign_key_violation_reraised(self, db_session: AsyncSession):
+        """SQLite foreign key violations are re-raised (not suppressed like UNIQUE)."""
+        from sqlalchemy.exc import IntegrityError
+
+        settings = Settings(
+            auth_username="admin",
+            auth_password="Pass123",
+            auth_email="admin@example.com",
+            auth_full_name="Admin",
+        )
+
+        with patch("app.db.seed.get_settings", return_value=settings):
+            original_commit = db_session.commit
+
+            async def mock_sqlite_fk_violation():
+                # Create mock SQLite foreign key violation error
+                orig_error = Exception("FOREIGN KEY constraint failed")
+                integrity_error = IntegrityError(
+                    "FOREIGN KEY constraint failed",
+                    None,
+                    orig_error
+                )
+                integrity_error.orig = orig_error
+                raise integrity_error
+
+            db_session.commit = mock_sqlite_fk_violation
+
+            try:
+                # Should re-raise - SQLite FK violations are NOT suppressed
+                with pytest.raises(IntegrityError) as exc_info:
+                    await seed_admin_user(db_session)
+                assert "FOREIGN KEY" in str(exc_info.value)
+            finally:
                 db_session.commit = original_commit

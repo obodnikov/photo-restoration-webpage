@@ -16,6 +16,49 @@ from app.db.models import User
 logger = logging.getLogger(__name__)
 
 
+def is_unique_violation(error: IntegrityError) -> bool:
+    """
+    Check if an IntegrityError is specifically a unique constraint violation.
+
+    This function inspects the database-specific error to distinguish unique
+    constraint violations (which are expected in race conditions) from other
+    integrity errors like NOT NULL, CHECK, or foreign key violations.
+
+    Supports:
+    - PostgreSQL: SQLSTATE 23505
+    - SQLite: Error message contains "UNIQUE constraint failed"
+    - MySQL: Error code 1062
+
+    Args:
+        error: The IntegrityError to inspect
+
+    Returns:
+        True if the error is a unique constraint violation, False otherwise
+    """
+    if not hasattr(error, "orig") or error.orig is None:
+        # If we can't determine the error type, treat it as non-unique
+        # to be safe (re-raise it)
+        return False
+
+    error_msg = str(error.orig).lower()
+
+    # PostgreSQL: Check SQLSTATE code
+    if hasattr(error.orig, "pgcode"):
+        return error.orig.pgcode == "23505"  # unique_violation
+
+    # SQLite: Check error message
+    if "unique constraint failed" in error_msg:
+        return True
+
+    # MySQL: Check error code (pymysql uses errno attribute)
+    if hasattr(error.orig, "errno") and error.orig.errno == 1062:
+        return True
+
+    # If we can't positively identify it as a unique violation, treat it as
+    # another type of integrity error (NOT NULL, CHECK, FK, etc.)
+    return False
+
+
 async def seed_admin_user(db: AsyncSession) -> None:
     """
     Create initial admin user from environment variables.
@@ -94,19 +137,33 @@ async def seed_admin_user(db: AsyncSession) -> None:
     try:
         await db.commit()
         await db.refresh(admin_user)
-    except IntegrityError:
-        # Expected race condition: another instance created the user simultaneously
-        # with a conflicting username or email (unique constraint violation)
+    except IntegrityError as e:
+        # IntegrityError can be many things: UNIQUE, NOT NULL, CHECK, FK violations
+        # Only suppress UNIQUE constraint violations (expected race conditions)
+        # Re-raise all other integrity errors to alert operators
         await db.rollback()
-        logger.info(
-            f"Admin user '{normalized_username}' already exists (race condition during creation)"
-        )
-        return
+
+        if is_unique_violation(e):
+            # Expected race condition: another instance created the user simultaneously
+            # with a conflicting username or email (unique constraint violation)
+            logger.info(
+                f"Admin user '{normalized_username}' already exists (race condition during creation)"
+            )
+            return
+        else:
+            # NOT NULL, CHECK, FK, or other integrity constraint violation
+            # This indicates a schema/data problem that needs operator attention
+            logger.error(
+                f"Failed to create admin user due to integrity constraint violation: {e}",
+                exc_info=True
+            )
+            raise
     except Exception as e:
         # Unexpected database error - re-raise to fail startup and alert operators
         await db.rollback()
         logger.error(
-            f"Failed to create admin user due to database error: {e}"
+            f"Failed to create admin user due to database error: {e}",
+            exc_info=True
         )
         raise
 
