@@ -7,17 +7,20 @@ import type { Session } from '../types';
 import { Card } from '../../../components/Card';
 import { Button } from '../../../components/Button';
 import { Modal } from '../../../components/Modal';
+import { ErrorMessage } from '../../../components/ErrorMessage';
 
 interface SessionsListProps {
   sessions: Session[];
   onDeleteSession: (sessionId: string) => Promise<void>;
   isLoading?: boolean;
+  error?: string | null;
 }
 
 export const SessionsList: React.FC<SessionsListProps> = ({
   sessions,
   onDeleteSession,
   isLoading = false,
+  error = null,
 }) => {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -48,6 +51,25 @@ export const SessionsList: React.FC<SessionsListProps> = ({
     setSelectedSessionId(null);
   };
 
+  // Show error state if sessions failed to load
+  if (error) {
+    return (
+      <Card variant="light">
+        <div className="sessions-list">
+          <h2>Active Sessions</h2>
+          <p className="form-description">
+            Manage your active sessions across different devices.
+          </p>
+          <ErrorMessage
+            message={error}
+            title="Failed to Load Sessions"
+          />
+        </div>
+      </Card>
+    );
+  }
+
+  // Show empty state only if there are no sessions AND no error
   if (sessions.length === 0) {
     return (
       <Card variant="light">
