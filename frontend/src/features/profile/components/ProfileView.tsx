@@ -1,14 +1,32 @@
-/**
- * ProfileView component - displays user profile information
- */
-
 import React from 'react';
 import type { UserProfile } from '../types';
 import { Card } from '../../../components/Card';
 
-interface ProfileViewProps {
+/**
+ * Props for the ProfileView component.
+ */
+export interface ProfileViewProps {
   profile: UserProfile;
 }
+
+/**
+ * ProfileView - Displays user profile information in a structured, read-only format.
+ *
+ * Shows account details including username, email, full name, role, status,
+ * creation date, and last login. Includes visual role badges and status indicators.
+ *
+ * @example
+ * ```tsx
+ * <ProfileView
+ *   profile={userProfile}
+ * />
+ * ```
+ *
+ * @param props.profile - User profile object containing account information.
+ *
+ * @component
+ * @category Profile
+ */
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ profile }) => {
   const formatDate = (dateString: string | null) => {

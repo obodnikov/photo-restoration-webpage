@@ -1,11 +1,10 @@
-/**
- * User list table component with pagination and filters
- */
-
 import React from 'react';
 import type { AdminUser, UserListFilters } from '../types';
 import { Button } from '../../../components/Button';
 
+/**
+ * Props for the UserList component.
+ */
 export interface UserListProps {
   users: AdminUser[];
   total: number;
@@ -19,6 +18,46 @@ export interface UserListProps {
   onResetPassword: (user: AdminUser) => void;
   currentUserId?: number;
 }
+
+/**
+ * UserList - Admin user management table with filtering, pagination, and CRUD actions.
+ *
+ * Displays users in a table format with role/status filters, pagination controls,
+ * and action buttons for editing, password reset, and deletion. Prevents self-deletion
+ * and highlights the current user. Supports role-based and status-based filtering.
+ *
+ * @example
+ * ```tsx
+ * <UserList
+ *   users={users}
+ *   total={totalUsers}
+ *   currentPage={currentPage}
+ *   totalPages={totalPages}
+ *   filters={filters}
+ *   onPageChange={handlePageChange}
+ *   onFiltersChange={handleFiltersChange}
+ *   onEdit={handleEditUser}
+ *   onDelete={handleDeleteUser}
+ *   onResetPassword={handleResetPassword}
+ *   currentUserId={currentUser.id}
+ * />
+ * ```
+ *
+ * @param props.users - Array of user objects to display.
+ * @param props.total - Total number of users across all pages.
+ * @param props.currentPage - Current page number (1-based).
+ * @param props.totalPages - Total number of pages available.
+ * @param props.filters - Current filter settings for role and status.
+ * @param props.onPageChange - Callback when page changes.
+ * @param props.onFiltersChange - Callback when filters are modified.
+ * @param props.onEdit - Callback when edit button is clicked.
+ * @param props.onDelete - Callback when delete button is clicked.
+ * @param props.onResetPassword - Callback when reset password button is clicked.
+ * @param props.currentUserId - ID of current user to prevent self-deletion.
+ *
+ * @component
+ * @category Admin
+ */
 
 export const UserList: React.FC<UserListProps> = ({
   users,

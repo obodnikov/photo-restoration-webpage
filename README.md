@@ -517,6 +517,8 @@ Once the backend is running, visit:
 - Swagger UI: http://localhost/api/docs
 - ReDoc: http://localhost/api/redoc
 
+📖 **Detailed API Documentation:** For comprehensive API documentation including Phase 2.4 endpoints (User Management, Admin Panel), see [docs/API_PHASE_2.4.md](docs/API_PHASE_2.4.md).
+
 ### Available Endpoints
 
 **Authentication:**
@@ -524,13 +526,27 @@ Once the backend is running, visit:
 - `POST /api/v1/auth/validate` - Validate token
 - `GET /api/v1/auth/me` - Get current user info
 
+**User Management (Phase 2.4):**
+- `GET /api/v1/users/me` - Get current user profile
+- `PUT /api/v1/users/me/password` - Change password
+- `GET /api/v1/users/me/sessions` - List active sessions
+- `DELETE /api/v1/users/me/sessions/{id}` - Remote logout
+
+**Admin Endpoints (Phase 2.4, Admin role required):**
+- `GET /api/v1/admin/users` - List users with pagination and filtering
+- `POST /api/v1/admin/users` - Create new user
+- `GET /api/v1/admin/users/{user_id}` - Get user details
+- `PUT /api/v1/admin/users/{user_id}` - Update user
+- `DELETE /api/v1/admin/users/{user_id}` - Delete user
+- `PUT /api/v1/admin/users/{user_id}/reset-password` - Reset user password
+
 **Models:**
 - `GET /api/v1/models` - List available AI models
 - `GET /api/v1/models/{id}` - Get model details
 
 **Image Restoration:**
 - `POST /api/v1/restore` - Upload and process image
-- `GET /api/v1/restore/history` - Get session history (paginated)
+- `GET /api/v1/restore/history` - Get session history (paginated, cross-session)
 - `GET /api/v1/restore/{image_id}` - Get image details
 - `GET /api/v1/restore/{image_id}/download` - Download processed image
 - `DELETE /api/v1/restore/{image_id}` - Delete image and files
