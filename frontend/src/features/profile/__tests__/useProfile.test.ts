@@ -61,10 +61,10 @@ describe('useProfile', () => {
 
       expect(result.current.profile).toBeNull();
       expect(result.current.sessions).toEqual([]);
-      expect(result.current.isLoadingProfile).toBe(false);
-      expect(result.current.isLoadingSessions).toBe(false);
       expect(result.current.isChangingPassword).toBe(false);
-      expect(result.current.error).toBeNull();
+      expect(result.current.profileError).toBeNull();
+      expect(result.current.sessionsError).toBeNull();
+      expect(result.current.mutationError).toBeNull();
     });
   });
 
@@ -111,7 +111,7 @@ describe('useProfile', () => {
       const { result } = renderHook(() => useProfile());
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Failed to load');
+        expect(result.current.profileError).toBe('Failed to load');
         expect(result.current.profile).toBeNull();
       });
     });
@@ -122,7 +122,7 @@ describe('useProfile', () => {
       const { result } = renderHook(() => useProfile());
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Failed to load profile');
+        expect(result.current.profileError).toBe('Failed to load profile');
       });
     });
   });
@@ -170,8 +170,173 @@ describe('useProfile', () => {
       const { result } = renderHook(() => useProfile());
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Sessions error');
+        expect(result.current.sessionsError).toBe('Sessions error');
         expect(result.current.sessions).toEqual([]);
+      });
+    });
+  
+    describe('Error State Management', () => {
+      it('clears mutationError on successful password change', async () => {
+        // First set an error
+        vi.mocked(profileService.changePassword).mockRejectedValueOnce(new Error('Initial error'));
+  
+        const { result } = renderHook(() => useProfile());
+  
+        await waitFor(() => {
+          expect(result.current.profile).not.toBeNull();
+        });
+  
+        // Trigger error
+        try {
+          await result.current.changePassword('wrong', 'new');
+        } catch {
+          // Expected to throw
+        }
+  
+        await waitFor(() => {
+          expect(result.current.mutationError).toBe('Initial error');
+        });
+  
+        // Now succeed
+        vi.mocked(profileService.changePassword).mockResolvedValue({ message: 'Success' });
+  
+        await result.current.changePassword('old', 'new');
+  
+        await waitFor(() => {
+          expect(result.current.mutationError).toBeNull();
+        });
+      });
+  
+      it('clears mutationError on successful session deletion', async () => {
+        // First set an error
+        vi.mocked(profileService.deleteSession).mockRejectedValueOnce(new Error('Initial error'));
+  
+        const { result } = renderHook(() => useProfile());
+  
+        await waitFor(() => {
+          expect(result.current.sessions).toEqual(mockSessions);
+        });
+  
+        // Trigger error
+        try {
+          await result.current.deleteSession('session-2');
+        } catch {
+          // Expected to throw
+        }
+  
+        await waitFor(() => {
+          expect(result.current.mutationError).toBe('Initial error');
+        });
+  
+        // Now succeed
+        vi.mocked(profileService.deleteSession).mockResolvedValue({ message: 'Deleted' });
+  
+        await result.current.deleteSession('session-2');
+  
+        await waitFor(() => {
+          expect(result.current.mutationError).toBeNull();
+        });
+      });
+  
+      it('does not cross-contaminate errors between operations', async () => {
+        const { result } = renderHook(() => useProfile());
+  
+        await waitFor(() => {
+          expect(result.current.profile).not.toBeNull();
+          expect(result.current.sessions).toEqual(mockSessions);
+        });
+  
+        // Set profile error
+        vi.mocked(profileService.getProfile).mockRejectedValueOnce(new Error('Profile error'));
+        await result.current.refreshProfile();
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBe('Profile error');
+          expect(result.current.sessionsError).toBeNull();
+          expect(result.current.mutationError).toBeNull();
+        });
+  
+        // Set sessions error
+        vi.mocked(profileService.getSessions).mockRejectedValueOnce(new Error('Sessions error'));
+        await result.current.refreshSessions();
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBe('Profile error'); // Should remain
+          expect(result.current.sessionsError).toBe('Sessions error');
+          expect(result.current.mutationError).toBeNull();
+        });
+  
+        // Set mutation error
+        vi.mocked(profileService.changePassword).mockRejectedValueOnce(new Error('Password error'));
+        try {
+          await result.current.changePassword('wrong', 'new');
+        } catch {
+          // Expected to throw
+        }
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBe('Profile error'); // Should remain
+          expect(result.current.sessionsError).toBe('Sessions error'); // Should remain
+          expect(result.current.mutationError).toBe('Password error');
+        });
+      });
+  
+      it('clears specific error states independently', async () => {
+        const { result } = renderHook(() => useProfile());
+  
+        await waitFor(() => {
+          expect(result.current.profile).not.toBeNull();
+          expect(result.current.sessions).toEqual(mockSessions);
+        });
+  
+        // Set all errors
+        vi.mocked(profileService.getProfile).mockRejectedValueOnce(new Error('Profile error'));
+        vi.mocked(profileService.getSessions).mockRejectedValueOnce(new Error('Sessions error'));
+        vi.mocked(profileService.changePassword).mockRejectedValueOnce(new Error('Password error'));
+  
+        await result.current.refreshProfile();
+        await result.current.refreshSessions();
+        try {
+          await result.current.changePassword('wrong', 'new');
+        } catch {
+          // Expected to throw
+        }
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBe('Profile error');
+          expect(result.current.sessionsError).toBe('Sessions error');
+          expect(result.current.mutationError).toBe('Password error');
+        });
+  
+        // Clear profile error by succeeding
+        vi.mocked(profileService.getProfile).mockResolvedValue(mockProfile);
+        await result.current.refreshProfile();
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBeNull();
+          expect(result.current.sessionsError).toBe('Sessions error'); // Should remain
+          expect(result.current.mutationError).toBe('Password error'); // Should remain
+        });
+  
+        // Clear sessions error by succeeding
+        vi.mocked(profileService.getSessions).mockResolvedValue({ sessions: mockSessions, total: mockSessions.length });
+        await result.current.refreshSessions();
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBeNull();
+          expect(result.current.sessionsError).toBeNull();
+          expect(result.current.mutationError).toBe('Password error'); // Should remain
+        });
+  
+        // Clear mutation error by succeeding
+        vi.mocked(profileService.changePassword).mockResolvedValue({ message: 'Success' });
+        await result.current.changePassword('old', 'new');
+  
+        await waitFor(() => {
+          expect(result.current.profileError).toBeNull();
+          expect(result.current.sessionsError).toBeNull();
+          expect(result.current.mutationError).toBeNull();
+        });
       });
     });
   });
@@ -270,7 +435,7 @@ describe('useProfile', () => {
       }
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Wrong password');
+        expect(result.current.mutationError).toBe('Wrong password');
       });
     });
 
@@ -290,7 +455,7 @@ describe('useProfile', () => {
       }
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Failed to change password');
+        expect(result.current.mutationError).toBe('Failed to change password');
       });
     });
   });
@@ -356,7 +521,7 @@ describe('useProfile', () => {
       }
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Deletion failed');
+        expect(result.current.mutationError).toBe('Deletion failed');
       });
     });
 
@@ -376,7 +541,7 @@ describe('useProfile', () => {
       }
 
       await waitFor(() => {
-        expect(result.current.error).toBe('Failed to delete session');
+        expect(result.current.mutationError).toBe('Failed to delete session');
       });
     });
   });
