@@ -267,6 +267,108 @@ describe('SessionsList', () => {
     });
   });
 
+  describe('Error Handling', () => {
+    it('displays error message when error prop is provided', () => {
+      const errorMessage = 'Failed to load sessions';
+      render(
+        <SessionsList
+          sessions={mockSessions}
+          onDeleteSession={mockOnDeleteSession}
+          error={errorMessage}
+        />
+      );
+
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      expect(screen.getByText('Failed to Load Sessions')).toBeInTheDocument();
+    });
+
+    it('does not show empty state when error prop is provided', () => {
+      const errorMessage = 'Network error';
+      render(
+        <SessionsList
+          sessions={[]}
+          onDeleteSession={mockOnDeleteSession}
+          error={errorMessage}
+        />
+      );
+
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      expect(screen.queryByText('No active sessions found.')).toBeNull();
+    });
+
+    it('does not render sessions list when error prop is provided', () => {
+      const errorMessage = 'Server error';
+      render(
+        <SessionsList
+          sessions={mockSessions}
+          onDeleteSession={mockOnDeleteSession}
+          error={errorMessage}
+        />
+      );
+
+      // Error state still shows the heading but not the session count or full description
+      expect(screen.getByRole('heading', { name: 'Active Sessions' })).toBeInTheDocument();
+      expect(screen.queryByText('3 session(s)')).toBeNull();
+      expect(screen.queryByText('Manage your active sessions across different devices. You can log out from other devices remotely for security.')).toBeNull();
+      // Should show the shorter description from error state
+      expect(screen.getByText('Manage your active sessions across different devices.')).toBeInTheDocument();
+    });
+
+    it('shows empty state when no error and no sessions', () => {
+      render(
+        <SessionsList
+          sessions={[]}
+          onDeleteSession={mockOnDeleteSession}
+          error={null}
+        />
+      );
+
+      expect(screen.getByText('No active sessions found.')).toBeInTheDocument();
+      expect(screen.queryByText('Failed to Load Sessions')).toBeNull();
+    });
+
+    it('prioritizes error over empty state', () => {
+      const errorMessage = 'Connection failed';
+      render(
+        <SessionsList
+          sessions={[]}
+          onDeleteSession={mockOnDeleteSession}
+          error={errorMessage}
+        />
+      );
+
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+      expect(screen.queryByText('No active sessions found.')).toBeNull();
+    });
+
+    it('renders normally when error is null or undefined', () => {
+      render(
+        <SessionsList
+          sessions={mockSessions}
+          onDeleteSession={mockOnDeleteSession}
+          error={null}
+        />
+      );
+
+      expect(screen.getByRole('heading', { name: 'Active Sessions' })).toBeInTheDocument();
+      expect(screen.getByText('3 session(s)')).toBeInTheDocument();
+      expect(screen.queryByText('Failed to Load Sessions')).toBeNull();
+    });
+
+    it('handles undefined error prop', () => {
+      render(
+        <SessionsList
+          sessions={mockSessions}
+          onDeleteSession={mockOnDeleteSession}
+          error={undefined}
+        />
+      );
+
+      expect(screen.getByRole('heading', { name: 'Active Sessions' })).toBeInTheDocument();
+      expect(screen.queryByText('Failed to Load Sessions')).toBeNull();
+    });
+  });
+
   describe('Accessibility', () => {
     it('uses semantic HTML for sessions list', () => {
       const { container } = render(
