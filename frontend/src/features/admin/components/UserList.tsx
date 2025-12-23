@@ -1,3 +1,7 @@
+import React from 'react';
+import type { AdminUser, UserListFilters } from '../types';
+import { Button } from '../../../components/Button';
+
 /**
  * Props for the UserList component.
  */
@@ -54,10 +58,6 @@ export interface UserListProps {
  * @component
  * @category Admin
  */
-
-import React from 'react';
-import type { AdminUser, UserListFilters } from '../types';
-import { Button } from '../../../components/Button';
 
 export const UserList: React.FC<UserListProps> = ({
   users,

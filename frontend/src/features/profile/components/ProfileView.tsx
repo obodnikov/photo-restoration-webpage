@@ -1,3 +1,7 @@
+import React from 'react';
+import type { UserProfile } from '../types';
+import { Card } from '../../../components/Card';
+
 /**
  * Props for the ProfileView component.
  */
@@ -23,10 +27,6 @@ export interface ProfileViewProps {
  * @component
  * @category Profile
  */
-
-import React from 'react';
-import type { UserProfile } from '../types';
-import { Card } from '../../../components/Card';
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ profile }) => {
   const formatDate = (dateString: string | null) => {
