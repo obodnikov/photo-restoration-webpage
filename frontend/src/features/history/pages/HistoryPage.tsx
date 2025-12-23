@@ -1,5 +1,17 @@
 /**
- * HistoryPage - Page for viewing restoration history
+ * HistoryPage - Main page for viewing and managing image restoration history.
+ *
+ * Displays paginated restoration history with session filtering, image viewing,
+ * download functionality, and deletion capabilities. Supports both "All Sessions"
+ * and "Current Session Only" filtering modes with bulk fetching for large datasets.
+ *
+ * @example
+ * ```tsx
+ * <HistoryPage />
+ * ```
+ *
+ * @component
+ * @category History
  */
 
 import React, { useState } from 'react';
