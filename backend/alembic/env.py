@@ -58,6 +58,12 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
+
+    # Convert async dialect to sync for offline mode
+    # Offline mode doesn't use async engines
+    if "sqlite+aiosqlite://" in url:
+        url = url.replace("sqlite+aiosqlite://", "sqlite://")
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -97,16 +103,17 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
+    Strategy:
+    - Default: Run migrations synchronously (for CLI usage)
+    - If already in event loop: Also run synchronously (avoid nested loops)
+    - Async mode is only used when explicitly needed (not for CLI)
+
+    This ensures 'alembic upgrade head' works from CLI without issues.
     """
-    try:
-        # Check if we're already in an event loop (e.g., during testing)
-        asyncio.get_running_loop()
-        # If we get here, we're already in an event loop
-        # Run migrations synchronously instead
-        run_migrations_sync()
-    except RuntimeError:
-        # No running loop, safe to use asyncio.run()
-        asyncio.run(run_async_migrations())
+    # Always run synchronously to avoid async/sync URL mismatch issues
+    # The app's database URL may be async (sqlite+aiosqlite) but we convert
+    # it to sync (sqlite) in run_migrations_sync() for compatibility
+    run_migrations_sync()
 
 
 def run_migrations_sync() -> None:

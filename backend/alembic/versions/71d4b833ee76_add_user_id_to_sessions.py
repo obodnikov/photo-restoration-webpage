@@ -1,14 +1,18 @@
 """add_user_id_to_sessions
 
 Revision ID: 71d4b833ee76
-Revises:
+Revises: 000_initial_schema
 Create Date: 2025-12-24 13:01:31.320470
 
 This migration adds the user_id column to the sessions table to support
-per-user session tracking. This is a backwards-incompatible change that
-requires backfilling existing sessions.
+per-user session tracking.
 
-Strategy:
+This migration is ONLY for upgrading databases that were created BEFORE
+the user_id column was added to the Session model. Fresh installs that
+run the base migration (000_initial_schema) already have user_id and
+will skip this migration.
+
+Strategy (for old databases without user_id):
 1. Add user_id column as nullable
 2. Backfill existing sessions with admin user ID
 3. Make user_id non-nullable
@@ -24,25 +28,23 @@ from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision: str = '71d4b833ee76'
-down_revision: Union[str, Sequence[str], None] = None
+down_revision: Union[str, Sequence[str], None] = '000_initial_schema'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema: Add user_id column to sessions table."""
+    """Upgrade schema: Add user_id column to sessions table.
+
+    This migration only runs on databases that:
+    - Were created before user_id was added to Session model
+    - Already have sessions table but WITHOUT user_id column
+
+    Fresh installs skip this because base migration creates sessions with user_id.
+    """
     conn = op.get_bind()
 
-    # Check if sessions table exists first
-    result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"))
-    table_exists = result.fetchone() is not None
-
-    if not table_exists:
-        # Table doesn't exist yet - this is a fresh install
-        # Skip migration, let create_all() handle it
-        return
-
-    # Table exists, check if user_id column already exists (from create_all())
+    # Check if user_id column already exists
     result = conn.execute(text("PRAGMA table_info(sessions)"))
     columns = result.fetchall()
     column_names = [col[1] for col in columns]  # col[1] is column name

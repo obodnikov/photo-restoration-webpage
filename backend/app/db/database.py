@@ -191,48 +191,65 @@ async def record_migration(session: AsyncSession, version: str, description: str
 async def run_alembic_migrations() -> None:
     """
     Run Alembic migrations to upgrade database schema.
-    
+
     This function runs pending Alembic migrations to ensure the database
-    schema is up to date. It should be called after create_all() to handle
-    schema changes that create_all() cannot (column additions, renames, etc.).
+    schema is up to date. It is the PRIMARY mechanism for schema management.
+
+    The function runs in a separate thread to avoid blocking the async event loop,
+    since alembic.command.upgrade() is synchronous.
     """
     import logging
+    import asyncio
     logger = logging.getLogger(__name__)
-    
+
+    def _run_migrations_sync() -> None:
+        """Synchronous wrapper for Alembic migrations."""
+        try:
+            from alembic import command
+            from alembic.config import Config
+            from pathlib import Path
+
+            # Get alembic.ini path
+            alembic_cfg_path = Path(__file__).parent.parent.parent / "alembic.ini"
+
+            if not alembic_cfg_path.exists():
+                logger.warning(f"Alembic config not found at {alembic_cfg_path}, skipping migrations")
+                return
+
+            # Create Alembic config
+            alembic_cfg = Config(str(alembic_cfg_path))
+
+            # Run migrations to head
+            logger.info("Running Alembic migrations...")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic migrations completed successfully")
+
+        except ImportError:
+            logger.warning("Alembic not installed, skipping migrations")
+        except Exception as e:
+            logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
+            raise
+
+    # Run migrations in a separate thread to avoid blocking the event loop
     try:
-        from alembic import command
-        from alembic.config import Config
-        from pathlib import Path
-        
-        # Get alembic.ini path
-        alembic_cfg_path = Path(__file__).parent.parent.parent / "alembic.ini"
-        
-        if not alembic_cfg_path.exists():
-            logger.warning(f"Alembic config not found at {alembic_cfg_path}, skipping migrations")
-            return
-        
-        # Create Alembic config
-        alembic_cfg = Config(str(alembic_cfg_path))
-        
-        # Run migrations to head
-        logger.info("Running Alembic migrations...")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Alembic migrations completed successfully")
-        
-    except ImportError:
-        logger.warning("Alembic not installed, skipping migrations")
+        await asyncio.to_thread(_run_migrations_sync)
     except Exception as e:
-        logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
+        logger.error(f"Failed to run Alembic migrations in thread: {e}", exc_info=True)
         raise
 
 
 async def init_db() -> None:
     """
-    Initialize database: create tables, configure SQLite, run migrations, and seed initial data.
+    Initialize database: run migrations, configure SQLite, and seed initial data.
+
+    Schema Management Strategy:
+    - Alembic migrations are the PRIMARY mechanism for schema creation and updates
+    - Base migration (000_initial_schema) creates all tables on fresh installs
+    - create_all() runs as a FALLBACK to catch unmigrated model changes
 
     This function is idempotent:
-    - ALWAYS runs create_all() (creates missing tables only)
-    - ALWAYS runs Alembic migrations (handles column additions, renames, etc.)
+    - ALWAYS runs Alembic migrations (creates tables, handles column additions, etc.)
+    - ALWAYS runs create_all() as fallback (creates missing tables not in migrations)
     - Tracks initialization via schema_migrations to avoid re-seeding
     - Re-runs seeding every startup for self-healing (seeding is idempotent)
 
@@ -240,8 +257,8 @@ async def init_db() -> None:
     Performs:
     1. Creates database engine
     2. Configures SQLite (WAL mode, foreign keys, etc.)
-    3. ALWAYS creates missing tables (idempotent)
-    4. ALWAYS runs Alembic migrations (handles schema changes)
+    3. Runs Alembic migrations (primary schema management)
+    4. Runs create_all() as fallback (catches unmigrated tables)
     5. Creates session factory
     6. On first initialization: records migration and seeds data
     7. On subsequent startups: re-runs idempotent seeding for self-healing
@@ -283,16 +300,17 @@ async def init_db() -> None:
     # Configure SQLite
     await configure_sqlite(_engine)
 
-    # Run Alembic migrations FIRST to handle schema changes
-    # This ensures column additions, renames, and other DDL changes are applied
-    # before create_all() runs (which only creates missing tables)
+    # Run Alembic migrations to create/update schema
+    # Alembic is now the PRIMARY mechanism for schema management
+    # The base migration (000_initial_schema) creates all tables on fresh installs
     await run_alembic_migrations()
 
-    # Run create_all AFTER migrations (idempotent - only creates missing TABLES)
+    # Run create_all() as a FALLBACK only
+    # This catches any tables added to models but not yet in Alembic migrations
+    # In a properly maintained codebase, this should be a no-op
     # CRITICAL: create_all() does NOT add new columns to existing tables
     # CRITICAL: create_all() does NOT drop, rename, or alter columns
-    # For any schema changes beyond new tables, you MUST use Alembic migrations
-    # This only ensures new tables are created when code is updated
+    # For schema changes, you MUST create Alembic migrations
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
