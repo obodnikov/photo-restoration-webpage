@@ -14,7 +14,7 @@ from app.db.database import (
     get_session_factory,
     init_db,
 )
-from app.db.models import Base
+from app.db.models import Base, User
 
 
 class TestGetDatabaseUrl:
@@ -176,8 +176,10 @@ class TestInitDb:
             )
             tables = [row[0] for row in result]
 
+            assert "users" in tables
             assert "sessions" in tables
             assert "processed_images" in tables
+            assert "schema_migrations" in tables
 
     @pytest.mark.asyncio
     async def test_creates_session_factory(self, test_engine, monkeypatch):
@@ -258,10 +260,24 @@ class TestGetDb:
         gen = get_db()
         session = await gen.__anext__()
 
-        # Add something to session
+        # Add a test user first (sessions require user_id)
         from app.db.models import Session as SessionModel
+        from app.core.security import get_password_hash
 
+        test_user = User(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            hashed_password=get_password_hash("password123"),
+            role="user",
+            is_active=True
+        )
+        session.add(test_user)
+        await session.flush()  # Get the user ID
+
+        # Add test session
         test_session = SessionModel(
+            user_id=test_user.id,
             session_id="test-commit",
             created_at=__import__("datetime").datetime.utcnow(),
             last_accessed=__import__("datetime").datetime.utcnow(),
@@ -310,8 +326,22 @@ class TestGetDb:
         session = await gen.__anext__()
 
         from app.db.models import Session as SessionModel
+        from app.core.security import get_password_hash
+
+        # Add a test user first (sessions require user_id)
+        test_user = User(
+            username="testuser",
+            email="test@example.com",
+            full_name="Test User",
+            hashed_password=get_password_hash("password123"),
+            role="user",
+            is_active=True
+        )
+        session.add(test_user)
+        await session.flush()  # Get the user ID
 
         test_session = SessionModel(
+            user_id=test_user.id,
             session_id="test-rollback",
             created_at=__import__("datetime").datetime.utcnow(),
             last_accessed=__import__("datetime").datetime.utcnow(),
