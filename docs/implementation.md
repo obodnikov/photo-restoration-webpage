@@ -279,7 +279,7 @@ docker run -d \
   -e AUTH_USERNAME=admin \
   -e AUTH_PASSWORD=changeme \
   -e DEBUG=false \
-  -e DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db \
+  -e DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db \
   --restart unless-stopped \
   photo-restoration-backend:latest
 ```
@@ -408,7 +408,7 @@ docker run -d \
   -e AUTH_USERNAME=admin \
   -e AUTH_PASSWORD=changeme \
   -e DEBUG=false \
-  -e DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db \
+  -e DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db \
   -e CORS_ORIGINS='["http://localhost","http://localhost:3000"]' \
   -p 8000:8000 \
   --restart unless-stopped \
@@ -943,7 +943,7 @@ HF_API_KEY=your_huggingface_api_key_here
 HF_API_TIMEOUT=60
 
 # Database
-DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db
+DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db
 
 # File Storage
 UPLOAD_DIR=/data/uploads

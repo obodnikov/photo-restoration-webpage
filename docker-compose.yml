@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     environment:
       - DEBUG=false
-      - DATABASE_URL=sqlite+aiosqlite:///data/photo_restoration.db
+      - DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db
       - UPLOAD_DIR=/data/uploads
       - PROCESSED_DIR=/data/processed
     env_file:

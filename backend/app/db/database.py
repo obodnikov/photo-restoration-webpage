@@ -107,6 +107,9 @@ async def is_db_initialized(engine: AsyncEngine) -> bool:
     Returns:
         True if database is initialized, False otherwise
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     from sqlalchemy import inspect, select
     from sqlalchemy.exc import OperationalError
 
@@ -115,11 +118,15 @@ async def is_db_initialized(engine: AsyncEngine) -> bool:
             # Check if schema_migrations table exists
             def check_table_exists(sync_conn):
                 inspector = inspect(sync_conn)
-                return "schema_migrations" in inspector.get_table_names()
+                table_names = inspector.get_table_names()
+                exists = "schema_migrations" in table_names
+                logger.debug(f"schema_migrations table exists: {exists}, all tables: {table_names}")
+                return exists
 
             table_exists = await conn.run_sync(check_table_exists)
 
             if not table_exists:
+                logger.debug("schema_migrations table does not exist")
                 return False
 
             # Check if initial migration is recorded
@@ -130,10 +137,16 @@ async def is_db_initialized(engine: AsyncEngine) -> bool:
             )
             migration = result.scalar_one_or_none()
 
-            return migration is not None
+            if migration:
+                logger.debug(f"Found migration record: {migration.version} - {migration.description}")
+                return True
+            else:
+                logger.debug("Migration '001_initial_schema' not found in schema_migrations table")
+                return False
 
-    except OperationalError:
+    except OperationalError as e:
         # Database file doesn't exist or is not accessible
+        logger.debug(f"OperationalError checking database initialization: {e}")
         return False
 
 
@@ -193,9 +206,24 @@ async def init_db() -> None:
     6. On subsequent startups: re-runs idempotent seeding for self-healing
     """
     import logging
+    import os
     logger = logging.getLogger(__name__)
 
     global _engine, _async_session_factory
+
+    # Log database URL for debugging
+    database_url = get_database_url()
+    logger.info(f"Database URL: {database_url}")
+
+    # Extract file path from URL for existence check
+    if database_url.startswith("sqlite+aiosqlite:///"):
+        db_path = database_url[len("sqlite+aiosqlite:///"):]
+        if os.path.exists(db_path):
+            logger.info(f"Database file exists at: {db_path}")
+        else:
+            logger.warning(f"Database file does NOT exist at: {db_path}")
+    else:
+        logger.info("Non-file database URL, skipping file existence check")
 
     # Create engine if not exists
     if _engine is None:
@@ -226,6 +254,7 @@ async def init_db() -> None:
 
     # Check if this is first initialization
     db_initialized = await is_db_initialized(_engine)
+    logger.info(f"Database initialized status: {db_initialized}")
 
     async with _async_session_factory() as session:
         try:

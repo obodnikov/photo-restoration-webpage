@@ -159,7 +159,8 @@ class Settings(BaseSettings):
     models_require_auth: bool = False
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./data/photo_restoration.db"
+    # Note: Use 4 slashes (////) for absolute paths, 3 slashes (///) for relative paths
+    database_url: str = "sqlite+aiosqlite:////data/photo_restoration.db"
 
     # File storage
     upload_dir: Path = Path("./data/uploads")
