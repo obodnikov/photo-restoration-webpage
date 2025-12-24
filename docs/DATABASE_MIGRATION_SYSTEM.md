@@ -189,14 +189,64 @@ Verified with real application:
 #         Database already initialized, running self-healing seed
 ```
 
+## Alembic Integration
+
+As of Phase 2.4, the project now uses **Alembic** for schema migrations that go beyond simple table creation.
+
+### When to Use Alembic
+
+Use Alembic migrations for:
+- ✅ Adding new columns to existing tables
+- ✅ Renaming columns or tables
+- ✅ Changing column types or constraints
+- ✅ Complex data migrations
+- ✅ Adding or removing indexes
+
+### Migration Workflow
+
+1. **Create migration**:
+   ```bash
+   cd backend
+   ./venv/bin/alembic revision -m "description_of_change"
+   ```
+
+2. **Edit migration file** in `backend/alembic/versions/`
+
+3. **Run migration**:
+   ```bash
+   ./venv/bin/alembic upgrade head
+   ```
+
+4. **Check status**:
+   ```bash
+   ./venv/bin/alembic current
+   ```
+
+### Automatic Migration on Startup
+
+The application automatically runs pending Alembic migrations on startup via [`run_alembic_migrations()`](../backend/app/db/database.py:190) in [`init_db()`](../backend/app/db/database.py:228).
+
+This ensures:
+- Deployments automatically upgrade schema
+- No manual intervention required
+- Migrations are tracked in `alembic_version` table
+
+### Example: Adding user_id to sessions
+
+See [`alembic/versions/71d4b833ee76_add_user_id_to_sessions.py`](../backend/alembic/versions/71d4b833ee76_add_user_id_to_sessions.py) for a complete example of:
+- Adding a new column
+- Backfilling existing data
+- Recreating table with new constraints (SQLite limitation)
+- Adding indexes
+
 ## Future Enhancements
 
 This system provides a foundation for:
 
-1. **Version Migrations**: Add migration functions for specific version upgrades
-2. **Data Migrations**: Run data transformations during schema changes
-3. **Rollback Support**: Track and potentially reverse migrations
-4. **Migration CLI**: Command-line tools for managing migrations manually
+1. ✅ **Version Migrations**: Alembic now handles version-based migrations
+2. ✅ **Data Migrations**: Alembic supports data transformations during schema changes
+3. ✅ **Rollback Support**: Alembic provides downgrade() functions for rollback
+4. ✅ **Migration CLI**: Alembic provides command-line tools for managing migrations
 
 ## Database Schema
 
