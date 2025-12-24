@@ -130,15 +130,16 @@ async def is_db_initialized(engine: AsyncEngine) -> bool:
                 return False
 
             # Check if initial migration is recorded
+            # Use text query because conn.execute() with ORM models doesn't work properly
+            from sqlalchemy import text
             result = await conn.execute(
-                select(SchemaMigration).where(
-                    SchemaMigration.version == "001_initial_schema"
-                )
+                text("SELECT COUNT(*) FROM schema_migrations WHERE version = :version"),
+                {"version": "001_initial_schema"}
             )
-            migration = result.scalar_one_or_none()
+            count = result.scalar()
 
-            if migration:
-                logger.debug(f"Found migration record: {migration.version} - {migration.description}")
+            if count and count > 0:
+                logger.debug(f"Found migration record: 001_initial_schema")
                 return True
             else:
                 logger.debug("Migration '001_initial_schema' not found in schema_migrations table")

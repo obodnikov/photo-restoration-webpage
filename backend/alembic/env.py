@@ -114,6 +114,12 @@ def run_migrations_sync() -> None:
     from sqlalchemy import create_engine
 
     url = config.get_main_option("sqlalchemy.url")
+
+    # Convert async dialect to sync for synchronous engine
+    # SQLAlchemy's create_engine() cannot handle async dialects like sqlite+aiosqlite
+    if "sqlite+aiosqlite://" in url:
+        url = url.replace("sqlite+aiosqlite://", "sqlite://")
+
     connectable = create_engine(url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:

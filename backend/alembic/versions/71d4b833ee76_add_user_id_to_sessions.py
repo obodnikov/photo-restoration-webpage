@@ -33,7 +33,16 @@ def upgrade() -> None:
     """Upgrade schema: Add user_id column to sessions table."""
     conn = op.get_bind()
 
-    # Check if user_id column already exists (from create_all())
+    # Check if sessions table exists first
+    result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"))
+    table_exists = result.fetchone() is not None
+
+    if not table_exists:
+        # Table doesn't exist yet - this is a fresh install
+        # Skip migration, let create_all() handle it
+        return
+
+    # Table exists, check if user_id column already exists (from create_all())
     result = conn.execute(text("PRAGMA table_info(sessions)"))
     columns = result.fetchall()
     column_names = [col[1] for col in columns]  # col[1] is column name

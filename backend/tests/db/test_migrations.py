@@ -664,3 +664,123 @@ class TestInitDbWithMigrations:
 
         # Clean up
         await fresh_engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_alembic_migration_handles_missing_sessions_table(self, monkeypatch):
+        """Test that Alembic migration gracefully handles when sessions table doesn't exist.
+
+        Regression test for HIGH RISK issue:
+        - Fresh installs failed because migration tried to ALTER TABLE sessions
+          when the table didn't exist yet
+        - Migration now checks if table exists before attempting to alter it
+        """
+        import app.db.database
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import StaticPool
+
+        # Create a completely fresh in-memory database
+        fresh_engine = create_async_engine(
+            "sqlite+aiosqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: fresh_engine)
+
+        # Verify no tables exist initially
+        async with fresh_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            initial_tables = {row[0] for row in result}
+            assert len(initial_tables) == 0, "Database should start completely empty"
+
+        # Run init_db() which:
+        # 1. Runs Alembic migrations FIRST (should skip when sessions table doesn't exist)
+        # 2. Runs create_all() to create tables
+        # This should NOT raise "no such table: sessions" error
+        try:
+            await init_db()
+        except Exception as e:
+            pytest.fail(f"init_db() should not fail on fresh install: {e}")
+
+        # Verify sessions table was created with user_id column
+        async with fresh_engine.connect() as conn:
+            result = await conn.execute(text("PRAGMA table_info(sessions)"))
+            columns = result.fetchall()
+            column_names = [col[1] for col in columns]
+
+            assert "sessions" in await _get_table_names(conn), "sessions table should exist"
+            assert "user_id" in column_names, "sessions table should have user_id column"
+
+        # Clean up
+        await fresh_engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_alembic_env_converts_async_url_to_sync(self, monkeypatch):
+        """Test that Alembic env.py converts async URLs to sync when needed.
+
+        Regression test for HIGH RISK issue:
+        - Running migrations from inside FastAPI event loop always raised NoSuchModuleError
+        - env.py's run_migrations_sync() tried to use sqlite+aiosqlite:// URL with
+          synchronous create_engine(), which cannot handle async dialects
+        - Fixed by converting async URL to sync URL before creating engine
+        """
+        import app.db.database
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import StaticPool
+
+        # Create a fresh in-memory database
+        fresh_engine = create_async_engine(
+            "sqlite+aiosqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: fresh_engine)
+
+        # Mock get_database_url to return async URL (simulating production)
+        monkeypatch.setattr(
+            "app.db.database.get_database_url",
+            lambda: "sqlite+aiosqlite:///:memory:"
+        )
+
+        # Run init_db() from within an event loop (already running in pytest-asyncio)
+        # This triggers the run_migrations_sync() code path in env.py
+        # Should NOT raise NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:sqlite.aiosqlite
+        try:
+            await init_db()
+        except Exception as e:
+            # Check if it's the specific error we're trying to prevent
+            if "NoSuchModuleError" in str(type(e).__name__) or "sqlite.aiosqlite" in str(e):
+                pytest.fail(
+                    f"Alembic should convert async URL to sync URL in run_migrations_sync(): {e}"
+                )
+            # Re-raise other unexpected errors
+            raise
+
+        # Verify database was initialized successfully
+        async with fresh_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            tables = {row[0] for row in result}
+            assert "sessions" in tables, "Database should be initialized successfully"
+
+        # Clean up
+        await fresh_engine.dispose()
+
+
+async def _get_table_names(conn) -> set:
+    """Helper to get all table names from SQLite."""
+    from sqlalchemy import text
+    result = await conn.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table'")
+    )
+    return {row[0] for row in result}
