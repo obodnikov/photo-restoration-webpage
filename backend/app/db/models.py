@@ -20,6 +20,50 @@ class Base(DeclarativeBase):
     pass
 
 
+class SchemaMigration(Base):
+    """
+    Schema migration tracking model.
+
+    Tracks which migrations have been applied to the database.
+    This allows the application to check if the database is initialized
+    and prevents re-running migrations on container restart.
+    """
+
+    __tablename__ = "schema_migrations"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Migration version (e.g., "001_initial_schema")
+    version: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
+
+    # Description of the migration
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    # Timestamp when migration was applied
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    def __repr__(self) -> str:
+        """String representation of SchemaMigration."""
+        return (
+            f"<SchemaMigration(version={self.version}, "
+            f"applied_at={self.applied_at})>"
+        )
+
+    def to_dict(self) -> dict:
+        """Convert migration to dictionary."""
+        return {
+            "id": self.id,
+            "version": self.version,
+            "description": self.description,
+            "applied_at": self.applied_at.isoformat(),
+        }
+
+
 class User(Base):
     """
     User model for authentication and authorization.

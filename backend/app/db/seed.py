@@ -186,6 +186,9 @@ async def seed_database(db: AsyncSession) -> None:
     application startup. It will create:
     - Initial admin user from environment variables
 
+    This function is idempotent - it will only create users if they
+    don't already exist.
+
     Args:
         db: Database session
     """
