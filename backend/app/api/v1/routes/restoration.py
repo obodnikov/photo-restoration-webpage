@@ -33,7 +33,7 @@ from app.api.v1.schemas.restoration import (
     RestoreResponse,
 )
 from app.core.config import get_settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_validated
 from app.db.database import get_db
 from app.db.models import ProcessedImage
 from app.services.hf_inference import (
@@ -231,7 +231,7 @@ async def restore_image(
     model_id: str = Form(..., description="Model ID to use for processing"),
     parameters: str = Form(None, description="Optional model parameters (JSON string)"),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> RestoreResponse:
     """
     Upload and restore an image.
@@ -476,7 +476,7 @@ async def get_history(
     limit: int = 50,
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> HistoryResponse:
     """
     Get processing history for current user (all sessions).
@@ -582,7 +582,7 @@ async def get_history(
 async def get_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> ImageDetailResponse:
     """
     Get details of a specific processed image.
@@ -647,7 +647,7 @@ async def get_image(
 async def download_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> FileResponse:
     """
     Download processed image.
@@ -719,7 +719,7 @@ async def download_image(
 async def delete_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> DeleteResponse:
     """
     Delete a processed image.

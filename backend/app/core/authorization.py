@@ -7,10 +7,10 @@ This module provides authorization functions and dependencies:
 """
 from fastapi import Depends, HTTPException, status
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_validated
 
 
-async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+async def require_admin(current_user: dict = Depends(get_current_user_validated())) -> dict:
     """
     Dependency that requires admin role.
 
@@ -43,7 +43,7 @@ async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     return current_user
 
 
-async def require_active_user(current_user: dict = Depends(get_current_user)) -> dict:
+async def require_active_user(current_user: dict = Depends(get_current_user_validated())) -> dict:
     """
     Dependency that ensures user account is active.
 

@@ -22,6 +22,7 @@ from app.core.security import (
     authenticate_user,
     create_access_token,
     get_current_user,
+    get_current_user_validated,
 )
 from app.core.config import get_settings
 from app.db.database import get_db
@@ -192,7 +193,7 @@ async def login(
     description="Validate JWT token and return user information",
 )
 async def validate_token(
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user_validated())
 ) -> TokenValidateResponse:
     """
     Validate JWT token and return user information.
@@ -221,7 +222,7 @@ async def validate_token(
     summary="Get current user",
     description="Get information about the currently authenticated user",
 )
-async def get_me(user: dict = Depends(get_current_user)) -> UserResponse:
+async def get_me(user: dict = Depends(get_current_user_validated())) -> UserResponse:
     """
     Get current authenticated user information.
 
