@@ -75,8 +75,8 @@ def upgrade() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 session_id VARCHAR(36) UNIQUE NOT NULL,
-                created_at DATETIME NOT NULL,
-                last_accessed DATETIME NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_accessed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
@@ -116,8 +116,8 @@ def downgrade() -> None:
         CREATE TABLE sessions_old (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id VARCHAR(36) UNIQUE NOT NULL,
-            created_at DATETIME NOT NULL,
-            last_accessed DATETIME NOT NULL
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_accessed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
     

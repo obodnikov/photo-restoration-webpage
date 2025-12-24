@@ -776,7 +776,6 @@ class TestInitDbWithMigrations:
         # Clean up
         await fresh_engine.dispose()
 
-
 async def _get_table_names(conn) -> set:
     """Helper to get all table names from SQLite."""
     from sqlalchemy import text
