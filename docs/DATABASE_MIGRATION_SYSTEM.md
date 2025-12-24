@@ -2,24 +2,24 @@
 
 ## Overview
 
-This document describes the database migration tracking system implemented to prevent data loss during container restarts.
+This document describes the database migration tracking system implemented to safely manage schema evolution and ensure self-healing during container restarts.
 
 ## Problem
 
-Previously, when the application container was restarted, the `init_db()` function would:
-1. Run `Base.metadata.create_all()` - which creates tables if they don't exist
-2. Always run `seed_database()` - which could potentially overwrite existing data
-
-While `create_all()` is idempotent (it doesn't drop existing tables), there was no formal mechanism to track whether the database had already been initialized, making it difficult to manage schema changes and prevent re-seeding.
+Previously, when the application container was restarted, there was no tracking of whether the database had been properly initialized. This created risks around:
+- No way to track when the database was first set up
+- Difficulty safely adding new tables/columns in future code updates
+- No recovery mechanism for accidentally deleted data (e.g., admin user)
 
 ## Solution
 
-Implemented a migration tracking system similar to Alembic/Django migrations that:
+Implemented a migration tracking system that provides:
 
-1. **Tracks applied migrations** using a `schema_migrations` table
-2. **Checks if database is initialized** before running schema creation and seeding
-3. **Prevents data loss** by skipping migrations that have already been applied
-4. **Provides a foundation** for future schema evolution
+1. **Migration Tracking** using a `schema_migrations` table
+2. **Always runs `create_all()`** for safe schema evolution (idempotent)
+3. **Self-healing seeding** runs on every startup (idempotent)
+4. **Records migration only after successful seeding** to enable retry on failure
+5. **Foundation for future schema migrations**
 
 ## Implementation Details
 
@@ -54,49 +54,98 @@ Added to [database.py](backend/app/db/database.py):
 
 ### Updated init_db()
 
-Modified `init_db()` ([database.py:177-250](backend/app/db/database.py#L177-L250)) to:
+Modified `init_db()` ([database.py:177-256](backend/app/db/database.py#L177-L256)) with critical fixes:
 
-1. Check if database is already initialized using `is_db_initialized()`
-2. Skip schema creation and seeding if already initialized
-3. Record the `001_initial_schema` migration on first initialization
-4. Log clear messages about what's happening
+**Key Behaviors:**
+1. **ALWAYS runs `create_all()`** - Safe and idempotent, allows new tables/columns to be added
+2. **First initialization**: Seeds data, then records migration (ensures retry on failure)
+3. **Subsequent startups**: Re-runs idempotent seeding for self-healing
+4. **Logs clear messages** about initialization vs. self-healing
 
 ## Usage
 
 ### First Start (Fresh Database)
 
 ```
-INFO - Database not initialized, creating schema and seeding initial data
-INFO - Database schema created successfully
-INFO - Recorded initial migration: 001_initial_schema
+INFO - Database schema synchronized
+INFO - First initialization: creating initial data
 INFO - Database seeding completed successfully
+INFO - Database initialized successfully
 ```
 
 ### Subsequent Restarts
 
 ```
-INFO - Database already initialized, skipping schema creation and seeding
+INFO - Database schema synchronized
+INFO - Database already initialized, running self-healing seed
+INFO - Database seeding completed successfully
+INFO - Self-healing seed completed
 ```
 
 ## Benefits
 
-1. **Data Preservation**: Existing users and data are never removed on restart
-2. **Clear Logging**: Easy to see whether migrations ran or were skipped
-3. **Migration History**: Track when database schema was initialized
-4. **Future-Proof**: Foundation for adding schema evolution migrations
-5. **Race Condition Safe**: Handles concurrent initializations gracefully
+1. **Schema Evolution**: New tables/columns are automatically created on upgrade
+2. **Self-Healing**: Admin user (and other seed data) is automatically restored if deleted
+3. **Retry on Failure**: If seeding fails on first init, migration isn't recorded, allowing retry
+4. **Graceful Degradation**: Self-healing failures on restart log warnings but don't crash app
+5. **Data Preservation**: Existing users and data are preserved across restarts
+6. **Clear Logging**: Easy to see initialization state and what's happening
+7. **Migration History**: Track when database schema was initialized
+8. **Race Condition Safe**: Handles concurrent initializations gracefully
+9. **Seeding Idempotency**: Multiple seeding runs never create duplicates
+
+## Important Limitations
+
+⚠️ **Schema Evolution Constraints:**
+- This system ONLY handles **additive changes** (new tables/columns)
+- It **CANNOT safely handle**:
+  - Dropping columns or tables
+  - Renaming columns or tables
+  - Altering column types or constraints
+  - Complex data migrations
+
+For non-additive schema changes, you **must** use a proper migration tool like Alembic.
+
+⚠️ **Self-Healing Behavior:**
+- Self-healing seed runs on every startup for data recovery
+- Failures during self-healing log warnings but don't crash the application
+- First-time initialization failures DO crash the application (as expected)
+
+## Critical Fixes Applied
+
+Based on code review, the following critical issues were fixed:
+
+### [HIGH] Future schema changes will now be applied
+**Problem:** Previously skipped `create_all()` after initialization, breaking future table additions.
+**Fix:** Now ALWAYS runs `create_all()` (it's idempotent and safe).
+**Test:** `test_init_db_allows_new_tables_after_initialization`
+
+### [HIGH] Seeding failures no longer break the database
+**Problem:** Previously recorded migration before seeding, leaving DB in broken state on failure.
+**Fix:** Now records migration AFTER successful seeding, enabling retry.
+**Test:** `test_init_db_retries_seeding_on_failure`
+
+### [MEDIUM] Self-healing for accidentally deleted data
+**Problem:** Previously skipped seeding after initialization, no recovery path.
+**Fix:** Now runs idempotent seeding every startup for self-healing.
+**Test:** `test_init_db_self_healing_admin_user`
 
 ## Testing
 
 ### Test Coverage
 
-- **test_migrations.py**: 15 tests covering:
+- **test_migrations.py**: 19 tests covering:
   - SchemaMigration model creation and uniqueness
   - `is_db_initialized()` function behavior
   - `record_migration()` idempotency and race conditions
   - `init_db()` idempotency and data preservation
+  - **Regression tests**:
+    - Schema evolution (new tables added after initialization)
+    - Seeding failure retry mechanism
+    - Self-healing admin user restoration
+    - Data integrity with no duplicates across multiple restarts
 
-- **Updated existing tests**: Fixed tests in `test_database.py` and `test_models.py` to work with new migration system
+- **Updated existing tests**: Fixed tests in `test_database.py` and `test_models.py` to work with migration system
 
 ### Manual Testing
 
@@ -105,21 +154,23 @@ Verified with real application:
 ```bash
 # First start
 ./backend/venv/bin/python -m uvicorn app.main:app
-# Output: Database not initialized, creating schema...
+# Output: Database schema synchronized
+#         First initialization: creating initial data
 
 # Second start (restart)
 ./backend/venv/bin/python -m uvicorn app.main:app
-# Output: Database already initialized, skipping...
+# Output: Database schema synchronized
+#         Database already initialized, running self-healing seed
 ```
 
 ## Future Enhancements
 
 This system provides a foundation for:
 
-1. **Schema Migrations**: Add new migration versions for schema changes
-2. **Data Migrations**: Run data transformations during upgrades
+1. **Version Migrations**: Add migration functions for specific version upgrades
+2. **Data Migrations**: Run data transformations during schema changes
 3. **Rollback Support**: Track and potentially reverse migrations
-4. **Migration CLI**: Command-line tools for managing migrations
+4. **Migration CLI**: Command-line tools for managing migrations manually
 
 ## Database Schema
 
@@ -142,7 +193,7 @@ Current migrations:
 ## Related Files
 
 - [backend/app/db/models.py](backend/app/db/models.py) - SchemaMigration model
-- [backend/app/db/database.py](backend/app/db/database.py) - Migration tracking functions and updated init_db()
-- [backend/app/db/seed.py](backend/app/db/seed.py) - Seed database (already idempotent)
-- [backend/tests/db/test_migrations.py](backend/tests/db/test_migrations.py) - Migration tests
+- [backend/app/db/database.py](backend/app/db/database.py) - Migration tracking functions and init_db()
+- [backend/app/db/seed.py](backend/app/db/seed.py) - Seed database (idempotent)
+- [backend/tests/db/test_migrations.py](backend/tests/db/test_migrations.py) - Migration tests including regression tests
 - [backend/tests/db/conftest.py](backend/tests/db/conftest.py) - Shared test fixtures

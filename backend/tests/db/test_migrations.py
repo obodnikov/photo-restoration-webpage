@@ -276,8 +276,8 @@ class TestInitDbWithMigrations:
             assert len(migrations) == 1
 
     @pytest.mark.asyncio
-    async def test_init_db_skips_seeding_on_second_run(self, test_engine: AsyncEngine, monkeypatch):
-        """Test that init_db doesn't re-seed on subsequent runs."""
+    async def test_init_db_runs_self_healing_seeding_on_restart(self, test_engine: AsyncEngine, monkeypatch):
+        """Test that init_db runs seeding on every restart for self-healing."""
         import app.db.database
 
         monkeypatch.setattr(app.db.database, "_engine", None)
@@ -301,9 +301,9 @@ class TestInitDbWithMigrations:
         monkeypatch.setattr(app.db.database, "_async_session_factory", None)
         monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
 
-        # Second initialization - should NOT call seed
+        # Second initialization - SHOULD call seed again for self-healing
         await init_db()
-        assert len(seed_calls) == 1  # Still only 1 call
+        assert len(seed_calls) == 2  # Called twice: initial + self-healing
 
     @pytest.mark.asyncio
     async def test_init_db_preserves_existing_data(self, test_engine: AsyncEngine, monkeypatch):
@@ -372,3 +372,204 @@ class TestInitDbWithMigrations:
             assert regular is not None
             assert regular.email == "regular@example.com"
             assert regular.full_name == "Regular User"
+
+    @pytest.mark.asyncio
+    async def test_init_db_allows_new_tables_after_initialization(self, test_engine: AsyncEngine, monkeypatch):
+        """Test that init_db allows new tables to be added after initial migration.
+
+        Regression test for: create_all() must always run to allow schema evolution.
+        """
+        import app.db.database
+        from sqlalchemy import Column, Integer, String, Table
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # First initialization
+        await init_db()
+
+        # Verify initial tables exist
+        from sqlalchemy import text
+        async with test_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            initial_tables = {row[0] for row in result}
+            assert "users" in initial_tables
+            assert "sessions" in initial_tables
+
+        # Simulate adding a new table to the schema (like a future code update)
+        # Add a temporary table to Base.metadata
+        new_table = Table(
+            'new_feature_table',
+            Base.metadata,
+            Column('id', Integer, primary_key=True),
+            Column('name', String(100))
+        )
+
+        # Reset module globals to simulate restart
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # Second initialization - should create the new table
+        await init_db()
+
+        # Verify new table was created
+        async with test_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            updated_tables = {row[0] for row in result}
+            assert "new_feature_table" in updated_tables, "New table should be created on restart"
+
+        # Clean up
+        Base.metadata.remove(new_table)
+
+    @pytest.mark.asyncio
+    async def test_init_db_retries_seeding_on_failure(self, test_engine: AsyncEngine, monkeypatch):
+        """Test that init_db doesn't mark DB as initialized if seeding fails.
+
+        Regression test for: migration should only be recorded after successful seeding.
+        """
+        import app.db.database
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # Mock seed_database to fail on first call
+        call_count = []
+
+        async def mock_seed_fail_once(session):
+            call_count.append(1)
+            if len(call_count) == 1:
+                raise ValueError("Simulated seeding failure")
+            # Succeed on subsequent calls
+            pass
+
+        monkeypatch.setattr("app.db.seed.seed_database", mock_seed_fail_once)
+
+        # First initialization attempt should fail
+        with pytest.raises(ValueError, match="Simulated seeding failure"):
+            await init_db()
+
+        # Verify migration was NOT recorded
+        factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            result = await session.execute(select(SchemaMigration))
+            migrations = result.scalars().all()
+            assert len(migrations) == 0, "Migration should not be recorded when seeding fails"
+
+        # Reset for second attempt
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # Second initialization should succeed
+        await init_db()
+
+        # Verify migration is now recorded
+        async with factory() as session:
+            result = await session.execute(select(SchemaMigration))
+            migrations = result.scalars().all()
+            assert len(migrations) == 1, "Migration should be recorded after successful seeding"
+            assert migrations[0].version == "001_initial_schema"
+
+    @pytest.mark.asyncio
+    async def test_init_db_self_healing_admin_user(self, test_engine: AsyncEngine, monkeypatch):
+        """Test that init_db re-creates admin user if deleted (self-healing).
+
+        Regression test for: seeding should run on every startup for self-healing.
+        """
+        import app.db.database
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # First initialization
+        await init_db()
+
+        # Verify admin user exists
+        factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            result = await session.execute(select(User).where(User.role == "admin"))
+            admin = result.scalar_one_or_none()
+            assert admin is not None
+            admin_username = admin.username
+
+        # Simulate admin user being accidentally deleted
+        async with factory() as session:
+            result = await session.execute(select(User).where(User.role == "admin"))
+            admin = result.scalar_one_or_none()
+            if admin:
+                await session.delete(admin)
+                await session.commit()
+
+        # Verify admin is deleted
+        async with factory() as session:
+            result = await session.execute(select(User).where(User.role == "admin"))
+            admin = result.scalar_one_or_none()
+            assert admin is None, "Admin should be deleted"
+
+        # Reset module globals to simulate restart
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # Second initialization should re-create admin (self-healing)
+        await init_db()
+
+        # Verify admin user is restored
+        async with factory() as session:
+            result = await session.execute(select(User).where(User.role == "admin"))
+            admin = result.scalar_one_or_none()
+            assert admin is not None, "Admin should be self-healed on restart"
+            assert admin.username == admin_username
+
+    @pytest.mark.asyncio
+    async def test_init_db_seeding_idempotency_no_duplicates(self, test_engine: AsyncEngine, monkeypatch):
+        """Test that multiple init_db calls don't create duplicate users.
+
+        Regression test for: seeding must be truly idempotent with no duplicates.
+        """
+        import app.db.database
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+        # First initialization
+        await init_db()
+
+        # Count initial users
+        factory = async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            result = await session.execute(select(User))
+            initial_users = result.scalars().all()
+            initial_count = len(initial_users)
+            admin_users = [u for u in initial_users if u.role == "admin"]
+            assert len(admin_users) == 1, "Should have exactly one admin after first init"
+
+        # Simulate multiple restarts
+        for i in range(3):
+            monkeypatch.setattr(app.db.database, "_engine", None)
+            monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+            monkeypatch.setattr(app.db.database, "create_engine", lambda: test_engine)
+
+            await init_db()
+
+            # Verify user count hasn't changed
+            async with factory() as session:
+                result = await session.execute(select(User))
+                users = result.scalars().all()
+                assert len(users) == initial_count, f"User count changed on restart {i+1}"
+
+                # Verify still only one admin
+                admin_users = [u for u in users if u.role == "admin"]
+                assert len(admin_users) == 1, f"Admin count changed on restart {i+1}"

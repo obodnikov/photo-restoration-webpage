@@ -178,18 +178,19 @@ async def init_db() -> None:
     """
     Initialize database: create tables, configure SQLite, and seed initial data.
 
-    This function is idempotent - it checks if the database is already initialized
-    and skips schema creation if the initial migration is already recorded.
-    This prevents re-running migrations on container restart.
+    This function is idempotent:
+    - ALWAYS runs create_all() (it's safe and allows new tables/columns to be added)
+    - Tracks initialization via schema_migrations to avoid re-seeding
+    - Re-runs seeding every startup for self-healing (seeding is idempotent)
 
     This should be called during application startup.
     Performs:
     1. Creates database engine
     2. Configures SQLite (WAL mode, foreign keys, etc.)
-    3. Checks if database is already initialized
-    4. Creates all tables (only if not initialized)
-    5. Records initial migration
-    6. Seeds initial data (admin user, only if not initialized)
+    3. ALWAYS creates/updates all tables (idempotent, allows schema evolution)
+    4. Creates session factory
+    5. On first initialization: records migration and seeds data
+    6. On subsequent startups: re-runs idempotent seeding for self-healing
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -203,19 +204,14 @@ async def init_db() -> None:
     # Configure SQLite
     await configure_sqlite(_engine)
 
-    # Check if database is already initialized
-    db_initialized = await is_db_initialized(_engine)
+    # ALWAYS create/update tables (create_all is idempotent and allows schema evolution)
+    # IMPORTANT: This only handles ADDITIVE changes (new tables/columns)
+    # For dropping, renaming, or altering columns, use proper migration tool (e.g., Alembic)
+    # This ensures new tables/columns are added when code is updated
+    async with _engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-    if db_initialized:
-        logger.info("Database already initialized, skipping schema creation and seeding")
-    else:
-        logger.info("Database not initialized, creating schema and seeding initial data")
-
-        # Create all tables
-        async with _engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        logger.info("Database schema created successfully")
+    logger.info("Database schema synchronized")
 
     # Create session factory
     if _async_session_factory is None:
@@ -227,27 +223,50 @@ async def init_db() -> None:
             autocommit=False,  # Manual commit control
         )
 
-    # Only seed if database was just initialized
-    if not db_initialized:
-        async with _async_session_factory() as session:
-            try:
-                # Record initial migration
+    # Check if this is first initialization
+    db_initialized = await is_db_initialized(_engine)
+
+    async with _async_session_factory() as session:
+        try:
+            if not db_initialized:
+                # First initialization: seed data first, then record migration
+                logger.info("First initialization: creating initial data")
+
+                from app.db.seed import seed_database
+                await seed_database(session)
+
+                # Only record migration AFTER successful seeding
+                # This ensures we retry if seeding fails
                 await record_migration(
                     session,
                     "001_initial_schema",
                     "Initial database schema with users, sessions, and processed_images tables"
                 )
-                logger.info("Recorded initial migration: 001_initial_schema")
+                logger.info("Database initialized successfully")
+            else:
+                # Subsequent startups: re-run idempotent seeding for self-healing
+                # This ensures admin user exists even if accidentally deleted
+                logger.info("Database already initialized, running self-healing seed")
 
-                # Seed initial data (admin user)
                 from app.db.seed import seed_database
-                await seed_database(session)
-                logger.info("Database seeding completed successfully")
+                try:
+                    await seed_database(session)
+                    logger.info("Self-healing seed completed")
+                except Exception as seed_error:
+                    # Self-healing seed failures are logged but don't crash startup
+                    # since the DB is already initialized and may be operational
+                    logger.warning(
+                        f"Self-healing seed failed (application will continue): {seed_error}",
+                        exc_info=True
+                    )
 
-            except Exception as e:
+        except Exception as e:
+            # Only fail startup on first initialization errors
+            if not db_initialized:
                 logger.error(f"Failed to initialize database: {e}", exc_info=True)
-                # Fail startup if initial migration fails
                 raise
+            # For initialized DBs, errors during self-healing were already logged above
+            pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
