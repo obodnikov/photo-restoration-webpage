@@ -84,7 +84,7 @@ INFO - Self-healing seed completed
 
 ## Benefits
 
-1. **Schema Evolution**: New tables/columns are automatically created on upgrade
+1. **New Table Creation**: New tables are automatically created on upgrade
 2. **Self-Healing**: Admin user (and other seed data) is automatically restored if deleted
 3. **Retry on Failure**: If seeding fails on first init, migration isn't recorded, allowing retry
 4. **Graceful Degradation**: Self-healing failures on restart log warnings but don't crash app
@@ -94,17 +94,26 @@ INFO - Self-healing seed completed
 8. **Race Condition Safe**: Handles concurrent initializations gracefully
 9. **Seeding Idempotency**: Multiple seeding runs never create duplicates
 
-## Important Limitations
+## ⚠️ CRITICAL Limitations
 
-⚠️ **Schema Evolution Constraints:**
-- This system ONLY handles **additive changes** (new tables/columns)
-- It **CANNOT safely handle**:
-  - Dropping columns or tables
-  - Renaming columns or tables
-  - Altering column types or constraints
-  - Complex data migrations
+**What `create_all()` Does:**
+- ✅ Creates missing **tables** only
+- ✅ Is idempotent (safe to run multiple times)
 
-For non-additive schema changes, you **must** use a proper migration tool like Alembic.
+**What `create_all()` Does NOT Do:**
+- ❌ Does **NOT** add new columns to existing tables
+- ❌ Does **NOT** drop columns or tables
+- ❌ Does **NOT** rename columns or tables
+- ❌ Does **NOT** alter column types or constraints
+- ❌ Does **NOT** handle complex data migrations
+
+**For ANY schema change beyond new tables, you MUST use Alembic migrations.**
+
+This includes:
+- Adding a new column to an existing table → **Use Alembic**
+- Changing a column type → **Use Alembic**
+- Renaming anything → **Use Alembic**
+- Dropping anything → **Use Alembic**
 
 ⚠️ **Self-Healing Behavior:**
 - Self-healing seed runs on every startup for data recovery

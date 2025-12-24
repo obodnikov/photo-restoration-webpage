@@ -204,10 +204,11 @@ async def init_db() -> None:
     # Configure SQLite
     await configure_sqlite(_engine)
 
-    # ALWAYS create/update tables (create_all is idempotent and allows schema evolution)
-    # IMPORTANT: This only handles ADDITIVE changes (new tables/columns)
-    # For dropping, renaming, or altering columns, use proper migration tool (e.g., Alembic)
-    # This ensures new tables/columns are added when code is updated
+    # ALWAYS run create_all (idempotent - only creates missing TABLES)
+    # CRITICAL: create_all() does NOT add new columns to existing tables
+    # CRITICAL: create_all() does NOT drop, rename, or alter columns
+    # For any schema changes beyond new tables, you MUST use Alembic migrations
+    # This only ensures new tables are created when code is updated
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

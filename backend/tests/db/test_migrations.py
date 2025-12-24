@@ -377,7 +377,8 @@ class TestInitDbWithMigrations:
     async def test_init_db_allows_new_tables_after_initialization(self, test_engine: AsyncEngine, monkeypatch):
         """Test that init_db allows new tables to be added after initial migration.
 
-        Regression test for: create_all() must always run to allow schema evolution.
+        Regression test for: create_all() must always run to allow new TABLES to be created.
+        CRITICAL: create_all() does NOT add new columns to existing tables - use Alembic for that.
         """
         import app.db.database
         from sqlalchemy import Column, Integer, String, Table
