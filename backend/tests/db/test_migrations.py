@@ -1,10 +1,36 @@
 """Tests for database migration tracking system."""
 import pytest
+from typing import AsyncGenerator
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from app.db.database import is_db_initialized, record_migration, init_db
 from app.db.models import Base, SchemaMigration, User
+
+
+@pytest.fixture
+async def empty_test_engine() -> AsyncGenerator[AsyncEngine, None]:
+    """
+    Provide a test database engine with NO tables created.
+
+    Unlike the standard test_engine fixture, this one does NOT call
+    Base.metadata.create_all(), allowing tests to control table creation.
+    """
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+
+    # Enable foreign keys but do NOT create tables
+    async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
+
+    yield engine
+
+    # Cleanup
+    await engine.dispose()
 
 
 class TestSchemaMigrationModel:
@@ -992,4 +1018,327 @@ class TestAlembicCLI:
             version = result.scalar()
             assert version == "71d4b833ee76", "Should be at latest revision"
 
-        engine.dispose()
+
+class TestLegacySchemaDetectionAndStamping:
+    """Tests for detecting and upgrading legacy (pre-Alembic) databases."""
+
+    @pytest.mark.asyncio
+    async def test_detect_legacy_schema_fresh_database(self, empty_test_engine: AsyncEngine):
+        """Test that detect_legacy_schema returns False for fresh database."""
+        from app.db.database import detect_legacy_schema
+
+        # Fresh database has no tables
+        is_legacy = await detect_legacy_schema(empty_test_engine)
+        assert is_legacy is False, "Fresh database should not be detected as legacy"
+
+    @pytest.mark.asyncio
+    async def test_detect_legacy_schema_with_core_tables_no_alembic(self, empty_test_engine: AsyncEngine):
+        """Test that detect_legacy_schema returns True when core tables exist but no alembic_version."""
+        from app.db.database import detect_legacy_schema
+
+        # Create core tables manually (simulating pre-Alembic database)
+        async with empty_test_engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY,
+                    username VARCHAR(50) UNIQUE NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    hashed_password VARCHAR(255) NOT NULL,
+                    full_name VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) NOT NULL DEFAULT 'user',
+                    is_active BOOLEAN NOT NULL DEFAULT 1,
+                    password_must_change BOOLEAN NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_login DATETIME
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE sessions (
+                    id INTEGER PRIMARY KEY,
+                    session_id VARCHAR(36) UNIQUE NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    last_accessed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            await conn.execute(text("""
+                CREATE TABLE processed_images (
+                    id INTEGER PRIMARY KEY,
+                    session_id INTEGER NOT NULL,
+                    original_filename VARCHAR(255) NOT NULL,
+                    model_id VARCHAR(100) NOT NULL,
+                    original_path VARCHAR(500) NOT NULL,
+                    processed_path VARCHAR(500) NOT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+        # Should detect legacy schema (core tables exist, no alembic_version)
+        is_legacy = await detect_legacy_schema(empty_test_engine)
+        assert is_legacy is True, "Should detect legacy schema when core tables exist without alembic_version"
+
+    @pytest.mark.asyncio
+    async def test_detect_legacy_schema_with_alembic_version(self, empty_test_engine: AsyncEngine):
+        """Test that detect_legacy_schema returns False when alembic_version exists."""
+        from app.db.database import detect_legacy_schema
+
+        # Create core tables and alembic_version (simulating migrated database)
+        async with empty_test_engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+            await conn.execute(text("CREATE TABLE sessions (id INTEGER PRIMARY KEY)"))
+            await conn.execute(text("CREATE TABLE processed_images (id INTEGER PRIMARY KEY)"))
+            await conn.execute(text("""
+                CREATE TABLE alembic_version (
+                    version_num VARCHAR(32) NOT NULL,
+                    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                )
+            """))
+
+        # Should NOT detect legacy (alembic_version exists)
+        is_legacy = await detect_legacy_schema(empty_test_engine)
+        assert is_legacy is False, "Should not detect legacy when alembic_version exists"
+
+    @pytest.mark.asyncio
+    async def test_stamp_alembic_version(self, empty_test_engine: AsyncEngine):
+        """Test stamping database with Alembic revision."""
+        from app.db.database import stamp_alembic_version
+
+        # Stamp database with base revision
+        await stamp_alembic_version(empty_test_engine, "000_initial_schema")
+
+        # Verify alembic_version table was created
+        async with empty_test_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+            )
+            tables = result.fetchall()
+            assert len(tables) == 1, "alembic_version table should be created"
+
+            # Verify revision was stamped
+            result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+            version = result.scalar()
+            assert version == "000_initial_schema", "Should stamp with correct revision"
+
+    @pytest.mark.asyncio
+    async def test_stamp_alembic_version_idempotent(self, empty_test_engine: AsyncEngine):
+        """Test that stamping is idempotent (can be called multiple times safely)."""
+        from app.db.database import stamp_alembic_version
+
+        # Stamp twice with same revision
+        await stamp_alembic_version(empty_test_engine, "000_initial_schema")
+        await stamp_alembic_version(empty_test_engine, "000_initial_schema")
+
+        # Verify only one record exists with correct revision
+        async with empty_test_engine.connect() as conn:
+            result = await conn.execute(text("SELECT COUNT(*) FROM alembic_version"))
+            count = result.scalar()
+            assert count == 1, "Should only have one version record after multiple stamps"
+
+            result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+            version = result.scalar()
+            assert version == "000_initial_schema", "Should keep the correct revision"
+
+    @pytest.mark.asyncio
+    async def test_stamp_alembic_version_rejects_different_revision(self, empty_test_engine: AsyncEngine):
+        """Test that stamping raises error when trying to stamp with different revision."""
+        from app.db.database import stamp_alembic_version
+
+        # Stamp with first revision
+        await stamp_alembic_version(empty_test_engine, "000_initial_schema")
+
+        # Try to stamp with different revision - should raise RuntimeError
+        with pytest.raises(RuntimeError) as exc_info:
+            await stamp_alembic_version(empty_test_engine, "71d4b833ee76")
+
+        assert "already has alembic_version" in str(exc_info.value)
+        assert "000_initial_schema" in str(exc_info.value)
+        assert "71d4b833ee76" in str(exc_info.value)
+
+        # Verify original revision is unchanged
+        async with empty_test_engine.connect() as conn:
+            result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+            version = result.scalar()
+            assert version == "000_initial_schema", "Original revision should be unchanged"
+
+    @pytest.mark.asyncio
+    async def test_init_db_upgrades_legacy_database(self, monkeypatch, tmp_path):
+        """Test that init_db() successfully upgrades a legacy (pre-Alembic) database.
+
+        Regression test for HIGH RISK issue: existing databases can no longer start.
+        This test verifies that databases with tables but no alembic_version are
+        properly stamped and upgraded without errors.
+        """
+        import app.db.database
+        from pathlib import Path
+        import sqlite3
+
+        # Create a file-based test database (not in-memory)
+        db_path = tmp_path / "legacy_test.db"
+        db_url = f"sqlite+aiosqlite:///{db_path.absolute()}"
+
+        # Create the database file and legacy schema using sync sqlite3
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+
+        # Create a legacy database with core tables but WITHOUT user_id in sessions
+        # (simulating database before user_id was added)
+        cursor.execute("""
+            CREATE TABLE schema_migrations (
+                id INTEGER PRIMARY KEY,
+                version VARCHAR(100) UNIQUE NOT NULL,
+                description VARCHAR(500) NOT NULL,
+                applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            INSERT INTO schema_migrations (version, description)
+            VALUES ('001_initial_schema', 'Initial schema')
+        """)
+        cursor.execute("""
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                hashed_password VARCHAR(255) NOT NULL,
+                full_name VARCHAR(255) NOT NULL,
+                role VARCHAR(20) NOT NULL DEFAULT 'user',
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                password_must_change BOOLEAN NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_login DATETIME
+            )
+        """)
+        # OLD sessions table WITHOUT user_id (legacy schema)
+        cursor.execute("""
+            CREATE TABLE sessions (
+                id INTEGER PRIMARY KEY,
+                session_id VARCHAR(36) UNIQUE NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_accessed DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE processed_images (
+                id INTEGER PRIMARY KEY,
+                session_id INTEGER NOT NULL,
+                original_filename VARCHAR(255) NOT NULL,
+                model_id VARCHAR(100) NOT NULL,
+                original_path VARCHAR(500) NOT NULL,
+                processed_path VARCHAR(500) NOT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Insert admin user for seeding idempotency
+        cursor.execute("""
+            INSERT INTO users (username, email, hashed_password, full_name, role)
+            VALUES ('admin', 'admin@example.com', '$2b$12$test', 'Admin User', 'admin')
+        """)
+        conn.commit()
+
+        # Verify legacy schema exists and sessions lacks user_id
+        cursor.execute("PRAGMA table_info(sessions)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        assert "user_id" not in column_names, "Legacy sessions should NOT have user_id"
+        conn.close()
+
+        # Create async engine for this database
+        legacy_engine = create_async_engine(db_url, poolclass=StaticPool, connect_args={"check_same_thread": False})
+
+        # Mock the module globals to use our legacy engine and database URL
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: legacy_engine)
+        monkeypatch.setattr(app.db.database, "get_database_url", lambda: db_url)
+
+        # Run init_db() - should detect legacy schema, stamp it, and run migrations
+        await init_db()
+
+        # Verify alembic_version was created and stamped at latest revision
+        async with legacy_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+            )
+            tables = result.fetchall()
+            assert len(tables) == 1, "alembic_version table should be created"
+
+            result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+            version = result.scalar()
+            # Should be at latest revision after migrations ran
+            assert version == "71d4b833ee76", f"Should be at latest revision, got: {version}"
+
+            # Verify sessions table was upgraded with user_id column
+            result = await conn.execute(text("PRAGMA table_info(sessions)"))
+            columns = result.fetchall()
+            column_names = [col[1] for col in columns]
+            assert "user_id" in column_names, "sessions should have user_id after migration"
+
+        await legacy_engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_run_alembic_migrations_accepts_engine_parameter(self, empty_test_engine: AsyncEngine):
+        """Test that run_alembic_migrations accepts and uses engine parameter.
+
+        Regression test for MEDIUM issue: Alembic migrations can target a different
+        database than the engine being initialized.
+
+        This test verifies:
+        1. run_alembic_migrations() accepts an AsyncEngine parameter
+        2. The function extracts the URL from the engine (not from env.py)
+        3. Migrations run successfully with the provided engine
+
+        Note: The full integration test is in test_init_db_upgrades_legacy_database,
+        which verifies the entire flow of legacy database detection, stamping,
+        and migration using the engine parameter.
+        """
+        from app.db.database import run_alembic_migrations
+        import inspect
+
+        # Verify function signature accepts engine parameter
+        sig = inspect.signature(run_alembic_migrations)
+        params = list(sig.parameters.keys())
+        assert "engine" in params, "run_alembic_migrations should accept 'engine' parameter"
+
+        # Verify function runs without error when given an engine
+        # (migrations will run in-memory which is fine for this test)
+        await run_alembic_migrations(empty_test_engine)
+
+        # If we got here without exceptions, the function works correctly
+        # The full verification that it uses the correct database is done in
+        # test_init_db_upgrades_legacy_database which uses file-based databases
+
+    @pytest.mark.asyncio
+    async def test_stamp_alembic_version_validates_sqlite_dialect(self, empty_test_engine: AsyncEngine, monkeypatch):
+        """Test that stamp_alembic_version raises ValueError for non-SQLite databases."""
+        from app.db.database import stamp_alembic_version
+
+        # Mock the dialect to simulate a non-SQLite database
+        class MockDialect:
+            name = "postgresql"
+
+        monkeypatch.setattr(empty_test_engine, "dialect", MockDialect())
+
+        # Should raise ValueError for non-SQLite database
+        with pytest.raises(ValueError) as exc_info:
+            await stamp_alembic_version(empty_test_engine, "000_initial_schema")
+
+        assert "only supports SQLite" in str(exc_info.value)
+        assert "postgresql" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_run_alembic_migrations_validates_sqlite_dialect(self, empty_test_engine: AsyncEngine, monkeypatch):
+        """Test that run_alembic_migrations raises ValueError for non-SQLite databases."""
+        from app.db.database import run_alembic_migrations
+
+        # Mock the dialect to simulate a non-SQLite database
+        class MockDialect:
+            name = "mysql"
+
+        monkeypatch.setattr(empty_test_engine, "dialect", MockDialect())
+
+        # Should raise ValueError for non-SQLite database
+        with pytest.raises(ValueError) as exc_info:
+            await run_alembic_migrations(empty_test_engine)
+
+        assert "only supports SQLite" in str(exc_info.value)
+        assert "mysql" in str(exc_info.value)
+
