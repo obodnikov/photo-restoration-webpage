@@ -99,6 +99,7 @@ class SessionManager:
             return session
 
         except Exception as e:
+            logger.error(f"Failed to create session for user_id {user_id}: {type(e).__name__}: {str(e)}")
             await db.rollback()
             raise SessionManagerError(f"Failed to create session: {str(e)}") from e
 

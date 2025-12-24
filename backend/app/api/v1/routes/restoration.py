@@ -18,6 +18,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     status,
     UploadFile,
 )
@@ -473,8 +474,8 @@ async def restore_image(
     """,
 )
 async def get_history(
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of items to return (1-100)"),
+    offset: int = Query(0, ge=0, description="Number of items to skip (must be >= 0)"),
     db: AsyncSession = Depends(get_db),
     user: dict = Depends(get_current_user_validated()),
 ) -> HistoryResponse:
@@ -507,6 +508,7 @@ async def get_history(
     try:
         # Get ALL user's images across ALL sessions, ordered by most recent first
         # This ensures users can ONLY see their own images, not other users' images
+        logger.debug(f"Querying history for user_id {user_id}")
         query = (
             select(ProcessedImage)
             .join(ProcessedImage.session)
@@ -515,6 +517,7 @@ async def get_history(
         )
 
         # Get total count efficiently
+        logger.debug(f"Counting total images for user_id {user_id}")
         count_query = (
             select(func.count(ProcessedImage.id))
             .join(ProcessedImage.session)

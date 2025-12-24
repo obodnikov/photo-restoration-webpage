@@ -187,12 +187,51 @@ async def record_migration(session: AsyncSession, version: str, description: str
         # This is fine, migration is recorded
 
 
+async def run_alembic_migrations() -> None:
+    """
+    Run Alembic migrations to upgrade database schema.
+    
+    This function runs pending Alembic migrations to ensure the database
+    schema is up to date. It should be called after create_all() to handle
+    schema changes that create_all() cannot (column additions, renames, etc.).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from alembic import command
+        from alembic.config import Config
+        from pathlib import Path
+        
+        # Get alembic.ini path
+        alembic_cfg_path = Path(__file__).parent.parent.parent / "alembic.ini"
+        
+        if not alembic_cfg_path.exists():
+            logger.warning(f"Alembic config not found at {alembic_cfg_path}, skipping migrations")
+            return
+        
+        # Create Alembic config
+        alembic_cfg = Config(str(alembic_cfg_path))
+        
+        # Run migrations to head
+        logger.info("Running Alembic migrations...")
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Alembic migrations completed successfully")
+        
+    except ImportError:
+        logger.warning("Alembic not installed, skipping migrations")
+    except Exception as e:
+        logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
+        raise
+
+
 async def init_db() -> None:
     """
-    Initialize database: create tables, configure SQLite, and seed initial data.
+    Initialize database: create tables, configure SQLite, run migrations, and seed initial data.
 
     This function is idempotent:
-    - ALWAYS runs create_all() (it's safe and allows new tables/columns to be added)
+    - ALWAYS runs create_all() (creates missing tables only)
+    - ALWAYS runs Alembic migrations (handles column additions, renames, etc.)
     - Tracks initialization via schema_migrations to avoid re-seeding
     - Re-runs seeding every startup for self-healing (seeding is idempotent)
 
@@ -200,10 +239,11 @@ async def init_db() -> None:
     Performs:
     1. Creates database engine
     2. Configures SQLite (WAL mode, foreign keys, etc.)
-    3. ALWAYS creates/updates all tables (idempotent, allows schema evolution)
-    4. Creates session factory
-    5. On first initialization: records migration and seeds data
-    6. On subsequent startups: re-runs idempotent seeding for self-healing
+    3. ALWAYS creates missing tables (idempotent)
+    4. ALWAYS runs Alembic migrations (handles schema changes)
+    5. Creates session factory
+    6. On first initialization: records migration and seeds data
+    7. On subsequent startups: re-runs idempotent seeding for self-healing
     """
     import logging
     import os
@@ -251,6 +291,10 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("Database schema synchronized")
+    
+    # Run Alembic migrations to handle schema changes
+    # This handles column additions, renames, and other DDL changes
+    await run_alembic_migrations()
 
     # Create session factory
     if _async_session_factory is None:

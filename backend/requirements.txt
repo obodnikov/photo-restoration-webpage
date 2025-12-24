@@ -28,6 +28,7 @@ bcrypt<5.0.0  # passlib 1.7.4 not compatible with bcrypt 5.x
 # Database
 sqlalchemy[asyncio]==2.0.36
 aiosqlite==0.20.0
+alembic==1.17.2
 
 # Background tasks
 apscheduler==3.10.4
