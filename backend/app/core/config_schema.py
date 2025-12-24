@@ -116,8 +116,8 @@ class DatabaseConfig(BaseModel):
     """Database configuration."""
 
     url: str = Field(
-        default="sqlite+aiosqlite:///./data/photo_restoration.db",
-        description="Database connection URL (SQLAlchemy format)",
+        default="sqlite+aiosqlite:////data/photo_restoration.db",
+        description="Database connection URL (SQLAlchemy format). Use 4 slashes (////) for absolute paths, 3 slashes (///) for relative paths.",
     )
     echo_sql: bool = Field(default=False, description="Echo SQL queries to console (debug mode)")
     pool_size: int = Field(default=5, ge=1, description="Database connection pool size")

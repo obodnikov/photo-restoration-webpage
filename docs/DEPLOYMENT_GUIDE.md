@@ -173,8 +173,8 @@ AUTH_PASSWORD=CHANGE_THIS_TO_A_SECURE_PASSWORD
 HF_API_KEY=hf_your_huggingface_api_key_here
 REPLICATE_API_TOKEN=r8_your_replicate_token_here_optional
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./data/photo_restoration.db
+# Database (4 slashes = absolute path /data/, 3 slashes = relative path ./data/)
+DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db
 
 # CORS - Add your domain
 CORS_ORIGINS=["https://yourdomain.com"]
@@ -277,8 +277,8 @@ AUTH_PASSWORD=<secure-password> # Strong password (min 12 chars)
 HF_API_KEY=hf_<your-key>       # HuggingFace API token (required)
 REPLICATE_API_TOKEN=r8_<key>   # Replicate API token (optional)
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./data/photo_restoration.db
+# Database (4 slashes = absolute path /data/, 3 slashes = relative path ./data/)
+DATABASE_URL=sqlite+aiosqlite:////data/photo_restoration.db
 
 # CORS Origins (JSON array)
 CORS_ORIGINS=["https://yourdomain.com","https://www.yourdomain.com"]

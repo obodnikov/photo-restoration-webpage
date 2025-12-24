@@ -96,6 +96,23 @@ INFO - Self-healing seed completed
 
 ## ⚠️ CRITICAL Limitations
 
+### Database Path Configuration
+
+**IMPORTANT: SQLite URL Format**
+- `sqlite+aiosqlite:////data/photo_restoration.db` - **4 slashes** = absolute path `/data/photo_restoration.db`
+- `sqlite+aiosqlite:///./data/photo_restoration.db` - **3 slashes** = relative path `./data/photo_restoration.db` from working directory
+
+**For Docker/Production:**
+- Use **4 slashes** for absolute paths: `sqlite+aiosqlite:////data/photo_restoration.db`
+- This ensures the database is created in `/data/` which is mounted as a Docker volume
+- Using 3 slashes will create the database in `/app/data/` which is NOT persistent!
+
+**For Local Development:**
+- Use **3 slashes** for relative paths: `sqlite+aiosqlite:///./data/photo_restoration.db`
+- This creates the database in the project's `./data/` directory
+
+### Schema Evolution Limitations
+
 **What `create_all()` Does:**
 - ✅ Creates missing **tables** only
 - ✅ Is idempotent (safe to run multiple times)
