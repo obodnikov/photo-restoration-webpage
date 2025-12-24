@@ -233,7 +233,12 @@ def get_current_user_validated():
 
         # Check if session still exists (not deleted via logout)
         if session_id:
-            result = await db.execute(select(Session).where(Session.id == session_id))
+            result = await db.execute(
+                select(Session).where(
+                    Session.session_id == session_id,
+                    Session.user_id == user_id,
+                )
+            )
             session = result.scalar_one_or_none()
 
             if session is None:
@@ -243,8 +248,8 @@ def get_current_user_validated():
                     detail="Session has been terminated",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-
-        logger.info(f"Session and user validation passed for user: {username}")
+     
+            logger.debug(f"Session and user validation passed for user: {username}")
 
         return user_data
 
