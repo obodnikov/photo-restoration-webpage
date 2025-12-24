@@ -107,11 +107,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """
-    Dependency to get the current authenticated user from JWT token.
+    Dependency to get the current authenticated user from JWT token (basic validation only).
 
-    This dependency extracts and validates the JWT token from the
-    Authorization header. Use this to protect routes that require
-    authentication.
+    This function only validates the JWT token itself. For full security with
+    session and user status validation, use get_current_user_validated() instead.
 
     Args:
         credentials: HTTP Bearer credentials from request header
@@ -122,10 +121,9 @@ async def get_current_user(
     Raises:
         HTTPException: If token is invalid or expired
 
-    Example:
-        @app.get("/protected")
-        async def protected_route(user: dict = Depends(get_current_user)):
-            return {"message": f"Hello {user['username']}"}
+    Note:
+        This function does NOT validate against the database. Use get_current_user_validated()
+        for routes that need to ensure sessions haven't been deleted and users haven't been disabled.
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -165,6 +163,92 @@ async def get_current_user(
         "session_id": session_id,
         "password_must_change": password_must_change,
     }
+
+
+def get_current_user_validated():
+    """
+    Factory function to create a dependency that validates user and session against database.
+
+    SECURITY: This validates:
+    1. The JWT token is valid and not expired
+    2. The session referenced in the token still exists in the database
+    3. The user account is still active (not disabled)
+
+    This prevents:
+    - Deleted sessions from being used (remote logout works)
+    - Disabled users from accessing the API
+    - Stolen/lost tokens from working indefinitely
+
+    Returns:
+        Async dependency function for FastAPI routes
+
+    Example:
+        from app.db.database import get_db
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        @app.get("/protected")
+        async def protected_route(
+            user: dict = Depends(get_current_user_validated()),
+            db: AsyncSession = Depends(get_db)
+        ):
+            return {"message": f"Hello {user['username']}"}
+    """
+    from app.db.database import get_db
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async def validate_user(
+        user_data: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+    ) -> dict:
+        """Inner function that performs the actual validation."""
+        import logging
+        from sqlalchemy import select
+        from app.db.models import User, Session
+
+        logger = logging.getLogger(__name__)
+
+        user_id = user_data["user_id"]
+        username = user_data["username"]
+        session_id = user_data.get("session_id")
+
+        # Check if user still exists and is active
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            logger.warning(f"Token references non-existent user_id: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account no longer exists",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user.is_active:
+            logger.warning(f"Token used by disabled user: {username} (user_id: {user_id})")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account has been disabled",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Check if session still exists (not deleted via logout)
+        if session_id:
+            result = await db.execute(select(Session).where(Session.id == session_id))
+            session = result.scalar_one_or_none()
+
+            if session is None:
+                logger.warning(f"Token references deleted session: {session_id} (user: {username})")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session has been terminated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+        logger.info(f"Session and user validation passed for user: {username}")
+
+        return user_data
+
+    return validate_user
 
 
 async def authenticate_user(username: str, password: str, db) -> Optional[dict]:

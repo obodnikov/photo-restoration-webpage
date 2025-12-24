@@ -15,7 +15,7 @@ from app.api.v1.schemas.user import (
     UserSessionResponse,
     UserSessionsListResponse,
 )
-from app.core.security import get_current_user, get_password_hash, verify_password
+from app.core.security import get_current_user, get_current_user_validated, get_password_hash, verify_password
 from app.db.database import get_db
 from app.db.models import Session, User
 
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/users", tags=["User Profile"])
 )
 async def get_my_profile(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_validated()),
 ) -> UserResponse:
     """
     Get current user's profile.
@@ -73,7 +73,7 @@ async def get_my_profile(
 async def change_my_password(
     password_data: PasswordChange,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_validated()),
 ) -> dict:
     """
     Change current user's password.
@@ -138,7 +138,7 @@ async def change_my_password(
 )
 async def get_my_sessions(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_validated()),
 ) -> UserSessionsListResponse:
     """
     Get current user's active sessions.
@@ -177,7 +177,7 @@ async def get_my_sessions(
 async def delete_my_session(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user_validated()),
 ) -> None:
     """
     Delete a specific session (remote logout).

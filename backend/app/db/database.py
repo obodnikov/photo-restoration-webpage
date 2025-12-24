@@ -211,9 +211,19 @@ async def init_db() -> None:
 
     global _engine, _async_session_factory
 
-    # Log database URL for debugging
+    # Log database URL for debugging (redact credentials for security)
     database_url = get_database_url()
-    logger.info(f"Database URL: {database_url}")
+
+    # Redact credentials from database URL for logging
+    def redact_db_url(url: str) -> str:
+        """Redact username and password from database URL for secure logging."""
+        import re
+        # Pattern matches: scheme://user:pass@host/db or scheme:///path
+        # Replace user:pass@ with ***:***@
+        redacted = re.sub(r'://([^:/@]+):([^@]+)@', r'://***:***@', url)
+        return redacted
+
+    logger.info(f"Database URL: {redact_db_url(database_url)}")
 
     # Extract file path from URL for existence check
     if database_url.startswith("sqlite+aiosqlite:///"):
