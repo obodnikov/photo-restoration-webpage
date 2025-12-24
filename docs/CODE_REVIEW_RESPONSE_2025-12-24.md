@@ -204,9 +204,11 @@ These logs will clearly show `OperationalError` when the `user_id` column is mis
 
 ### Modified Files
 1. [`backend/requirements.txt`](../backend/requirements.txt:31) - Added `alembic==1.17.2`
-2. [`backend/app/db/database.py`](../backend/app/db/database.py:190) - Added `run_alembic_migrations()` function and integrated into `init_db()`
+2. [`backend/app/db/database.py`](../backend/app/db/database.py:190) - **FIXED**: Reordered operations to run migrations BEFORE `create_all()` to prevent "duplicate column" errors on fresh installs
 3. [`backend/app/api/v1/routes/restoration.py`](../backend/app/api/v1/routes/restoration.py:476) - Added input validation for pagination parameters
 4. [`backend/app/services/session_manager.py`](../backend/app/services/session_manager.py:101) - Added error logging
+5. [`backend/alembic/env.py`](../backend/alembic/env.py:94) - Added event loop handling for async test compatibility
+6. [`backend/alembic/versions/71d4b833ee76_add_user_id_to_sessions.py`](../backend/alembic/versions/71d4b833ee76_add_user_id_to_sessions.py:24) - Made migration idempotent to handle existing columns
 
 ---
 
@@ -254,12 +256,27 @@ sqlite3 data/photo_restoration.db "PRAGMA table_info(sessions);"
 
 ---
 
+## Critical Fix Applied
+
+### ✅ [HIGH] Fresh Installs Fixed - **RESOLVED**
+
+**Problem**: Fresh installs failed because `init_db()` ran `create_all()` first, creating tables with `user_id` column, then Alembic tried to add the same column again, causing `sqlite3.OperationalError: duplicate column name: user_id`.
+
+**Solution**: Reordered operations in [`init_db()`](../backend/app/db/database.py:228):
+1. **Run Alembic migrations FIRST** - Apply schema changes before table creation
+2. **Then run `create_all()`** - Create any missing tables
+
+**Additional Fixes**:
+- Made migration **idempotent** - Checks if `user_id` column exists before adding it
+- Added **event loop handling** in [`alembic/env.py`](../backend/alembic/env.py:94) for async test compatibility
+
 ## Conclusion
 
 All critical issues from the code review have been addressed:
 
 - ✅ Alembic migration system integrated
 - ✅ Migration to add `user_id` column created with backfill logic
+- ✅ **FIXED**: Fresh installs work without "duplicate column" errors
 - ✅ Automatic migration execution on startup
 - ✅ Input validation for pagination parameters
 - ✅ Diagnostic logging for schema issues

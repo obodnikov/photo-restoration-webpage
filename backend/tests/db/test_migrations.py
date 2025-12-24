@@ -574,3 +574,93 @@ class TestInitDbWithMigrations:
                 # Verify still only one admin
                 admin_users = [u for u in users if u.role == "admin"]
                 assert len(admin_users) == 1, f"Admin count changed on restart {i+1}"
+
+    @pytest.mark.asyncio
+    async def test_init_db_fresh_install_with_alembic_migration(self, monkeypatch):
+        """Test that fresh installs work with Alembic migrations.
+
+        Regression test for: Fresh installs fail because migration runs after create_all().
+        When init_db() runs create_all() first, it creates tables with current model definitions
+        (including user_id column). Then Alembic tries to add the same column again, causing
+        "duplicate column name: user_id" error.
+
+        This test ensures that migrations run before create_all() and are idempotent.
+        """
+        import app.db.database
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import StaticPool
+
+        # Create a completely fresh in-memory database (no tables created yet)
+        fresh_engine = create_async_engine(
+            "sqlite+aiosqlite:///:memory:",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: fresh_engine)
+
+        # Start with completely empty database
+        # Verify no tables exist initially
+        async with fresh_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            initial_tables = {row[0] for row in result}
+            assert len(initial_tables) == 0, "Database should start empty"
+
+        # Run init_db() - this should work without "duplicate column" errors
+        await init_db()
+
+        # Verify tables were created successfully
+        async with fresh_engine.connect() as conn:
+            result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+            tables = {row[0] for row in result}
+            assert "users" in tables, "users table should be created"
+            assert "sessions" in tables, "sessions table should be created"
+            assert "processed_images" in tables, "processed_images table should be created"
+            assert "schema_migrations" in tables, "schema_migrations table should be created"
+
+            # Verify sessions table has user_id column
+            result = await conn.execute(text("PRAGMA table_info(sessions)"))
+            columns = result.fetchall()
+            column_names = [col[1] for col in columns]
+            assert "user_id" in column_names, "sessions table should have user_id column"
+
+            # Verify user_id column is NOT NULL
+            user_id_col = next(col for col in columns if col[1] == "user_id")
+            assert user_id_col[3] == 1, "user_id column should be NOT NULL"  # col[3] is notnull
+
+        # Verify migration was recorded
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+        factory = async_sessionmaker(fresh_engine, class_=AsyncSession, expire_on_commit=False)
+
+        async with factory() as session:
+            result = await session.execute(
+                select(SchemaMigration).where(
+                    SchemaMigration.version == "001_initial_schema"
+                )
+            )
+            migration = result.scalar_one_or_none()
+            assert migration is not None, "Initial migration should be recorded"
+
+        # Simulate restart - run init_db() again
+        # This should NOT fail with "duplicate column" error
+        monkeypatch.setattr(app.db.database, "_engine", None)
+        monkeypatch.setattr(app.db.database, "_async_session_factory", None)
+        monkeypatch.setattr(app.db.database, "create_engine", lambda: fresh_engine)
+
+        await init_db()  # Should succeed without errors
+
+        # Verify everything still works after restart
+        async with factory() as session:
+            result = await session.execute(select(User).where(User.role == "admin"))
+            admin = result.scalar_one_or_none()
+            assert admin is not None, "Admin user should exist after restart"
+
+        # Clean up
+        await fresh_engine.dispose()

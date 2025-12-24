@@ -98,7 +98,31 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    asyncio.run(run_async_migrations())
+    try:
+        # Check if we're already in an event loop (e.g., during testing)
+        asyncio.get_running_loop()
+        # If we get here, we're already in an event loop
+        # Run migrations synchronously instead
+        run_migrations_sync()
+    except RuntimeError:
+        # No running loop, safe to use asyncio.run()
+        asyncio.run(run_async_migrations())
+
+
+def run_migrations_sync() -> None:
+    """Run migrations synchronously (for use in async contexts)."""
+    from sqlalchemy import create_engine
+
+    url = config.get_main_option("sqlalchemy.url")
+    connectable = create_engine(url, poolclass=pool.NullPool)
+
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+    connectable.dispose()
 
 
 if context.is_offline_mode():

@@ -32,54 +32,70 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema: Add user_id column to sessions table."""
     conn = op.get_bind()
-    
-    # Step 1: Add user_id column as nullable (for backfill)
-    op.add_column('sessions', sa.Column('user_id', sa.Integer(), nullable=True))
-    
-    # Step 2: Backfill existing sessions with admin user ID
-    # Get the first admin user's ID
-    result = conn.execute(text("SELECT id FROM users WHERE role = 'admin' LIMIT 1"))
-    admin_row = result.fetchone()
-    
-    if admin_row:
-        admin_id = admin_row[0]
-        # Update all sessions without user_id to belong to admin
-        conn.execute(
-            text("UPDATE sessions SET user_id = :admin_id WHERE user_id IS NULL"),
-            {"admin_id": admin_id}
-        )
+
+    # Check if user_id column already exists (from create_all())
+    result = conn.execute(text("PRAGMA table_info(sessions)"))
+    columns = result.fetchall()
+    column_names = [col[1] for col in columns]  # col[1] is column name
+
+    if 'user_id' not in column_names:
+        # Column doesn't exist, add it
+        op.add_column('sessions', sa.Column('user_id', sa.Integer(), nullable=True))
+
+        # Backfill existing sessions with admin user ID
+        result = conn.execute(text("SELECT id FROM users WHERE role = 'admin' LIMIT 1"))
+        admin_row = result.fetchone()
+
+        if admin_row:
+            admin_id = admin_row[0]
+            # Update all sessions without user_id to belong to admin
+            conn.execute(
+                text("UPDATE sessions SET user_id = :admin_id WHERE user_id IS NULL"),
+                {"admin_id": admin_id}
+            )
+        else:
+            # If no admin user exists, delete orphaned sessions
+            # This should not happen in production as seed creates admin
+            conn.execute(text("DELETE FROM sessions WHERE user_id IS NULL"))
+
+        # Make user_id non-nullable by recreating table
+        op.execute("""
+            CREATE TABLE sessions_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                session_id VARCHAR(36) UNIQUE NOT NULL,
+                created_at DATETIME NOT NULL,
+                last_accessed DATETIME NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Copy data from old table to new table
+        op.execute("""
+            INSERT INTO sessions_new (id, user_id, session_id, created_at, last_accessed)
+            SELECT id, user_id, session_id, created_at, last_accessed
+            FROM sessions
+        """)
+
+        # Drop old table and rename new table
+        op.execute("DROP TABLE sessions")
+        op.execute("ALTER TABLE sessions_new RENAME TO sessions")
+
+        # Add indexes for performance
+        op.create_index('idx_sessions_user_id', 'sessions', ['user_id'])
+        op.create_index('idx_sessions_session_id', 'sessions', ['session_id'], unique=True)
     else:
-        # If no admin user exists, delete orphaned sessions
-        # This should not happen in production as seed creates admin
-        conn.execute(text("DELETE FROM sessions WHERE user_id IS NULL"))
-    
-    # Step 3: Make user_id non-nullable
-    # SQLite doesn't support ALTER COLUMN, so we need to recreate the table
-    op.execute("""
-        CREATE TABLE sessions_new (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            session_id VARCHAR(36) UNIQUE NOT NULL,
-            created_at DATETIME NOT NULL,
-            last_accessed DATETIME NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-    """)
-    
-    # Copy data from old table to new table
-    op.execute("""
-        INSERT INTO sessions_new (id, user_id, session_id, created_at, last_accessed)
-        SELECT id, user_id, session_id, created_at, last_accessed
-        FROM sessions
-    """)
-    
-    # Drop old table and rename new table
-    op.execute("DROP TABLE sessions")
-    op.execute("ALTER TABLE sessions_new RENAME TO sessions")
-    
-    # Step 4: Add index for performance
-    op.create_index('idx_sessions_user_id', 'sessions', ['user_id'])
-    op.create_index('idx_sessions_session_id', 'sessions', ['session_id'], unique=True)
+        # Column already exists, just ensure it's properly configured
+        # Check if it has the right constraints and indexes
+        result = conn.execute(text("PRAGMA index_list(sessions)"))
+        indexes = result.fetchall()
+        index_names = [idx[1] for idx in indexes]
+
+        if 'idx_sessions_user_id' not in index_names:
+            op.create_index('idx_sessions_user_id', 'sessions', ['user_id'])
+
+        if 'idx_sessions_session_id' not in index_names:
+            op.create_index('idx_sessions_session_id', 'sessions', ['session_id'], unique=True)
 
 
 def downgrade() -> None:

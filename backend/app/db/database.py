@@ -282,7 +282,12 @@ async def init_db() -> None:
     # Configure SQLite
     await configure_sqlite(_engine)
 
-    # ALWAYS run create_all (idempotent - only creates missing TABLES)
+    # Run Alembic migrations FIRST to handle schema changes
+    # This ensures column additions, renames, and other DDL changes are applied
+    # before create_all() runs (which only creates missing tables)
+    await run_alembic_migrations()
+
+    # Run create_all AFTER migrations (idempotent - only creates missing TABLES)
     # CRITICAL: create_all() does NOT add new columns to existing tables
     # CRITICAL: create_all() does NOT drop, rename, or alter columns
     # For any schema changes beyond new tables, you MUST use Alembic migrations
@@ -291,10 +296,6 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("Database schema synchronized")
-    
-    # Run Alembic migrations to handle schema changes
-    # This handles column additions, renames, and other DDL changes
-    await run_alembic_migrations()
 
     # Create session factory
     if _async_session_factory is None:
