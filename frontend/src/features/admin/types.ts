@@ -67,7 +67,7 @@ export interface UserListFilters {
 /**
  * Model configuration source
  */
-export type ModelConfigSource = 'local' | 'production' | 'development' | 'testing' | 'default';
+export type ModelConfigSource = 'local' | 'production' | 'development' | 'testing' | 'staging' | 'default';
 
 /**
  * Provider types

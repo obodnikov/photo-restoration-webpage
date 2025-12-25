@@ -75,7 +75,10 @@ def user_token(regular_user: User) -> str:
 @pytest.fixture
 async def clean_local_config():
     """Ensure local.json is clean before and after tests."""
+    from app.core.config import get_settings
+
     config_path = Path(__file__).parent.parent.parent.parent / "config" / "local.json"
+    settings = get_settings()
 
     # Backup if exists
     backup_data = None
@@ -87,6 +90,9 @@ async def clean_local_config():
     with open(config_path, "w") as f:
         json.dump({"models": []}, f)
 
+    # Reload config to sync in-memory state with file
+    settings.reload_config()
+
     yield
 
     # Restore or clean
@@ -96,6 +102,9 @@ async def clean_local_config():
     else:
         with open(config_path, "w") as f:
             json.dump({"models": []}, f)
+
+    # Reload config again to sync restored state
+    settings.reload_config()
 
 
 # ===== Authorization Tests =====

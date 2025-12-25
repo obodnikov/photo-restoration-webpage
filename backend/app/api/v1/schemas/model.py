@@ -12,6 +12,7 @@ class ModelConfigSource(str, Enum):
     PRODUCTION = "production"
     DEVELOPMENT = "development"
     TESTING = "testing"
+    STAGING = "staging"
     DEFAULT = "default"
 
 
