@@ -98,7 +98,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
           <div className="sessions-items">
             {sessions.map((session) => (
               <div
-                key={session.id}
+                key={session.session_id}
                 className={`session-item ${session.is_current ? 'current' : ''}`}
               >
                 <div className="session-info">
@@ -126,7 +126,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                     <Button
                       variant="secondary"
                       size="small"
-                      onClick={() => handleDeleteClick(session.id)}
+                      onClick={() => handleDeleteClick(session.session_id)}
                       disabled={isLoading}
                     >
                       Logout
@@ -144,29 +144,27 @@ export const SessionsList: React.FC<SessionsListProps> = ({
         onClose={handleCancelDelete}
         title="Confirm Logout"
       >
-        <div className="modal-content">
-          <p>
-            Are you sure you want to log out from this session? This action will
-            immediately end the session on that device.
-          </p>
+        <p>
+          Are you sure you want to log out from this session? This action will
+          immediately end the session on that device.
+        </p>
 
-          <div className="modal-actions">
-            <Button
-              variant="secondary"
-              onClick={handleCancelDelete}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmDelete}
-              loading={isDeleting}
-              disabled={isDeleting}
-            >
-              Confirm Logout
-            </Button>
-          </div>
+        <div className="modal-actions">
+          <Button
+            variant="ghost"
+            onClick={handleCancelDelete}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleConfirmDelete}
+            loading={isDeleting}
+            disabled={isDeleting}
+          >
+            Logout
+          </Button>
         </div>
       </Modal>
     </>

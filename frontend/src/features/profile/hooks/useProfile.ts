@@ -95,8 +95,8 @@ export function useProfile() {
     try {
       await profileService.deleteSession(sessionId);
 
-      // Remove the session from local state
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      // Remove the session from local state using session_id
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
 
       // Clear any previous error on success
       setMutationError(null);

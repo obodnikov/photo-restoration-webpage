@@ -20,7 +20,8 @@ export interface ChangePasswordRequest {
 }
 
 export interface Session {
-  id: string;
+  id: number;
+  session_id: string;
   created_at: string;
   last_accessed: string;
   is_current: boolean;
