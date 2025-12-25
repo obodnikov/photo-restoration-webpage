@@ -98,7 +98,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
           <div className="sessions-items">
             {sessions.map((session) => (
               <div
-                key={session.id}
+                key={session.session_id}
                 className={`session-item ${session.is_current ? 'current' : ''}`}
               >
                 <div className="session-info">
@@ -126,7 +126,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                     <Button
                       variant="secondary"
                       size="small"
-                      onClick={() => handleDeleteClick(session.id)}
+                      onClick={() => handleDeleteClick(session.session_id)}
                       disabled={isLoading}
                     >
                       Logout
