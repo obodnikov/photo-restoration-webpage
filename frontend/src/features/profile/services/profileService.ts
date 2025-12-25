@@ -30,7 +30,7 @@ export const profileService = {
   /**
    * Delete a specific session (remote logout)
    */
-  async deleteSession(sessionId: string): Promise<{ message: string }> {
-    return api.del<{ message: string }>(`/users/me/sessions/${sessionId}`);
+  async deleteSession(sessionId: string): Promise<void> {
+    return api.del<void>(`/users/me/sessions/${sessionId}`);
   },
 };

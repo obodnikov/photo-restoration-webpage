@@ -137,6 +137,11 @@ async function request<T>(
       throw new ApiError(errorMessage, response.status, response.statusText);
     }
 
+    // Handle 204 No Content - no response body
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
     // Parse JSON response
     return response.json();
   } catch (error) {
