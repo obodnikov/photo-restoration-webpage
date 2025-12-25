@@ -61,3 +61,107 @@ export interface UserListFilters {
   role?: 'admin' | 'user' | null;
   is_active?: boolean | null;
 }
+
+// ===== Model Configuration Types =====
+
+/**
+ * Model configuration source
+ */
+export type ModelConfigSource = 'local' | 'production' | 'development' | 'testing' | 'default';
+
+/**
+ * Provider types
+ */
+export type ModelProvider = 'huggingface' | 'replicate';
+
+/**
+ * Model configuration list item
+ */
+export interface ModelConfigListItem {
+  id: string;
+  name: string;
+  provider: ModelProvider;
+  category: string;
+  enabled: boolean;
+  source: ModelConfigSource;
+  tags: string[];
+  version?: string;
+}
+
+/**
+ * Full model configuration
+ */
+export interface ModelConfigDetail {
+  id: string;
+  name: string;
+  model: string;
+  provider: ModelProvider;
+  category: string;
+  description: string;
+  enabled: boolean;
+  tags: string[];
+  version?: string;
+  replicate_schema?: Record<string, any>;
+  custom?: Record<string, any>;
+  parameters: Record<string, any>;
+  source: ModelConfigSource;
+}
+
+/**
+ * Create model config request
+ */
+export interface ModelConfigCreate {
+  id: string;
+  name: string;
+  model: string;
+  provider: ModelProvider;
+  category: string;
+  description?: string;
+  enabled?: boolean;
+  tags?: string[];
+  version?: string;
+  replicate_schema?: Record<string, any>;
+  custom?: Record<string, any>;
+  parameters?: Record<string, any>;
+}
+
+/**
+ * Update model config request
+ */
+export interface ModelConfigUpdate {
+  name?: string;
+  model?: string;
+  provider?: ModelProvider;
+  category?: string;
+  description?: string;
+  enabled?: boolean;
+  tags?: string[];
+  version?: string;
+  replicate_schema?: Record<string, any>;
+  custom?: Record<string, any>;
+  parameters?: Record<string, any>;
+}
+
+/**
+ * Available tags and categories
+ */
+export interface AvailableTagsResponse {
+  tags: string[];
+  categories: string[];
+}
+
+/**
+ * Validation error
+ */
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+/**
+ * Validation response
+ */
+export interface ModelConfigValidationResponse {
+  valid: boolean;
+  errors: ValidationError[];
+}

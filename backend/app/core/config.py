@@ -62,6 +62,7 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     Loading priority (lowest to highest):
     1. config/default.json (base configuration)
     2. config/{app_env}.json (environment-specific overrides)
+    3. config/local.json (local overrides, highest priority)
 
     Args:
         app_env: Application environment (development, production, staging, testing)
@@ -89,7 +90,44 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     else:
         logger.info(f"No environment-specific config found at {env_config_path}, using defaults only")
 
+    # Load local config (highest priority) - for model configurations
+    local_config_path = config_dir / "local.json"
+    if local_config_path.exists():
+        try:
+            local_config = load_json_config(local_config_path)
+            # Special handling for models array - merge by model ID
+            if "models" in local_config and "models" in config:
+                config["models"] = merge_model_configs(config["models"], local_config["models"])
+            else:
+                config = deep_merge(config, local_config)
+            logger.info(f"Loaded local config from {local_config_path}")
+        except Exception as e:
+            logger.error(f"Error loading local config: {e}, skipping")
+
     return config
+
+
+def merge_model_configs(base_models: list[dict], local_models: list[dict]) -> list[dict]:
+    """
+    Merge model configurations with local.json overriding base configs by model ID.
+
+    Args:
+        base_models: Models from default/environment config
+        local_models: Models from local.json
+
+    Returns:
+        Merged model list with local models taking priority
+    """
+    # Create a dict keyed by model ID for easy lookup
+    models_dict = {model["id"]: model for model in base_models}
+
+    # Override/add models from local config
+    for local_model in local_models:
+        model_id = local_model.get("id")
+        if model_id:
+            models_dict[model_id] = local_model
+
+    return list(models_dict.values())
 
 
 class Settings(BaseSettings):
@@ -383,6 +421,159 @@ class Settings(BaseSettings):
     def is_using_json_config(self) -> bool:
         """Check if using new JSON config system."""
         return self._using_json_config
+
+    def get_available_tags(self) -> list[str]:
+        """Get available tags for model configuration."""
+        if self._config_data and "model_configuration" in self._config_data:
+            return self._config_data["model_configuration"].get("available_tags", [])
+        return ["restore", "replicate", "advanced", "enhance", "upscale", "fast"]
+
+    def get_available_categories(self) -> list[str]:
+        """Get available categories for model configuration."""
+        if self._config_data and "model_configuration" in self._config_data:
+            return self._config_data["model_configuration"].get("available_categories", [])
+        return ["restore", "upscale", "enhance"]
+
+    def get_model_source(self, model_id: str) -> str:
+        """
+        Determine the source config file for a given model.
+
+        Args:
+            model_id: Model identifier
+
+        Returns:
+            "local", "production", "development", or "default"
+        """
+        config_dir = Path(__file__).parent.parent.parent / "config"
+
+        # Check local.json first
+        local_config_path = config_dir / "local.json"
+        if local_config_path.exists():
+            try:
+                local_config = load_json_config(local_config_path)
+                local_models = local_config.get("models", [])
+                if any(m.get("id") == model_id for m in local_models):
+                    return "local"
+            except Exception:
+                pass
+
+        # Check environment config
+        env_config_path = config_dir / f"{self.app_env}.json"
+        if env_config_path.exists():
+            try:
+                env_config = load_json_config(env_config_path)
+                env_models = env_config.get("models", [])
+                if any(m.get("id") == model_id for m in env_models):
+                    return self.app_env
+            except Exception:
+                pass
+
+        # Default to "default"
+        return "default"
+
+    def save_local_model_config(self, model_data: dict[str, Any]) -> None:
+        """
+        Save or update a model configuration in local.json.
+
+        Args:
+            model_data: Model configuration dictionary
+
+        Raises:
+            ValueError: If model_data is invalid
+            IOError: If unable to write to local.json
+        """
+        model_id = model_data.get("id")
+        if not model_id:
+            raise ValueError("Model configuration must have an 'id' field")
+
+        config_dir = Path(__file__).parent.parent.parent / "config"
+        local_config_path = config_dir / "local.json"
+
+        # Load existing local config or create new
+        if local_config_path.exists():
+            local_config = load_json_config(local_config_path)
+        else:
+            local_config = {"models": []}
+
+        # Ensure models array exists
+        if "models" not in local_config:
+            local_config["models"] = []
+
+        # Update or add model
+        models = local_config["models"]
+        found = False
+        for i, model in enumerate(models):
+            if model.get("id") == model_id:
+                models[i] = model_data
+                found = True
+                break
+
+        if not found:
+            models.append(model_data)
+
+        # Write back to file
+        with open(local_config_path, "w", encoding="utf-8") as f:
+            json.dump(local_config, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Saved model '{model_id}' to local.json")
+
+    def delete_local_model_config(self, model_id: str) -> bool:
+        """
+        Delete a model configuration from local.json.
+
+        Args:
+            model_id: Model identifier
+
+        Returns:
+            True if model was deleted, False if not found in local.json
+
+        Raises:
+            IOError: If unable to write to local.json
+        """
+        config_dir = Path(__file__).parent.parent.parent / "config"
+        local_config_path = config_dir / "local.json"
+
+        if not local_config_path.exists():
+            return False
+
+        local_config = load_json_config(local_config_path)
+        models = local_config.get("models", [])
+
+        # Find and remove model
+        original_len = len(models)
+        models = [m for m in models if m.get("id") != model_id]
+
+        if len(models) == original_len:
+            return False  # Model not found
+
+        local_config["models"] = models
+
+        # Write back to file
+        with open(local_config_path, "w", encoding="utf-8") as f:
+            json.dump(local_config, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Deleted model '{model_id}' from local.json")
+        return True
+
+    def reload_config(self) -> None:
+        """
+        Reload configuration from files (hot reload).
+
+        This reloads the config data without restarting the application.
+        Note: This only updates _config_data, settings fields remain unchanged.
+        """
+        try:
+            config_data = load_config_from_files(self.app_env)
+            if config_data:
+                # Validate using Pydantic schema
+                validated_config = ConfigFile(**config_data)
+                self._config_data = config_data
+                logger.info("Configuration reloaded successfully")
+            else:
+                logger.warning("No configuration data loaded during reload")
+        except Exception as e:
+            logger.error(f"Error reloading configuration: {e}")
+            raise
 
 
 # Global settings instance
