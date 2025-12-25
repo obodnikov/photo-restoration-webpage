@@ -767,14 +767,108 @@ The updated decodeToken function includes critical security logic that should be
 
 ---
 
+## Admin - Model Configuration
+
+### 23. **Full Schema Editor for Model Configuration**
+**Context:** Admin Model Configuration Page (Phase 2.5)
+**Status:** Not implemented - JSON text areas used instead
+**Effort:** 8-12 hours
+**Priority:** LOW
+
+**Current Implementation:**
+- Model configuration uses JSON text areas for complex objects
+- Admins paste/edit raw JSON for `replicate_schema`, `custom`, `parameters`
+- Simple but requires JSON knowledge
+
+**Proposed Enhancement:**
+Build a visual form builder for schema editing:
+- Dynamic form generation based on schema structure
+- Type-specific inputs:
+  - Enum → Dropdown with predefined values
+  - Integer → Number input with min/max validation
+  - Boolean → Checkbox
+  - String → Text input
+  - Object → Nested form sections
+- Real-time validation as user types
+- Better UX for non-technical administrators
+- Still provide "Edit as JSON" toggle for advanced users
+
+**Implementation Approach:**
+1. Create `SchemaFormBuilder.tsx` component
+2. Recursive form rendering based on schema type
+3. Input components for each parameter type
+4. Validation rules from schema constraints
+5. Bidirectional sync: form ↔ JSON
+
+**Benefits:**
+- Lower barrier to entry for configuration management
+- Reduced JSON syntax errors
+- Guided configuration with tooltips and help text
+- Visual validation feedback
+
+**Files to Create:**
+- `frontend/src/features/admin/components/SchemaFormBuilder.tsx`
+- `frontend/src/features/admin/components/ParameterInput.tsx`
+
+**Files to Modify:**
+- `frontend/src/features/admin/components/ModelConfigDialog.tsx`
+
+---
+
+### 24. **Configurable Category Field**
+**Context:** Admin Model Configuration Page (Phase 2.5)
+**Status:** Category field uses hardcoded values
+**Effort:** 2-3 hours
+**Priority:** LOW
+
+**Current Implementation:**
+- Category field in model config uses dropdown with hardcoded options
+- Values: "restore", "upscale", "enhance"
+- Tags are configurable via `model_configuration.available_tags` in config
+
+**Proposed Enhancement:**
+Make category field configurable like tags:
+- Store available categories in `model_configuration.available_categories`
+- Admin endpoint to manage categories (add/edit/delete)
+- UI to customize category list
+- Ensure backward compatibility with existing model configs
+- Validate category field against available categories
+
+**Implementation Approach:**
+1. Already have `available_categories` in default.json (will be added)
+2. Add admin endpoints:
+   - `GET /api/v1/admin/models/categories` - List categories
+   - `POST /api/v1/admin/models/categories` - Add category
+   - `DELETE /api/v1/admin/models/categories/{name}` - Remove category
+3. Frontend: Category management section in admin panel
+4. Frontend: Dynamic category dropdown in model config form
+5. Backend: Validate category on model create/update
+
+**Benefits:**
+- Flexibility to add custom categories (e.g., "colorize", "denoise")
+- No need to hardcode category values
+- Consistent with tag configuration approach
+- Better scalability for different use cases
+
+**Files to Create:**
+- `frontend/src/features/admin/components/CategoryManager.tsx`
+
+**Files to Modify:**
+- `backend/app/core/config.py` - Add category CRUD methods
+- `backend/app/api/v1/routes/admin.py` - Add category endpoints
+- `frontend/src/features/admin/pages/AdminModelConfigPage.tsx` - Add category management UI
+- `frontend/src/features/admin/components/ModelConfigDialog.tsx` - Use dynamic categories
+
+---
+
 ## Summary
 
-**Total Items:** 22
+**Total Items:** 24
 **Completed Items:** 8
-**Pending Items:** 13
+**Pending Items:** 16
 **High Priority:** 0 (All Phase 2.4 tasks complete!)
 **Medium Priority:** 1 (Test coverage for admin panel)
-**Low Priority:** 12 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests)
+**Low Priority:** 15 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories)
 
 **✅ Phase 2.4 Complete - All 3 Steps Finished:**
 - ✅ Step 1: User Profile Page (Complete, production-ready)
@@ -792,7 +886,7 @@ The updated decodeToken function includes critical security logic that should be
 - Test coverage for admin panel (MEDIUM priority, 3-4 hours) - See Item #17
 - Server-side search for admin panel (LOW priority, 1-2 hours) - See Item #18
 
-**Estimated Total Effort for Remaining Items:** 26-32 hours
+**Estimated Total Effort for Remaining Items:** 36-46 hours
 
 ---
 
@@ -807,7 +901,8 @@ The updated decodeToken function includes critical security logic that should be
 ---
 
 **Document Created:** 2024-12-22
-**Last Updated:** 2025-12-23
+**Last Updated:** 2025-12-25
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
+**Phase:** 2.5 - Admin Model Configuration (Planning)
 **Test Coverage Improvements:** ✅ COMPLETE (5/5 critical items implemented)
 **Maintainer:** Development Team
