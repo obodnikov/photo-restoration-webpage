@@ -83,13 +83,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     Profile
                   </Link>
                   {isAdmin && (
-                    <Link
-                      to="/admin/users"
-                      className={`nav-link ${isActivePath('/admin/users') ? 'active' : ''}`}
-                      onClick={closeMobileMenu}
-                    >
-                      Admin
-                    </Link>
+                    <>
+                      <Link
+                        to="/admin/users"
+                        className={`nav-link ${isActivePath('/admin/users') ? 'active' : ''}`}
+                        onClick={closeMobileMenu}
+                      >
+                        Users
+                      </Link>
+                      <Link
+                        to="/admin/models"
+                        className={`nav-link ${isActivePath('/admin/models') ? 'active' : ''}`}
+                        onClick={closeMobileMenu}
+                      >
+                        Models
+                      </Link>
+                    </>
                   )}
                   <button onClick={handleLogout} className="btn btn-secondary btn-small">
                     Logout
