@@ -151,19 +151,19 @@ export const SessionsList: React.FC<SessionsListProps> = ({
 
         <div className="modal-actions">
           <Button
-            variant="secondary"
+            variant="ghost"
             onClick={handleCancelDelete}
             disabled={isDeleting}
           >
             Cancel
           </Button>
           <Button
-            variant="primary"
+            variant="danger"
             onClick={handleConfirmDelete}
             loading={isDeleting}
             disabled={isDeleting}
           >
-            Confirm Logout
+            Logout
           </Button>
         </div>
       </Modal>
