@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import * as modelConfigService from '../services/modelConfigService';
 import type {
   ModelConfigListItem,
-  ModelConfigDetail,
   ModelConfigCreate,
   ModelConfigUpdate,
   AvailableTagsResponse,
