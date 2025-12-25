@@ -144,29 +144,27 @@ export const SessionsList: React.FC<SessionsListProps> = ({
         onClose={handleCancelDelete}
         title="Confirm Logout"
       >
-        <div className="modal-content">
-          <p>
-            Are you sure you want to log out from this session? This action will
-            immediately end the session on that device.
-          </p>
+        <p>
+          Are you sure you want to log out from this session? This action will
+          immediately end the session on that device.
+        </p>
 
-          <div className="modal-actions">
-            <Button
-              variant="secondary"
-              onClick={handleCancelDelete}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmDelete}
-              loading={isDeleting}
-              disabled={isDeleting}
-            >
-              Confirm Logout
-            </Button>
-          </div>
+        <div className="modal-actions">
+          <Button
+            variant="secondary"
+            onClick={handleCancelDelete}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleConfirmDelete}
+            loading={isDeleting}
+            disabled={isDeleting}
+          >
+            Confirm Logout
+          </Button>
         </div>
       </Modal>
     </>

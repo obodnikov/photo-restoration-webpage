@@ -547,7 +547,26 @@
 }
 
 .modal-body {
-  padding: var(--space-xl);
+  padding: var(--space-lg);
+}
+
+.modal-body p {
+  margin: 0 0 var(--space-md) 0;
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+}
+
+.modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--sqowe-light-grey);
 }
 
 .modal-footer {
@@ -666,6 +685,16 @@
   .modal-body,
   .modal-footer {
     padding: var(--space-lg);
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    padding-top: var(--space-md);
+    margin-top: var(--space-md);
+  }
+
+  .modal-actions .btn {
+    width: 100%;
   }
 
   .modal-footer {
