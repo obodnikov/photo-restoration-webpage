@@ -77,6 +77,9 @@ data/*.db-wal
 *.db-shm
 *.db-wal
 
+# Alembic (keep migrations, ignore local config)
+# backend/alembic.ini is committed as template
+
 # Runtime configuration (user-specific overrides) - OLD, DEPRECATED
 data/config.json
 data/config.json.tmp

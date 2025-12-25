@@ -63,6 +63,32 @@
   box-shadow: 0 4px 12px rgba(91, 83, 119, 0.3);
 }
 
+/* Danger Button (for destructive actions) */
+.btn-danger {
+  background-color: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #b71c1c;
+  border-color: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}
+
+/* Ghost Button (subtle secondary) */
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary);
+}
+
 /* Button Sizes */
 .btn-small {
   padding: 0.5rem 1.5rem;
@@ -510,18 +536,19 @@
 }
 
 .modal-header {
-  padding: var(--space-xl);
-  border-bottom: 1px solid var(--sqowe-light-grey);
+  padding: var(--space-xl) var(--space-xl) var(--space-md) var(--space-xl);
+  border-bottom: none;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .modal-title {
-  font-size: var(--font-size-h4);
-  font-weight: var(--font-bold);
-  color: var(--sqowe-dark-purple);
+  font-size: var(--font-size-h5);
+  font-weight: var(--font-semibold);
+  color: var(--sqowe-dark-ground);
   margin: 0;
+  line-height: var(--line-height-tight);
 }
 
 .modal-close {
@@ -547,7 +574,25 @@
 }
 
 .modal-body {
-  padding: var(--space-xl);
+  padding: 0 var(--space-xl) var(--space-xl) var(--space-xl);
+}
+
+.modal-body p {
+  margin: 0;
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+}
+
+.modal-body p:not(:last-child) {
+  margin-bottom: var(--space-md);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  padding: 0 var(--space-xl) var(--space-xl) var(--space-xl);
 }
 
 .modal-footer {
@@ -662,10 +707,26 @@
     padding: var(--space-md);
   }
 
-  .modal-header,
-  .modal-body,
+  .modal-header {
+    padding: var(--space-lg) var(--space-lg) var(--space-md) var(--space-lg);
+  }
+
+  .modal-body {
+    padding: 0 var(--space-lg) var(--space-lg) var(--space-lg);
+  }
+
   .modal-footer {
     padding: var(--space-lg);
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    padding: 0 var(--space-lg) var(--space-lg) var(--space-lg);
+    gap: var(--space-sm);
+  }
+
+  .modal-actions .btn {
+    width: 100%;
   }
 
   .modal-footer {

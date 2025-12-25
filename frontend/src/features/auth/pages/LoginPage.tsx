@@ -3,14 +3,18 @@
  */
 
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../../services/authStore';
 import { LoginForm } from '../components/LoginForm';
 import '../../../styles/components/auth.css';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Get success message from navigation state (e.g., after password change)
+  const successMessage = location.state?.message as string | undefined;
 
   // Redirect to home if already authenticated
   useEffect(() => {
@@ -28,6 +32,12 @@ export function LoginPage() {
             Sign in to restore your precious memories
           </p>
         </div>
+
+        {successMessage && (
+          <div className="success-message">
+            {successMessage}
+          </div>
+        )}
 
         <LoginForm />
       </div>

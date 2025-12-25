@@ -14,8 +14,14 @@ export interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, clearAuth } = useAuthStore();
+  // Use selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
 
   const handleLogout = () => {
     clearAuth();
@@ -69,6 +75,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   >
                     History
                   </Link>
+                  <Link
+                    to="/profile"
+                    className={`nav-link ${isActivePath('/profile') ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    Profile
+                  </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/admin/users"
+                      className={`nav-link ${isActivePath('/admin/users') ? 'active' : ''}`}
+                      onClick={closeMobileMenu}
+                    >
+                      Admin
+                    </Link>
+                  )}
                   <button onClick={handleLogout} className="btn btn-secondary btn-small">
                     Logout
                   </button>

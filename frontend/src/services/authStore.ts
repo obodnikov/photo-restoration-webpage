@@ -12,6 +12,9 @@ import { persist } from 'zustand/middleware';
 import type { AuthState, User } from '../features/auth/types';
 
 interface AuthStore extends AuthState {
+  // Session tracking
+  loginTime: string | null;
+
   // Rehydration state
   hasHydrated: boolean;
   setHasHydrated: (state: boolean) => void;
@@ -34,6 +37,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       expiresAt: null,
+      loginTime: null,
       hasHydrated: false,
 
       // Set hydration state
@@ -44,12 +48,14 @@ export const useAuthStore = create<AuthStore>()(
       // Set authentication state
       setAuth: (token: string, expiresIn: number, user: User) => {
         const expiresAt = Date.now() + expiresIn * 1000;
+        const loginTime = new Date().toISOString();
 
         console.log('[authStore] setAuth called:', {
           tokenLength: token.length,
           expiresIn,
           expiresAt,
           expiresAtDate: new Date(expiresAt).toISOString(),
+          loginTime,
           user,
         });
 
@@ -58,6 +64,7 @@ export const useAuthStore = create<AuthStore>()(
           token,
           user,
           expiresAt,
+          loginTime,
         });
 
         console.log('[authStore] State updated, checking localStorage...');
@@ -81,6 +88,7 @@ export const useAuthStore = create<AuthStore>()(
           token: null,
           user: null,
           expiresAt: null,
+          loginTime: null,
         });
 
         console.log('[authStore] Auth cleared, localStorage will be updated by persist middleware');
@@ -124,6 +132,7 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         expiresAt: state.expiresAt,
         isAuthenticated: state.isAuthenticated,
+        loginTime: state.loginTime,
       }),
       // Skip hydration check - load synchronously
       skipHydration: false,

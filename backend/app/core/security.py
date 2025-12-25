@@ -107,11 +107,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> dict:
     """
-    Dependency to get the current authenticated user from JWT token.
+    Dependency to get the current authenticated user from JWT token (basic validation only).
 
-    This dependency extracts and validates the JWT token from the
-    Authorization header. Use this to protect routes that require
-    authentication.
+    This function only validates the JWT token itself. For full security with
+    session and user status validation, use get_current_user_validated() instead.
 
     Args:
         credentials: HTTP Bearer credentials from request header
@@ -122,10 +121,9 @@ async def get_current_user(
     Raises:
         HTTPException: If token is invalid or expired
 
-    Example:
-        @app.get("/protected")
-        async def protected_route(user: dict = Depends(get_current_user)):
-            return {"message": f"Hello {user['username']}"}
+    Note:
+        This function does NOT validate against the database. Use get_current_user_validated()
+        for routes that need to ensure sessions haven't been deleted and users haven't been disabled.
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -146,46 +144,158 @@ async def get_current_user(
         raise credentials_exception
 
     username: str = payload.get("sub")
+    user_id: int = payload.get("user_id")
+    role: str = payload.get("role")
     session_id: str = payload.get("session_id")
+    password_must_change: bool = payload.get("password_must_change", False)
 
-    logger.info(f"Token verified - username: {username}, session_id: {session_id}")
+    logger.info(f"Token verified - username: {username}, user_id: {user_id}, role: {role}, session_id: {session_id}")
 
-    if username is None:
-        logger.error("Token payload missing 'sub' (username)")
+    if username is None or user_id is None:
+        logger.error("Token payload missing required fields (username or user_id)")
         raise credentials_exception
 
-    # For MVP, we return minimal user data including session_id
-    # In Phase 2.x, this will query the database
+    # Return user data from token
     return {
         "username": username,
-        "session_id": session_id
+        "user_id": user_id,
+        "role": role,
+        "session_id": session_id,
+        "password_must_change": password_must_change,
     }
 
 
-def authenticate_user(username: str, password: str) -> Optional[dict]:
+def get_current_user_validated():
     """
-    Authenticate a user with username and password.
+    Factory function to create a dependency that validates user and session against database.
 
-    For MVP: Uses hardcoded credentials from environment variables.
-    Phase 2.x: Will query database for user credentials.
+    SECURITY: This validates:
+    1. The JWT token is valid and not expired
+    2. The session referenced in the token still exists in the database
+    3. The user account is still active (not disabled)
+
+    This prevents:
+    - Deleted sessions from being used (remote logout works)
+    - Disabled users from accessing the API
+    - Stolen/lost tokens from working indefinitely
+
+    Returns:
+        Async dependency function for FastAPI routes
+
+    Example:
+        from app.db.database import get_db
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        @app.get("/protected")
+        async def protected_route(
+            user: dict = Depends(get_current_user_validated()),
+            db: AsyncSession = Depends(get_db)
+        ):
+            return {"message": f"Hello {user['username']}"}
+    """
+    from app.db.database import get_db
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async def validate_user(
+        user_data: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+    ) -> dict:
+        """Inner function that performs the actual validation."""
+        import logging
+        from sqlalchemy import select
+        from app.db.models import User, Session
+
+        logger = logging.getLogger(__name__)
+
+        user_id = user_data["user_id"]
+        username = user_data["username"]
+        session_id = user_data.get("session_id")
+
+        # Check if user still exists and is active
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            logger.warning(f"Token references non-existent user_id: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account no longer exists",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not user.is_active:
+            logger.warning(f"Token used by disabled user: {username} (user_id: {user_id})")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account has been disabled",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Check if session still exists (not deleted via logout)
+        if session_id:
+            result = await db.execute(
+                select(Session).where(
+                    Session.session_id == session_id,
+                    Session.user_id == user_id,
+                )
+            )
+            session = result.scalar_one_or_none()
+
+            if session is None:
+                logger.warning(f"Token references deleted session: {session_id} (user: {username})")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session has been terminated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+     
+            logger.debug(f"Session and user validation passed for user: {username}")
+
+        return user_data
+
+    return validate_user
+
+
+async def authenticate_user(username: str, password: str, db) -> Optional[dict]:
+    """
+    Authenticate a user with username and password (database-backed).
+
+    Phase 2.4: Authenticates against database users with hashed passwords.
 
     Args:
         username: Username to authenticate
         password: Plain text password to verify
+        db: Database session (AsyncSession)
 
     Returns:
-        User dict if authentication successful, None otherwise
+        User dict with id, username, email, full_name, role if authentication successful
+        None otherwise
     """
-    settings = get_settings()
+    from sqlalchemy import select
+    from app.db.models import User
 
-    # MVP: Check against hardcoded credentials from .env
-    if username != settings.auth_username:
+    # Query user from database
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # User not found
         return None
 
-    # For MVP with hardcoded credentials, do simple password comparison
-    # In production Phase 2.x, passwords will be pre-hashed in database
-    # and we'll use verify_password(password, user.hashed_password)
-    if password != settings.auth_password:
+    if not user.is_active:
+        # User account is disabled
         return None
 
-    return {"username": username}
+    # Verify password against hashed password
+    if not verify_password(password, user.hashed_password):
+        return None
+
+    # Return user data (excluding sensitive fields)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "password_must_change": user.password_must_change,
+    }

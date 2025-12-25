@@ -60,8 +60,11 @@ async def async_client(test_settings: Settings) -> AsyncGenerator[AsyncClient, N
     Use this for testing async endpoints and operations.
     Gets the app fresh to ensure test config is used.
     """
+    from httpx import ASGITransport
+
     app = _get_app()
-    async with AsyncClient(app=app, base_url="http://testserver") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
         yield ac
 
 

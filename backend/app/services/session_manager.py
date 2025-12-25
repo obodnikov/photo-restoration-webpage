@@ -65,12 +65,13 @@ class SessionManager:
         self.storage_path.mkdir(parents=True, exist_ok=True)
         self.processed_path.mkdir(parents=True, exist_ok=True)
 
-    async def create_session(self, db: AsyncSession) -> Session:
+    async def create_session(self, db: AsyncSession, user_id: int) -> Session:
         """
         Create a new user session.
 
         Args:
             db: Database session
+            user_id: ID of the user this session belongs to
 
         Returns:
             Created Session object
@@ -85,6 +86,7 @@ class SessionManager:
             # Create session object
             session = Session(
                 session_id=session_id,
+                user_id=user_id,
                 created_at=datetime.utcnow(),
                 last_accessed=datetime.utcnow(),
             )
@@ -97,6 +99,7 @@ class SessionManager:
             return session
 
         except Exception as e:
+            logger.error(f"Failed to create session for user_id {user_id}: {type(e).__name__}: {str(e)}")
             await db.rollback()
             raise SessionManagerError(f"Failed to create session: {str(e)}") from e
 

@@ -18,6 +18,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     status,
     UploadFile,
 )
@@ -33,7 +34,7 @@ from app.api.v1.schemas.restoration import (
     RestoreResponse,
 )
 from app.core.config import get_settings
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_user_validated
 from app.db.database import get_db
 from app.db.models import ProcessedImage
 from app.services.hf_inference import (
@@ -231,7 +232,7 @@ async def restore_image(
     model_id: str = Form(..., description="Model ID to use for processing"),
     parameters: str = Form(None, description="Optional model parameters (JSON string)"),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> RestoreResponse:
     """
     Upload and restore an image.
@@ -464,16 +465,24 @@ async def restore_image(
     response_model=HistoryResponse,
     status_code=status.HTTP_200_OK,
     summary="Get processing history",
-    description="Get list of processed images for current session",
+    description="""
+    Get list of ALL processed images for the current user across all sessions.
+
+    Phase 2.4: Returns all images the user has ever processed, regardless of
+    which session they were processed in. This allows users to access their
+    complete history from any device.
+    """,
 )
 async def get_history(
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of items to return (1-100)"),
+    offset: int = Query(0, ge=0, description="Number of items to skip (must be >= 0)"),
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> HistoryResponse:
     """
-    Get processing history for current session.
+    Get processing history for current user (all sessions).
+
+    Phase 2.4: Returns ALL images for the user across all sessions.
 
     Args:
         limit: Maximum number of items to return
@@ -484,23 +493,43 @@ async def get_history(
     Returns:
         HistoryResponse with paginated list of processed images
     """
-    session_id = user.get("session_id")
-    if not session_id:
+    from app.db.models import Session
+    from sqlalchemy import func
+
+    user_id = user.get("user_id")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing session information",
+            detail="Invalid token: missing user information",
         )
 
-    session_manager = SessionManager()
+    from sqlalchemy.exc import SQLAlchemyError
 
     try:
-        # Get history from database
-        images = await session_manager.get_session_history(
-            db=db,
-            session_id=session_id,
-            limit=limit,
-            offset=offset,
+        # Get ALL user's images across ALL sessions, ordered by most recent first
+        # This ensures users can ONLY see their own images, not other users' images
+        logger.debug(f"Querying history for user_id {user_id}")
+        query = (
+            select(ProcessedImage)
+            .join(ProcessedImage.session)
+            .where(Session.user_id == user_id)
+            .order_by(ProcessedImage.created_at.desc())
         )
+
+        # Get total count efficiently
+        logger.debug(f"Counting total images for user_id {user_id}")
+        count_query = (
+            select(func.count(ProcessedImage.id))
+            .join(ProcessedImage.session)
+            .where(Session.user_id == user_id)
+        )
+        count_result = await db.execute(count_query)
+        total = count_result.scalar()
+
+        # Get paginated results
+        paginated_query = query.offset(offset).limit(limit)
+        result = await db.execute(paginated_query)
+        images = result.scalars().all()
 
         # Convert to response models
         items = [
@@ -516,12 +545,10 @@ async def get_history(
             for img in images
         ]
 
-        # Get total count
-        stmt = select(ProcessedImage).join(ProcessedImage.session).where(
-            ProcessedImage.session.has(session_id=session_id)
+        logger.debug(
+            f"User {user['username']} (ID: {user_id}) retrieved {len(items)} images "
+            f"from {total} total (offset: {offset}, limit: {limit})"
         )
-        result = await db.execute(stmt)
-        total = len(list(result.scalars().all()))
 
         return HistoryResponse(
             items=items,
@@ -530,10 +557,21 @@ async def get_history(
             offset=offset,
         )
 
-    except SessionNotFoundError:
+    except SQLAlchemyError as e:
+        logger.error(
+            f"Database error retrieving history for user {user_id}: {type(e).__name__}: {e}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session not found: {session_id}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error while retrieving image history",
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error retrieving history for user {user_id}: {type(e).__name__}: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve image history",
         )
 
 
@@ -547,7 +585,7 @@ async def get_history(
 async def get_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> ImageDetailResponse:
     """
     Get details of a specific processed image.
@@ -612,7 +650,7 @@ async def get_image(
 async def download_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> FileResponse:
     """
     Download processed image.
@@ -684,7 +722,7 @@ async def download_image(
 async def delete_image(
     image_id: int,
     db: AsyncSession = Depends(get_db),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user_validated()),
 ) -> DeleteResponse:
     """
     Delete a processed image.

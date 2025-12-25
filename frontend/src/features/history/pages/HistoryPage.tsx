@@ -1,9 +1,22 @@
 /**
- * HistoryPage - Page for viewing restoration history
+ * HistoryPage - Main page for viewing and managing image restoration history.
+ *
+ * Displays paginated restoration history with session filtering, image viewing,
+ * download functionality, and deletion capabilities. Supports both "All Sessions"
+ * and "Current Session Only" filtering modes with bulk fetching for large datasets.
+ *
+ * @example
+ * ```tsx
+ * <HistoryPage />
+ * ```
+ *
+ * @component
+ * @category History
  */
 
 import React, { useState } from 'react';
 import { useHistory } from '../hooks/useHistory';
+import type { SessionFilter } from '../hooks/useHistory';
 import { HistoryList } from '../components/HistoryList';
 import type { HistoryItem } from '../types';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -20,9 +33,11 @@ export const HistoryPage: React.FC = () => {
     total,
     currentPage,
     pageSize,
+    sessionFilter,
     changePage,
     removeItem,
     loadHistory,
+    setSessionFilter,
   } = useHistory(20);
 
   const [viewingItem, setViewingItem] = useState<HistoryItem | null>(null);
@@ -90,8 +105,24 @@ export const HistoryPage: React.FC = () => {
         <div className="page-header">
           <h1>Restoration History</h1>
           <p className="page-subtitle">
-            View, download, or delete your restored images
+            View, download, or delete all your restored images from any device or session
           </p>
+
+          {/* Session Filter */}
+          <div className="history-filter-bar">
+            <label htmlFor="session-filter" className="filter-label">
+              Show images from:
+            </label>
+            <select
+              id="session-filter"
+              className="filter-select"
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value as SessionFilter)}
+            >
+              <option value="all">All Sessions</option>
+              <option value="current">Current Session Only</option>
+            </select>
+          </div>
         </div>
 
         {error && (

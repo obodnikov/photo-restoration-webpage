@@ -18,10 +18,46 @@ import type { LoginCredentials } from '../types';
  */
 export function useAuth() {
   const navigate = useNavigate();
-  const { isAuthenticated, user, setAuth, clearAuth } = useAuthStore();
+  // Use selectors to prevent unnecessary re-renders
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Decode JWT token payload
+   */
+  const decodeToken = (token: string): { sub: string; role: 'admin' | 'user'; password_must_change: boolean } => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonPayload);
+
+      // Explicit handling for password_must_change field
+      if (payload.password_must_change === undefined) {
+        console.warn('[useAuth] JWT token missing password_must_change field, defaulting to false');
+      }
+
+      return {
+        sub: payload.sub || '',
+        role: payload.role || 'user',
+        password_must_change: payload.password_must_change ?? false,
+      };
+    } catch (error) {
+      console.error('Failed to decode token:', error);
+      // Fallback to default if decode fails
+      return { sub: '', role: 'user', password_must_change: false };
+    }
+  };
 
   /**
    * Login with username and password
@@ -33,13 +69,24 @@ export function useAuth() {
     try {
       const response = await loginApi(credentials);
 
+      // Decode token to extract user information
+      const payload = decodeToken(response.access_token);
+
       // Store auth state
       setAuth(response.access_token, response.expires_in, {
-        username: credentials.username,
+        username: payload.sub,
+        role: payload.role,
+        password_must_change: payload.password_must_change,
       });
 
-      // Navigate to home page
-      navigate('/');
+      // Check if password must be changed
+      if (payload.password_must_change) {
+        // Redirect to forced password change page
+        navigate('/change-password');
+      } else {
+        // Navigate to home page
+        navigate('/');
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);

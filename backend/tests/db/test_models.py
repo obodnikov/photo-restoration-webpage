@@ -12,9 +12,10 @@ class TestSessionModel:
     """Tests for Session model."""
 
     @pytest.mark.asyncio
-    async def test_create_session(self, db_session):
+    async def test_create_session(self, db_session, test_user):
         """Test creating a session."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-123",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -31,9 +32,10 @@ class TestSessionModel:
         assert session.processed_images == []
 
     @pytest.mark.asyncio
-    async def test_session_unique_session_id(self, db_session):
+    async def test_session_unique_session_id(self, db_session, test_user):
         """Test that session_id must be unique."""
         session1 = Session(
+            user_id=test_user.id,
             session_id="duplicate-id",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -44,6 +46,7 @@ class TestSessionModel:
 
         # Try to create another session with same session_id
         session2 = Session(
+            user_id=test_user.id,
             session_id="duplicate-id",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -55,9 +58,10 @@ class TestSessionModel:
             await db_session.commit()
 
     @pytest.mark.asyncio
-    async def test_session_to_dict(self, db_session):
+    async def test_session_to_dict(self, db_session, test_user):
         """Test Session.to_dict() method."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-dict-session",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -77,9 +81,10 @@ class TestSessionModel:
         assert result["image_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_session_repr(self, db_session):
+    async def test_session_repr(self, db_session, test_user):
         """Test Session.__repr__() method."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-repr-session",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -100,10 +105,11 @@ class TestProcessedImageModel:
     """Tests for ProcessedImage model."""
 
     @pytest.mark.asyncio
-    async def test_create_processed_image(self, db_session):
+    async def test_create_processed_image(self, db_session, test_user):
         """Test creating a processed image."""
         # Create session first
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-img",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -136,9 +142,10 @@ class TestProcessedImageModel:
         assert processed_image.model_parameters == '{"scale": 2}'
 
     @pytest.mark.asyncio
-    async def test_processed_image_without_parameters(self, db_session):
+    async def test_processed_image_without_parameters(self, db_session, test_user):
         """Test creating processed image without model parameters."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-no-params",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -163,9 +170,10 @@ class TestProcessedImageModel:
         assert processed_image.model_parameters is None
 
     @pytest.mark.asyncio
-    async def test_processed_image_to_dict(self, db_session):
+    async def test_processed_image_to_dict(self, db_session, test_user):
         """Test ProcessedImage.to_dict() method."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-dict",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -201,9 +209,10 @@ class TestProcessedImageModel:
         assert "created_at" in result
 
     @pytest.mark.asyncio
-    async def test_processed_image_repr(self, db_session):
+    async def test_processed_image_repr(self, db_session, test_user):
         """Test ProcessedImage.__repr__() method."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-repr",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -236,9 +245,10 @@ class TestSessionImageRelationship:
     """Tests for Session-ProcessedImage relationship."""
 
     @pytest.mark.asyncio
-    async def test_session_with_multiple_images(self, db_session):
+    async def test_session_with_multiple_images(self, db_session, test_user):
         """Test session with multiple processed images."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-multi",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -266,9 +276,10 @@ class TestSessionImageRelationship:
         assert session.to_dict()["image_count"] == 3
 
     @pytest.mark.asyncio
-    async def test_cascade_delete(self, db_session):
+    async def test_cascade_delete(self, db_session, test_user):
         """Test that deleting session cascades to processed images."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-cascade",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),
@@ -306,9 +317,10 @@ class TestSessionImageRelationship:
         assert len(images) == 0
 
     @pytest.mark.asyncio
-    async def test_access_image_from_session(self, db_session):
+    async def test_access_image_from_session(self, db_session, test_user):
         """Test accessing images through session relationship."""
         session = Session(
+            user_id=test_user.id,
             session_id="test-session-access",
             created_at=datetime.utcnow(),
             last_accessed=datetime.utcnow(),

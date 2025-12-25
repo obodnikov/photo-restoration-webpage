@@ -110,8 +110,12 @@ class Settings(BaseSettings):
     hf_api_key: str = ""
     replicate_api_token: str = ""
     secret_key: str = "CHANGE_THIS_TO_A_SECURE_RANDOM_SECRET_KEY"
+
+    # Admin user credentials (for database seeding)
     auth_username: str = "admin"
     auth_password: str = "changeme"
+    auth_email: str = "admin@example.com"
+    auth_full_name: str = "System Administrator"
 
     # ===== CONFIGURATION (from JSON files + .env overrides) =====
     # Application
@@ -155,7 +159,8 @@ class Settings(BaseSettings):
     models_require_auth: bool = False
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./data/photo_restoration.db"
+    # Note: Use 4 slashes (////) for absolute paths, 3 slashes (///) for relative paths
+    database_url: str = "sqlite+aiosqlite:////data/photo_restoration.db"
 
     # File storage
     upload_dir: Path = Path("./data/uploads")

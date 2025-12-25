@@ -3,6 +3,35 @@ Database setup and configuration.
 
 This module provides async SQLAlchemy setup with SQLite,
 following best practices for WAL mode and proper configuration.
+
+IMPORTANT: SQLite-Only Implementation
+=====================================
+This module is designed specifically for SQLite databases and uses SQLite-specific
+features and SQL syntax. Key SQLite-specific implementations:
+
+1. Legacy Schema Detection (detect_legacy_schema):
+   - Uses SQLAlchemy's inspector to detect pre-Alembic databases
+   - Checks for core application tables without alembic_version
+
+2. Database Stamping (stamp_alembic_version):
+   - Uses SQLite-specific "INSERT OR IGNORE" syntax
+   - Validates dialect is SQLite before proceeding
+   - Raises ValueError if non-SQLite database is detected
+
+3. Migration Running (run_alembic_migrations):
+   - Converts async SQLite URL (sqlite+aiosqlite) to sync (sqlite)
+   - Validates dialect is SQLite before proceeding
+   - Raises ValueError if non-SQLite database is detected
+
+4. SQLite Configuration (configure_sqlite):
+   - Uses PRAGMA statements specific to SQLite
+   - Enables WAL mode, foreign keys, and optimizes performance
+
+If you need to support other databases (PostgreSQL, MySQL, etc.):
+- Use Alembic's built-in stamp command instead of stamp_alembic_version()
+- Implement dialect-aware SQL in stamping functions
+- Add proper async driver handling for each database type
+- Update validation logic to allow multiple dialects
 """
 from typing import AsyncGenerator
 
@@ -16,7 +45,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import get_settings
-from app.db.models import Base
+from app.db.models import Base, SchemaMigration
 
 # Global engine and session factory
 _engine: AsyncEngine | None = None
@@ -94,13 +123,400 @@ async def configure_sqlite(engine: AsyncEngine) -> None:
         await conn.execute(text("PRAGMA foreign_keys=ON"))
 
 
+async def detect_legacy_schema(engine: AsyncEngine) -> bool:
+    """
+    Detect if database has pre-existing tables from before Alembic was introduced.
+
+    This detects the scenario where:
+    - Core tables exist (users, sessions, processed_images)
+    - BUT alembic_version table does NOT exist
+
+    This indicates an existing deployment that needs to be stamped to avoid
+    re-running the base migration which would fail with "table already exists" errors.
+
+    NOTE: This function checks for specific table names that are core to this application.
+    If the application schema changes significantly, this detection logic may need updating.
+
+    Args:
+        engine: AsyncEngine instance to check
+
+    Returns:
+        True if legacy schema detected (needs stamping), False otherwise
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    from sqlalchemy import inspect
+    from sqlalchemy.exc import OperationalError
+
+    # Core tables that must exist for a legacy schema to be detected
+    # These are the fundamental tables created by the initial migration
+    CORE_TABLES = {"users", "sessions", "processed_images"}
+
+    try:
+        async with engine.connect() as conn:
+            def check_tables(sync_conn):
+                try:
+                    inspector = inspect(sync_conn)
+                    table_names = set(inspector.get_table_names())
+
+                    # Check if core tables exist
+                    has_all_core_tables = CORE_TABLES.issubset(table_names)
+
+                    # Check if alembic_version exists
+                    has_alembic_version = "alembic_version" in table_names
+
+                    logger.debug(
+                        f"Legacy schema detection: "
+                        f"core_tables={CORE_TABLES}, "
+                        f"found_tables={table_names}, "
+                        f"has_all_core={has_all_core_tables}, "
+                        f"has_alembic_version={has_alembic_version}"
+                    )
+
+                    # Legacy schema = all core tables exist but no alembic_version
+                    # We require ALL core tables to avoid false positives from partial schemas
+                    return has_all_core_tables and not has_alembic_version
+
+                except Exception as inner_e:
+                    logger.warning(f"Error inspecting tables: {inner_e}")
+                    return False
+
+            is_legacy = await conn.run_sync(check_tables)
+
+            if is_legacy:
+                logger.info(
+                    f"Detected legacy schema (pre-Alembic database) - "
+                    f"found all core tables {CORE_TABLES} but no alembic_version"
+                )
+
+            return is_legacy
+
+    except OperationalError as e:
+        # Database doesn't exist or is not accessible
+        logger.debug(f"OperationalError during legacy schema detection: {e}")
+        return False
+    except Exception as e:
+        # Catch any other unexpected errors
+        logger.warning(f"Unexpected error during legacy schema detection: {e}", exc_info=True)
+        return False
+
+
+async def stamp_alembic_version(engine: AsyncEngine, revision: str) -> None:
+    """
+    Stamp the database with an Alembic revision without running the migration.
+
+    This creates the alembic_version table and marks a specific revision as applied,
+    allowing existing databases to adopt Alembic without re-running initial migrations.
+
+    IMPORTANT: This function is SQLite-specific and uses SQLite syntax.
+    The application currently only supports SQLite databases.
+
+    Args:
+        engine: AsyncEngine instance
+        revision: Alembic revision ID to stamp (e.g., '000_initial_schema')
+
+    Raises:
+        ValueError: If the database is not SQLite
+        RuntimeError: If stamping fails
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Validate that we're using SQLite
+    dialect_name = engine.dialect.name
+    if dialect_name != 'sqlite':
+        raise ValueError(
+            f"stamp_alembic_version only supports SQLite databases. "
+            f"Current dialect: {dialect_name}. "
+            f"For other databases, use Alembic's built-in stamp command."
+        )
+
+    logger.info(f"Stamping database with Alembic revision: {revision}")
+
+    try:
+        async with engine.begin() as conn:
+            # Check if alembic_version table already exists with a different revision
+            check_result = await conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+            )
+            table_exists = check_result.fetchone() is not None
+
+            if table_exists:
+                # Check current revision
+                current_result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+                current_revision = current_result.scalar()
+
+                if current_revision and current_revision != revision:
+                    raise RuntimeError(
+                        f"Database already has alembic_version with revision '{current_revision}'. "
+                        f"Cannot stamp with '{revision}'. "
+                        f"This indicates the database is already managed by Alembic. "
+                        f"Use 'alembic stamp {revision}' command instead."
+                    )
+                elif current_revision == revision:
+                    logger.info(f"Database already stamped with revision: {revision}")
+                    return  # Already at correct revision, nothing to do
+
+            # Create alembic_version table if it doesn't exist
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS alembic_version (
+                    version_num VARCHAR(32) NOT NULL,
+                    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                )
+            """))
+
+            # Insert the revision (SQLite-specific: INSERT OR REPLACE)
+            # Using REPLACE to handle the edge case where table exists but is empty
+            await conn.execute(
+                text("INSERT OR REPLACE INTO alembic_version (version_num) VALUES (:version)"),
+                {"version": revision}
+            )
+
+        logger.info(f"Database stamped with revision: {revision}")
+
+    except Exception as e:
+        logger.error(f"Failed to stamp database with revision {revision}: {e}", exc_info=True)
+        raise RuntimeError(f"Database stamping failed: {e}") from e
+
+
+async def is_db_initialized(engine: AsyncEngine) -> bool:
+    """
+    Check if the database has been initialized with the schema.
+
+    This checks if the schema_migrations table exists and contains
+    the initial migration record.
+
+    Args:
+        engine: AsyncEngine instance to check
+
+    Returns:
+        True if database is initialized, False otherwise
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    from sqlalchemy import inspect, select
+    from sqlalchemy.exc import OperationalError
+
+    try:
+        async with engine.connect() as conn:
+            # Check if schema_migrations table exists
+            def check_table_exists(sync_conn):
+                inspector = inspect(sync_conn)
+                table_names = inspector.get_table_names()
+                exists = "schema_migrations" in table_names
+                logger.debug(f"schema_migrations table exists: {exists}, all tables: {table_names}")
+                return exists
+
+            table_exists = await conn.run_sync(check_table_exists)
+
+            if not table_exists:
+                logger.debug("schema_migrations table does not exist")
+                return False
+
+            # Check if initial migration is recorded
+            # Use text query because conn.execute() with ORM models doesn't work properly
+            from sqlalchemy import text
+            result = await conn.execute(
+                text("SELECT COUNT(*) FROM schema_migrations WHERE version = :version"),
+                {"version": "001_initial_schema"}
+            )
+            count = result.scalar()
+
+            if count and count > 0:
+                logger.debug(f"Found migration record: 001_initial_schema")
+                return True
+            else:
+                logger.debug("Migration '001_initial_schema' not found in schema_migrations table")
+                return False
+
+    except OperationalError as e:
+        # Database file doesn't exist or is not accessible
+        logger.debug(f"OperationalError checking database initialization: {e}")
+        return False
+
+
+async def record_migration(session: AsyncSession, version: str, description: str) -> None:
+    """
+    Record a migration as applied in the database.
+
+    Args:
+        session: Database session
+        version: Migration version identifier
+        description: Human-readable description of the migration
+    """
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    # Check if migration already recorded
+    result = await session.execute(
+        select(SchemaMigration).where(SchemaMigration.version == version)
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        # Migration already recorded, skip
+        return
+
+    # Record the migration
+    migration = SchemaMigration(
+        version=version,
+        description=description,
+    )
+    session.add(migration)
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        # Race condition: another instance recorded it simultaneously
+        await session.rollback()
+        # This is fine, migration is recorded
+
+
+async def run_alembic_migrations(engine: AsyncEngine) -> None:
+    """
+    Run Alembic migrations to upgrade database schema.
+
+    This function runs pending Alembic migrations to ensure the database
+    schema is up to date. It is the PRIMARY mechanism for schema management.
+
+    IMPORTANT: The engine parameter ensures Alembic uses the same database
+    URL as the application, preventing migrations from targeting a different
+    database (especially important for tests and multi-tenant setups).
+
+    IMPORTANT: This function currently only supports SQLite databases.
+    The async-to-sync dialect conversion is SQLite-specific.
+
+    Args:
+        engine: AsyncEngine instance whose URL will be used for migrations
+
+    Raises:
+        ValueError: If the database is not SQLite
+
+    The function runs in a separate thread to avoid blocking the async event loop,
+    since alembic.command.upgrade() is synchronous.
+    """
+    import logging
+    import asyncio
+    logger = logging.getLogger(__name__)
+
+    # Validate that we're using SQLite
+    dialect_name = engine.dialect.name
+    if dialect_name != 'sqlite':
+        raise ValueError(
+            f"run_alembic_migrations only supports SQLite databases. "
+            f"Current dialect: {dialect_name}. "
+            f"For other databases, ensure the engine URL uses the appropriate sync driver."
+        )
+
+    # Extract database URL from engine
+    database_url = str(engine.url)
+
+    # Convert async dialect to sync for Alembic (SQLite-specific)
+    # SQLite async driver (aiosqlite) → sync driver (pysqlite)
+    if "sqlite+aiosqlite://" in database_url:
+        database_url = database_url.replace("sqlite+aiosqlite://", "sqlite://")
+    else:
+        logger.warning(
+            f"Expected SQLite async URL with aiosqlite driver, got: {database_url}. "
+            f"Proceeding without URL conversion."
+        )
+
+    def _run_migrations_sync() -> None:
+        """Synchronous wrapper for Alembic migrations."""
+        try:
+            from alembic import command
+            from alembic.config import Config
+            from pathlib import Path
+
+            # Get alembic.ini path
+            alembic_cfg_path = Path(__file__).parent.parent.parent / "alembic.ini"
+
+            if not alembic_cfg_path.exists():
+                logger.warning(f"Alembic config not found at {alembic_cfg_path}, skipping migrations")
+                return
+
+            # Create Alembic config
+            alembic_cfg = Config(str(alembic_cfg_path))
+
+            # CRITICAL: Override the database URL to match the engine being initialized
+            # This ensures Alembic migrates the same database that the app will use
+            alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+
+            # Run migrations to head
+            logger.info("Running Alembic migrations...")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic migrations completed successfully")
+
+        except ImportError:
+            logger.warning("Alembic not installed, skipping migrations")
+        except Exception as e:
+            logger.error(f"Failed to run Alembic migrations: {e}", exc_info=True)
+            raise
+
+    # Run migrations in a separate thread to avoid blocking the event loop
+    try:
+        await asyncio.to_thread(_run_migrations_sync)
+    except Exception as e:
+        logger.error(f"Failed to run Alembic migrations in thread: {e}", exc_info=True)
+        raise
+
+
 async def init_db() -> None:
     """
-    Initialize database: create tables and configure SQLite.
+    Initialize database: run migrations, configure SQLite, and seed initial data.
 
-    This should be called once during application startup.
+    Schema Management Strategy:
+    - Alembic migrations are the PRIMARY mechanism for schema creation and updates
+    - Base migration (000_initial_schema) creates all tables on fresh installs
+    - create_all() runs as a FALLBACK to catch unmigrated model changes
+
+    This function is idempotent:
+    - ALWAYS runs Alembic migrations (creates tables, handles column additions, etc.)
+    - ALWAYS runs create_all() as fallback (creates missing tables not in migrations)
+    - Tracks initialization via schema_migrations to avoid re-seeding
+    - Re-runs seeding every startup for self-healing (seeding is idempotent)
+
+    This should be called during application startup.
+    Performs:
+    1. Creates database engine
+    2. Configures SQLite (WAL mode, foreign keys, etc.)
+    3. Runs Alembic migrations (primary schema management)
+    4. Runs create_all() as fallback (catches unmigrated tables)
+    5. Creates session factory
+    6. On first initialization: records migration and seeds data
+    7. On subsequent startups: re-runs idempotent seeding for self-healing
     """
+    import logging
+    import os
+    logger = logging.getLogger(__name__)
+
     global _engine, _async_session_factory
+
+    # Log database URL for debugging (redact credentials for security)
+    database_url = get_database_url()
+
+    # Redact credentials from database URL for logging
+    def redact_db_url(url: str) -> str:
+        """Redact username and password from database URL for secure logging."""
+        import re
+        # Pattern matches: scheme://user:pass@host/db or scheme:///path
+        # Replace user:pass@ with ***:***@
+        redacted = re.sub(r'://([^:/@]+):([^@]+)@', r'://***:***@', url)
+        return redacted
+
+    logger.info(f"Database URL: {redact_db_url(database_url)}")
+
+    # Extract file path from URL for existence check
+    if database_url.startswith("sqlite+aiosqlite:///"):
+        db_path = database_url[len("sqlite+aiosqlite:///"):]
+        if os.path.exists(db_path):
+            logger.info(f"Database file exists at: {db_path}")
+        else:
+            logger.warning(f"Database file does NOT exist at: {db_path}")
+    else:
+        logger.info("Non-file database URL, skipping file existence check")
 
     # Create engine if not exists
     if _engine is None:
@@ -109,9 +525,33 @@ async def init_db() -> None:
     # Configure SQLite
     await configure_sqlite(_engine)
 
-    # Create all tables
+    # Detect legacy schema (pre-Alembic databases)
+    # If core tables exist but alembic_version doesn't, this is a legacy database
+    # that needs to be stamped to avoid re-running base migration
+    is_legacy = await detect_legacy_schema(_engine)
+
+    if is_legacy:
+        logger.info("Legacy schema detected - stamping database to avoid re-running base migration")
+        # Stamp with base revision so Alembic knows base migration is already applied
+        await stamp_alembic_version(_engine, "000_initial_schema")
+        logger.info("Legacy database successfully stamped with base revision")
+
+    # Run Alembic migrations to create/update schema
+    # Alembic is now the PRIMARY mechanism for schema management
+    # The base migration (000_initial_schema) creates all tables on fresh installs
+    # For legacy databases, the stamp above ensures base migration is skipped
+    await run_alembic_migrations(_engine)
+
+    # Run create_all() as a FALLBACK only
+    # This catches any tables added to models but not yet in Alembic migrations
+    # In a properly maintained codebase, this should be a no-op
+    # CRITICAL: create_all() does NOT add new columns to existing tables
+    # CRITICAL: create_all() does NOT drop, rename, or alter columns
+    # For schema changes, you MUST create Alembic migrations
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    logger.info("Database schema synchronized")
 
     # Create session factory
     if _async_session_factory is None:
@@ -122,6 +562,52 @@ async def init_db() -> None:
             autoflush=False,  # Manual flush control
             autocommit=False,  # Manual commit control
         )
+
+    # Check if this is first initialization
+    db_initialized = await is_db_initialized(_engine)
+    logger.info(f"Database initialized status: {db_initialized}")
+
+    async with _async_session_factory() as session:
+        try:
+            if not db_initialized:
+                # First initialization: seed data first, then record migration
+                logger.info("First initialization: creating initial data")
+
+                from app.db.seed import seed_database
+                await seed_database(session)
+
+                # Only record migration AFTER successful seeding
+                # This ensures we retry if seeding fails
+                await record_migration(
+                    session,
+                    "001_initial_schema",
+                    "Initial database schema with users, sessions, and processed_images tables"
+                )
+                logger.info("Database initialized successfully")
+            else:
+                # Subsequent startups: re-run idempotent seeding for self-healing
+                # This ensures admin user exists even if accidentally deleted
+                logger.info("Database already initialized, running self-healing seed")
+
+                from app.db.seed import seed_database
+                try:
+                    await seed_database(session)
+                    logger.info("Self-healing seed completed")
+                except Exception as seed_error:
+                    # Self-healing seed failures are logged but don't crash startup
+                    # since the DB is already initialized and may be operational
+                    logger.warning(
+                        f"Self-healing seed failed (application will continue): {seed_error}",
+                        exc_info=True
+                    )
+
+        except Exception as e:
+            # Only fail startup on first initialization errors
+            if not db_initialized:
+                logger.error(f"Failed to initialize database: {e}", exc_info=True)
+                raise
+            # For initialized DBs, errors during self-healing were already logged above
+            pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
