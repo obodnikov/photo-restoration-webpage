@@ -12,6 +12,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.schemas.model import (
+    AvailableTagsResponse,
+    ModelConfigCreate,
+    ModelConfigDetail,
+    ModelConfigListItem,
+    ModelConfigSource,
+    ModelConfigUpdate,
+    ModelConfigValidationResponse,
+    ValidationError,
+)
 from app.api.v1.schemas.user import (
     PasswordReset,
     UserCreate,
@@ -20,6 +30,7 @@ from app.api.v1.schemas.user import (
     UserUpdate,
 )
 from app.core.authorization import require_admin
+from app.core.config import get_settings
 from app.core.security import get_password_hash
 from app.db.database import get_db
 from app.db.models import User
@@ -400,3 +411,467 @@ async def reset_user_password(
     logger.info(f"Password reset for user {user.username} (ID: {user.id}) by admin")
 
     return UserResponse.model_validate(user)
+
+
+# ===== Model Configuration Management =====
+
+
+@router.get(
+    "/models/config",
+    summary="List all model configurations (Admin only)",
+    description="""
+    Get list of all model configurations with their source information.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    Returns model configurations from all sources (default, environment, local).
+    Each model includes a 'source' field indicating which config file it comes from.
+    """,
+)
+async def list_model_configs(
+    current_user: dict = Depends(require_admin),
+) -> list:
+    """
+    List all model configurations with source information.
+
+    Args:
+        current_user: Current admin user
+
+    Returns:
+        List of model configurations with source metadata
+    """
+    settings = get_settings()
+    models = settings.get_models()
+
+    result = []
+    for model in models:
+        source = settings.get_model_source(model["id"])
+        result.append(
+            ModelConfigListItem(
+                id=model["id"],
+                name=model["name"],
+                provider=model["provider"],
+                category=model["category"],
+                enabled=model.get("enabled", True),
+                source=ModelConfigSource(source),
+                tags=model.get("tags", []),
+                version=model.get("version"),
+            )
+        )
+
+    logger.info(f"Admin {current_user['username']} listed model configs ({len(result)} total)")
+    return result
+
+
+@router.get(
+    "/models/config/{model_id}",
+    summary="Get model configuration details (Admin only)",
+    description="""
+    Get full configuration details for a specific model.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    Returns complete model configuration including replicate_schema, custom, and parameters.
+    """,
+)
+async def get_model_config(
+    model_id: str,
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Get detailed configuration for a specific model.
+
+    Args:
+        model_id: Model identifier
+        current_user: Current admin user
+
+    Returns:
+        Full model configuration
+
+    Raises:
+        HTTPException 404: If model not found
+    """
+    settings = get_settings()
+    model = settings.get_model_by_id(model_id)
+
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_id}' not found",
+        )
+
+    source = settings.get_model_source(model_id)
+
+    result = ModelConfigDetail(
+        id=model["id"],
+        name=model["name"],
+        model=model["model"],
+        provider=model["provider"],
+        category=model["category"],
+        description=model.get("description", ""),
+        enabled=model.get("enabled", True),
+        tags=model.get("tags", []),
+        version=model.get("version"),
+        replicate_schema=model.get("replicate_schema"),
+        custom=model.get("custom"),
+        parameters=model.get("parameters", {}),
+        source=ModelConfigSource(source),
+    )
+
+    logger.info(f"Admin {current_user['username']} retrieved config for model '{model_id}'")
+    return result.model_dump()
+
+
+@router.post(
+    "/models/config",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create new model configuration (Admin only)",
+    description="""
+    Create a new model configuration in local.json.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    The new configuration will be saved to local.json and will override
+    any existing configuration with the same ID from default/environment files.
+    """,
+)
+async def create_model_config(
+    config_data: dict,
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Create a new model configuration.
+
+    Args:
+        config_data: Model configuration data
+        current_user: Current admin user
+
+    Returns:
+        Created configuration
+
+    Raises:
+        HTTPException 400: If configuration is invalid
+        HTTPException 409: If model ID already exists in local.json
+    """
+    settings = get_settings()
+
+    # Validate configuration
+    try:
+        validated_config = ModelConfigCreate(**config_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid configuration: {str(e)}",
+        )
+
+    # Check if model already exists in local.json
+    if settings.get_model_source(validated_config.id) == "local":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Model '{validated_config.id}' already exists in local.json. Use PUT to update.",
+        )
+
+    # Save to local.json
+    try:
+        settings.save_local_model_config(validated_config.model_dump(exclude_none=True))
+        settings.reload_config()
+    except Exception as e:
+        logger.error(f"Error saving model config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save configuration: {str(e)}",
+        )
+
+    logger.info(f"Admin {current_user['username']} created model config '{validated_config.id}'")
+    return validated_config.model_dump()
+
+
+@router.put(
+    "/models/config/{model_id}",
+    summary="Update model configuration (Admin only)",
+    description="""
+    Update an existing model configuration in local.json.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    If the model exists in default/environment files, this creates an override in local.json.
+    Updates are partial - only provided fields will be updated.
+    """,
+)
+async def update_model_config(
+    model_id: str,
+    config_data: dict,
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Update model configuration.
+
+    Args:
+        model_id: Model identifier
+        config_data: Updated configuration data
+        current_user: Current admin user
+
+    Returns:
+        Updated configuration
+
+    Raises:
+        HTTPException 400: If configuration is invalid
+        HTTPException 404: If model not found
+    """
+    settings = get_settings()
+
+    # Check if model exists
+    existing_model = settings.get_model_by_id(model_id)
+    if not existing_model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_id}' not found",
+        )
+
+    # Validate update data
+    try:
+        validated_update = ModelConfigUpdate(**config_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid configuration: {str(e)}",
+        )
+
+    # Define allowed update fields
+    ALLOWED_UPDATE_FIELDS = {
+        "name",
+        "model",
+        "provider",
+        "category",
+        "description",
+        "enabled",
+        "tags",
+        "version",
+        "replicate_schema",
+        "custom",
+        "parameters",
+    }
+
+    # Merge with existing config
+    updated_config = {**existing_model}
+    update_dict = validated_update.model_dump(exclude_none=True)
+
+    # Validate only allowed fields are being updated
+    invalid_fields = set(update_dict.keys()) - ALLOWED_UPDATE_FIELDS
+    if invalid_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot update fields: {', '.join(sorted(invalid_fields))}",
+        )
+
+    updated_config.update(update_dict)
+    updated_config["id"] = model_id  # Ensure ID is preserved
+
+    # Save to local.json
+    try:
+        settings.save_local_model_config(updated_config)
+        settings.reload_config()
+    except Exception as e:
+        logger.error(f"Error updating model config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update configuration: {str(e)}",
+        )
+
+    logger.info(f"Admin {current_user['username']} updated model config '{model_id}'")
+    return updated_config
+
+
+@router.delete(
+    "/models/config/{model_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete model configuration from local.json (Admin only)",
+    description="""
+    Delete a model configuration from local.json.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    **Important**: This only deletes the configuration from local.json.
+    If the model exists in default/environment files, it will revert to that configuration.
+    Models from default/environment files cannot be completely deleted, only overridden.
+    """,
+)
+async def delete_model_config(
+    model_id: str,
+    current_user: dict = Depends(require_admin),
+) -> None:
+    """
+    Delete model configuration from local.json.
+
+    Args:
+        model_id: Model identifier
+        current_user: Current admin user
+
+    Raises:
+        HTTPException 404: If model not found in local.json
+    """
+    settings = get_settings()
+
+    # Check if model exists in local.json
+    if settings.get_model_source(model_id) != "local":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_id}' not found in local.json. Cannot delete models from default/environment files.",
+        )
+
+    # Delete from local.json
+    try:
+        deleted = settings.delete_local_model_config(model_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model '{model_id}' not found in local.json",
+            )
+        settings.reload_config()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting model config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete configuration: {str(e)}",
+        )
+
+    logger.info(f"Admin {current_user['username']} deleted model config '{model_id}'")
+
+
+@router.get(
+    "/models/tags",
+    summary="Get available tags and categories (Admin only)",
+    description="""
+    Get list of predefined tags and categories for model configuration.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    Returns available tags and categories from config file (model_configuration section).
+    """,
+)
+async def get_available_tags(
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Get available tags and categories.
+
+    Args:
+        current_user: Current admin user
+
+    Returns:
+        Available tags and categories
+    """
+    settings = get_settings()
+
+    result = AvailableTagsResponse(
+        tags=settings.get_available_tags(),
+        categories=settings.get_available_categories(),
+    )
+
+    return result.model_dump()
+
+
+@router.post(
+    "/models/validate",
+    summary="Validate model configuration (Admin only)",
+    description="""
+    Validate a model configuration without saving it.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    Returns validation status and any errors found in the configuration.
+    """,
+)
+async def validate_model_config(
+    config_data: dict,
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Validate model configuration.
+
+    Args:
+        config_data: Model configuration to validate
+        current_user: Current admin user
+
+    Returns:
+        Validation result with errors if any
+    """
+    errors = []
+
+    try:
+        # Validate using Pydantic model
+        ModelConfigCreate(**config_data)
+
+        # Additional validations can be added here
+        # For example: check if replicate_schema is valid JSON structure
+
+        return ModelConfigValidationResponse(valid=True, errors=[]).model_dump()
+    except Exception as e:
+        # Parse Pydantic validation errors
+        if hasattr(e, "errors"):
+            for error in e.errors():
+                field = ".".join(str(loc) for loc in error["loc"])
+                errors.append(
+                    ValidationError(
+                        field=field,
+                        message=error["msg"],
+                    )
+                )
+        else:
+            errors.append(
+                ValidationError(
+                    field="general",
+                    message=str(e),
+                )
+            )
+
+        return ModelConfigValidationResponse(valid=False, errors=errors).model_dump()
+
+
+@router.post(
+    "/models/reload",
+    summary="Reload model configurations (Admin only)",
+    description="""
+    Reload model configurations from files without restarting the server.
+
+    **Admin Only**: This endpoint requires admin role.
+
+    This triggers a hot reload of all configuration files (default, environment, local).
+    Useful after manually editing configuration files.
+    """,
+)
+async def reload_model_configs(
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    """
+    Reload model configurations.
+
+    Args:
+        current_user: Current admin user
+
+    Returns:
+        Reload status
+
+    Raises:
+        HTTPException 500: If reload fails
+    """
+    settings = get_settings()
+
+    try:
+        settings.reload_config()
+        models_count = len(settings.get_models())
+
+        logger.info(f"Admin {current_user['username']} triggered config reload ({models_count} models loaded)")
+
+        return {
+            "success": True,
+            "message": f"Configuration reloaded successfully. {models_count} models loaded.",
+        }
+    except Exception as e:
+        logger.error(f"Error reloading configuration: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reload configuration: {str(e)}",
+        )
