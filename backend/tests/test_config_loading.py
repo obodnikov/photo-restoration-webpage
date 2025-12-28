@@ -1,5 +1,6 @@
 """Tests for configuration loading from JSON files."""
 import json
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -262,3 +263,191 @@ class TestSettingsLoading:
 
         # Should fall back to .env defaults
         assert settings.is_using_json_config() is False
+
+
+class TestLocalJsonConfig:
+    """Tests for local.json configuration behavior (model-only merging)."""
+
+    def test_local_json_merges_models_only(self, tmp_path, caplog):
+        """Test that local.json only merges models array, ignoring other keys."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        # Base configuration
+        default_config = {
+            "application": {"name": "Default App", "debug": False},
+            "server": {"host": "0.0.0.0", "port": 8000},
+            "models": [
+                {"id": "model-1", "name": "Model 1", "enabled": True},
+                {"id": "model-2", "name": "Model 2", "enabled": True},
+            ],
+        }
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        # Local config with models AND other keys
+        local_config = {
+            "models": [
+                {"id": "model-2", "name": "Model 2 (Local)", "enabled": False},
+                {"id": "model-3", "name": "Model 3 (Test)", "enabled": True},
+            ],
+            "application": {"debug": True, "name": "Local App"},  # Should be ignored
+            "server": {"port": 9000},  # Should be ignored
+            "database": {"url": "sqlite:///local.db"},  # Should be ignored
+        }
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            result = load_config_from_files("development")
+
+        # Models should be merged
+        assert len(result["models"]) == 3
+        assert result["models"][0]["id"] == "model-1"
+        assert result["models"][0]["name"] == "Model 1"
+        assert result["models"][1]["id"] == "model-2"
+        assert result["models"][1]["name"] == "Model 2 (Local)"
+        assert result["models"][1]["enabled"] is False
+        assert result["models"][2]["id"] == "model-3"
+        assert result["models"][2]["name"] == "Model 3 (Test)"
+
+        # Other keys should remain from default, NOT from local
+        assert result["application"]["name"] == "Default App"
+        assert result["application"]["debug"] is False
+        assert result["server"]["port"] == 8000
+        assert "database" not in result
+
+    def test_local_json_warns_about_ignored_keys(self, tmp_path, caplog):
+        """Test that warning is logged when local.json contains non-model keys."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        default_config = {"models": []}
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        local_config = {
+            "models": [{"id": "test", "name": "Test"}],
+            "application": {"debug": True},
+            "server": {"port": 9000},
+        }
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            with caplog.at_level(logging.WARNING):
+                load_config_from_files("development")
+
+        # Check warning was logged
+        assert any("local.json contains non-model keys" in record.message for record in caplog.records)
+        assert any("application" in record.message and "server" in record.message for record in caplog.records)
+
+    def test_local_json_models_only_no_warning(self, tmp_path, caplog):
+        """Test that no warning is logged when local.json only contains models."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        default_config = {"models": []}
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        local_config = {
+            "models": [{"id": "test", "name": "Test"}],
+        }
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            with caplog.at_level(logging.WARNING):
+                load_config_from_files("development")
+
+        # No warning should be logged
+        assert not any("local.json contains non-model keys" in record.message for record in caplog.records)
+
+    def test_local_json_with_env_specific_config(self, tmp_path):
+        """Test that local.json models merge correctly with environment-specific config."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        # Default config
+        default_config = {
+            "application": {"debug": False},
+            "models": [{"id": "model-1", "name": "Default Model"}],
+        }
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        # Development config overrides application.debug and adds a model
+        # Note: deep_merge replaces the entire models array from default
+        dev_config = {
+            "application": {"debug": True},
+            "models": [{"id": "model-2", "name": "Dev Model"}],
+        }
+        (config_dir / "development.json").write_text(json.dumps(dev_config))
+
+        # Local config adds another model
+        local_config = {
+            "models": [{"id": "model-3", "name": "Local Model"}],
+            "application": {"debug": False},  # Should be ignored
+        }
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            result = load_config_from_files("development")
+
+        # Should have 2 models: model-2 from dev (which replaced model-1) and model-3 from local
+        assert len(result["models"]) == 2
+        model_ids = [m["id"] for m in result["models"]]
+        assert "model-2" in model_ids
+        assert "model-3" in model_ids
+
+        # application.debug should come from development.json, not local.json
+        assert result["application"]["debug"] is True
+
+    def test_local_json_empty_models_array(self, tmp_path):
+        """Test that empty models array in local.json is handled correctly."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        default_config = {
+            "models": [{"id": "model-1", "name": "Default Model"}],
+        }
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        # Empty models array in local.json
+        local_config = {"models": []}
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            result = load_config_from_files("development")
+
+        # Should keep default model (empty array doesn't override)
+        assert len(result["models"]) == 1
+        assert result["models"][0]["id"] == "model-1"
+
+    def test_local_json_no_models_key(self, tmp_path, caplog):
+        """Test local.json with no models key at all."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        default_config = {
+            "models": [{"id": "model-1", "name": "Default Model"}],
+        }
+        (config_dir / "default.json").write_text(json.dumps(default_config))
+
+        # local.json with only non-model keys
+        local_config = {
+            "application": {"debug": True},
+            "server": {"port": 9000},
+        }
+        (config_dir / "local.json").write_text(json.dumps(local_config))
+
+        with patch("app.core.config.Path") as mock_path:
+            mock_path.return_value.parent.parent.parent = tmp_path
+            with caplog.at_level(logging.WARNING):
+                result = load_config_from_files("development")
+
+        # Should keep default model
+        assert len(result["models"]) == 1
+        assert result["models"][0]["id"] == "model-1"
+
+        # Should warn about ignored keys
+        assert any("local.json contains non-model keys" in record.message for record in caplog.records)
