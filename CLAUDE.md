@@ -1,3 +1,5 @@
+This repository contains ARCHITECTURE.md and multiple AI*.md files.
+
 - Always use AI*.md for coding rules.
 - Check previous talks and implementations in docs/chats directory. 
 - Check documentation in root and docs/ directories.
@@ -7,17 +9,10 @@
 - use /opt/homebrew/bin/python3.13 as a right python3 command
 - use backend/venv for running any backend tests or applications using venv module
 
-# Code Review Workflow
+Before proposing or making any changes:
+- Read ARCHITECTURE.md to understand system architecture
+- Follow all applicable AI*.md files strictly
+- Do not redefine or duplicate AI rules
+- Document architecture as-is, not as imagined
 
-After making any code changes:
-
-1. Stage changes: `git add -u`
-2. Run review: `review "What I changed"`
-3. If approved: continue
-4. If issues: Fix them and review again
-
-Review command is available as:
-- `review "description"` - Full review
-- `review-quick "description"` - Quick review  
-- `review-security "description"` - Security review
-- `review-report` - Show last review
+If anything is unclear or contradictory, stop and ask.
