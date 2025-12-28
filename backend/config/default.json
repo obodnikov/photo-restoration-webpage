@@ -168,5 +168,9 @@
   "processing": {
     "max_concurrent_uploads_per_session": 3,
     "queue_size": 100
+  },
+  "model_configuration": {
+    "available_tags": ["restore", "replicate", "advanced", "enhance", "upscale", "fast"],
+    "available_categories": ["restore", "upscale", "enhance"]
   }
 }

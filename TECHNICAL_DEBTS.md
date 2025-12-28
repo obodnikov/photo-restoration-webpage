@@ -767,14 +767,255 @@ The updated decodeToken function includes critical security logic that should be
 
 ---
 
+## Admin - Model Configuration
+
+### 23. **Full Schema Editor for Model Configuration**
+**Context:** Admin Model Configuration Page (Phase 2.5)
+**Status:** Not implemented - JSON text areas used instead
+**Effort:** 8-12 hours
+**Priority:** LOW
+
+**Current Implementation:**
+- Model configuration uses JSON text areas for complex objects
+- Admins paste/edit raw JSON for `replicate_schema`, `custom`, `parameters`
+- Simple but requires JSON knowledge
+
+**Proposed Enhancement:**
+Build a visual form builder for schema editing:
+- Dynamic form generation based on schema structure
+- Type-specific inputs:
+  - Enum → Dropdown with predefined values
+  - Integer → Number input with min/max validation
+  - Boolean → Checkbox
+  - String → Text input
+  - Object → Nested form sections
+- Real-time validation as user types
+- Better UX for non-technical administrators
+- Still provide "Edit as JSON" toggle for advanced users
+
+**Implementation Approach:**
+1. Create `SchemaFormBuilder.tsx` component
+2. Recursive form rendering based on schema type
+3. Input components for each parameter type
+4. Validation rules from schema constraints
+5. Bidirectional sync: form ↔ JSON
+
+**Benefits:**
+- Lower barrier to entry for configuration management
+- Reduced JSON syntax errors
+- Guided configuration with tooltips and help text
+- Visual validation feedback
+
+**Files to Create:**
+- `frontend/src/features/admin/components/SchemaFormBuilder.tsx`
+- `frontend/src/features/admin/components/ParameterInput.tsx`
+
+**Files to Modify:**
+- `frontend/src/features/admin/components/ModelConfigDialog.tsx`
+
+---
+
+### 24. **Configurable Category Field**
+**Context:** Admin Model Configuration Page (Phase 2.5)
+**Status:** Category field uses hardcoded values
+**Effort:** 2-3 hours
+**Priority:** LOW
+
+**Current Implementation:**
+- Category field in model config uses dropdown with hardcoded options
+- Values: "restore", "upscale", "enhance"
+- Tags are configurable via `model_configuration.available_tags` in config
+
+**Proposed Enhancement:**
+Make category field configurable like tags:
+- Store available categories in `model_configuration.available_categories`
+- Admin endpoint to manage categories (add/edit/delete)
+- UI to customize category list
+- Ensure backward compatibility with existing model configs
+- Validate category field against available categories
+
+**Implementation Approach:**
+1. Already have `available_categories` in default.json (will be added)
+2. Add admin endpoints:
+   - `GET /api/v1/admin/models/categories` - List categories
+   - `POST /api/v1/admin/models/categories` - Add category
+   - `DELETE /api/v1/admin/models/categories/{name}` - Remove category
+3. Frontend: Category management section in admin panel
+4. Frontend: Dynamic category dropdown in model config form
+5. Backend: Validate category on model create/update
+
+**Benefits:**
+- Flexibility to add custom categories (e.g., "colorize", "denoise")
+- No need to hardcode category values
+- Consistent with tag configuration approach
+- Better scalability for different use cases
+
+**Files to Create:**
+- `frontend/src/features/admin/components/CategoryManager.tsx`
+
+**Files to Modify:**
+- `backend/app/core/config.py` - Add category CRUD methods
+- `backend/app/api/v1/routes/admin.py` - Add category endpoints
+- `frontend/src/features/admin/pages/AdminModelConfigPage.tsx` - Add category management UI
+- `frontend/src/features/admin/components/ModelConfigDialog.tsx` - Use dynamic categories
+
+### 25. **Optimize Repeated Disk Reads in list_model_configs Endpoint**
+**Context:** Admin Model Configuration API Performance
+**Status:** Not implemented - works but could be more efficient
+**Effort:** 2-3 hours
+**Priority:** LOW
+
+**Current Behavior:**
+- `list_model_configs` endpoint calls `get_model_source(model_id)` for every model
+- Each call to `get_model_source()` reopens and reads `local.json` and environment config files
+- For 50 models, this means 100+ file reads per request (2 files × 50 models)
+- No noticeable performance issue with current model counts (<50 models)
+
+**Performance Impact:**
+- Minimal with small model lists (< 50 models)
+- Could become problematic with hundreds of models
+- Most time spent on disk I/O for repeated file reads
+
+**Proposed Optimization Options:**
+
+**Option A: Cache source info during initial load**
+```python
+# In list_model_configs endpoint
+settings = get_settings()
+models = settings.get_models()
+
+# Read config files once
+local_models_ids = _get_local_model_ids(settings)
+env_models_ids = _get_env_model_ids(settings)
+
+# Build result using cached data
+result = []
+for model in models:
+    if model["id"] in local_models_ids:
+        source = "local"
+    elif model["id"] in env_models_ids:
+        source = settings.app_env
+    else:
+        source = "default"
+
+    result.append(ModelConfigListItem(..., source=source))
+```
+
+**Option B: Return source with models from get_models()**
+```python
+# Modify Settings.get_models() to return (model, source) tuples
+def get_models_with_sources(self) -> list[tuple[dict, str]]:
+    """Return models with their source information."""
+    # Read files once, cache results
+    # Return list of (model_dict, source_string) tuples
+```
+
+**Option C: Request-level caching**
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def _get_model_sources_cached(app_env: str) -> dict[str, str]:
+    """Cache model sources for a single request."""
+    # Read files once, build {model_id: source} mapping
+    # Cache expires on next request
+```
+
+**Recommended Approach:**
+- **Option A** - Simplest, no API changes needed
+- Read `local.json` and env config once at start of endpoint
+- Build model ID sets for fast lookup
+- No changes to other endpoints or core logic
+
+**When to Implement:**
+- When model count exceeds 100 models
+- When API response time becomes noticeable (>500ms)
+- During general performance optimization sprint
+
+**Files to Modify:**
+- `backend/app/api/v1/routes/admin.py` - `list_model_configs` endpoint
+
+**Benefits:**
+- Reduces disk I/O from O(n×2) to O(2) where n = model count
+- Improves response time for large model lists
+- Simple implementation, minimal risk
+
+---
+
+### 26. **Use Pydantic Models Directly in Route Signatures**
+**Context:** Admin Model Configuration API Code Quality
+**Status:** Currently using `dict` parameters with manual validation
+**Effort:** 1-2 hours
+**Priority:** LOW
+
+**Current Implementation:**
+```python
+@router.post("/models/config")
+async def create_model_config(
+    config_data: dict,  # Generic dict
+    current_user: dict = Depends(require_admin),
+) -> dict:
+    # Manual validation
+    try:
+        validated_config = ModelConfigCreate(**config_data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+**Proposed Improvement:**
+```python
+@router.post("/models/config")
+async def create_model_config(
+    config_data: ModelConfigCreate,  # Pydantic model
+    current_user: dict = Depends(require_admin),
+) -> ModelConfigDetail:
+    # Automatic validation by FastAPI
+    # No try/except needed
+    # Better OpenAPI docs
+```
+
+**Benefits:**
+1. **Automatic Validation**: FastAPI validates request body automatically
+2. **Better OpenAPI Docs**: Request/response schemas visible in Swagger UI
+3. **Type Safety**: IDE autocomplete and type checking
+4. **Cleaner Code**: Remove manual validation try/except blocks
+5. **Consistent Errors**: FastAPI returns standard 422 validation errors
+
+**Endpoints to Update:**
+- `POST /api/v1/admin/models/config` - create_model_config
+- `PUT /api/v1/admin/models/config/{model_id}` - update_model_config
+- `POST /api/v1/admin/models/validate` - validate_model_config
+
+**Files to Modify:**
+- `backend/app/api/v1/routes/admin.py` - Update function signatures
+- Remove manual validation code
+- Update return type hints
+
+**Trade-offs:**
+- **Pro**: Better DX, cleaner code, improved docs
+- **Con**: Less flexibility for custom error messages (but can use Field validators)
+- **Pro**: Consistent with FastAPI best practices
+
+**When to Implement:**
+- During code refactoring sprint
+- When improving API documentation
+- Before adding more admin endpoints
+
+**Compatibility:**
+- No breaking changes for API consumers
+- Error response format changes from custom to FastAPI standard
+- Response schemas remain the same
+
+---
+
 ## Summary
 
-**Total Items:** 22
+**Total Items:** 26
 **Completed Items:** 8
-**Pending Items:** 13
+**Pending Items:** 18
 **High Priority:** 0 (All Phase 2.4 tasks complete!)
 **Medium Priority:** 1 (Test coverage for admin panel)
-**Low Priority:** 12 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests)
+**Low Priority:** 17 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories, API performance optimizations)
 
 **✅ Phase 2.4 Complete - All 3 Steps Finished:**
 - ✅ Step 1: User Profile Page (Complete, production-ready)
@@ -792,7 +1033,7 @@ The updated decodeToken function includes critical security logic that should be
 - Test coverage for admin panel (MEDIUM priority, 3-4 hours) - See Item #17
 - Server-side search for admin panel (LOW priority, 1-2 hours) - See Item #18
 
-**Estimated Total Effort for Remaining Items:** 26-32 hours
+**Estimated Total Effort for Remaining Items:** 39-51 hours
 
 ---
 
@@ -807,7 +1048,9 @@ The updated decodeToken function includes critical security logic that should be
 ---
 
 **Document Created:** 2024-12-22
-**Last Updated:** 2025-12-23
+**Last Updated:** 2025-12-25
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
+**Phase:** 2.5 - Admin Model Configuration (Backend Complete, Frontend In Progress)
 **Test Coverage Improvements:** ✅ COMPLETE (5/5 critical items implemented)
+**Admin Model Config Optimizations:** Added items #25 and #26 based on code review suggestions
 **Maintainer:** Development Team
