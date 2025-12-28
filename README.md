@@ -159,7 +159,15 @@ Edit `backend/config/production.json` (or `development.json`) for your environme
 The system loads configuration in this order (each level overrides the previous):
 1. `config/default.json` - **REQUIRED** base configuration (**MUST EXIST**)
 2. `config/{APP_ENV}.json` - Environment-specific overrides (e.g., `production.json`)
-3. Environment variables (`.env`) - **HIGHEST PRIORITY** overrides
+3. `config/local.json` - **MODEL CONFIGURATIONS ONLY** (optional, gitignored)
+4. Environment variables (`.env`) - **HIGHEST PRIORITY** overrides
+
+**⚠️ Important - `local.json` behavior:**
+- `local.json` is **exclusively for model configuration overrides**
+- Only the `models` array from `local.json` is processed
+- **All other configuration keys are ignored** (application, server, database, cors, etc.)
+- For non-model overrides, use environment-specific files or environment variables
+- See [docs/configuration.md](docs/configuration.md#localjson-configuration) for details
 
 **What happens if `default.json` is missing?**
 - The system will fall back to deprecated `.env`-only mode

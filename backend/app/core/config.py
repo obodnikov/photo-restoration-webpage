@@ -61,8 +61,13 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
 
     Loading priority (lowest to highest):
     1. config/default.json (base configuration)
-    2. config/{app_env}.json (environment-specific overrides)
-    3. config/local.json (local overrides, highest priority)
+    2. config/{app_env}.json (environment-specific overrides for all settings)
+    3. config/local.json (MODEL CONFIGURATIONS ONLY - other keys ignored)
+
+    Note: local.json is exclusively for model overrides. Only the 'models' array
+    is merged from local.json. All other configuration keys (application, server,
+    database, etc.) in local.json are silently ignored. For non-model overrides,
+    use environment-specific files or environment variables.
 
     Args:
         app_env: Application environment (development, production, staging, testing)
@@ -90,16 +95,21 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     else:
         logger.info(f"No environment-specific config found at {env_config_path}, using defaults only")
 
-    # Load local config (highest priority) - for model configurations
+    # Load local config - MODELS ONLY (all other keys are ignored)
+    # Note: local.json is exclusively for model configuration overrides.
+    # For non-model settings, use environment-specific files or environment variables.
     local_config_path = config_dir / "local.json"
     if local_config_path.exists():
         try:
             local_config = load_json_config(local_config_path)
             # Special handling for models array - merge by model ID
+            # IMPORTANT: Only 'models' key is processed from local.json
+            # All other keys (application, server, database, etc.) are ignored
             if "models" in local_config and "models" in config:
                 config["models"] = merge_model_configs(config["models"], local_config["models"])
-            else:
-                config = deep_merge(config, local_config)
+            elif "models" in local_config:
+                # If base config has no models, use local models directly
+                config["models"] = local_config["models"]
             logger.info(f"Loaded local config from {local_config_path}")
         except Exception as e:
             logger.error(f"Error loading local config: {e}, skipping")

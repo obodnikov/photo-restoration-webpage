@@ -23,9 +23,12 @@ This document provides a complete reference for all configuration options in the
 Configuration is loaded from JSON files in the `config/` directory based on the `APP_ENV` environment variable.
 
 **Loading Priority** (highest to lowest):
-1. Environment variables (from `.env` file)
-2. Environment-specific config (`config/{APP_ENV}.json`)
-3. Default config (`config/default.json`)
+1. Environment variables (from `.env` file) - Override all settings
+2. `config/local.json` - **Model configurations ONLY** (all other keys ignored)
+3. Environment-specific config (`config/{APP_ENV}.json`) - Override all settings
+4. Default config (`config/default.json`) - Base configuration
+
+**Important:** `config/local.json` is exclusively for model overrides. See [local.json Configuration](#localjson-configuration) below for details.
 
 ## Configuration Sections
 
@@ -397,6 +400,102 @@ Maximum queue size for processing tasks
 - **Default:** `100`
 - **Minimum:** `1`
 - **Environment Override:** `PROCESSING_QUEUE_SIZE`
+
+---
+
+## local.json Configuration
+
+<a id="localjson-configuration"></a>
+
+### Purpose
+
+The `config/local.json` file is **exclusively for local model configuration overrides**. It is gitignored and intended for:
+- Testing new AI models locally before committing to version control
+- Overriding model settings for development/testing
+- Adding temporary models without affecting shared configuration
+
+### Important Limitations
+
+**⚠️ CRITICAL:** `local.json` only affects the `models` array. All other configuration keys are **silently ignored**.
+
+**What works in `local.json`:**
+- ✅ `models` array - Models are merged by ID with base configuration
+
+**What does NOT work in `local.json`:**
+- ❌ `application` - Use `development.json` or environment variables instead
+- ❌ `server` - Use `development.json` or environment variables instead
+- ❌ `cors` - Use `development.json` or environment variables instead
+- ❌ `database` - Use `development.json` or environment variables instead
+- ❌ `file_storage` - Use `development.json` or environment variables instead
+- ❌ `model_configuration` - Use `development.json` or environment variables instead
+- ❌ Any other non-model configuration keys
+
+### Model Merging Behavior
+
+When both base configuration (from `default.json` + `{APP_ENV}.json`) and `local.json` contain a `models` array:
+
+1. Models from `local.json` are merged by `id` field
+2. If a model ID exists in both, the `local.json` version **completely replaces** the base model
+3. If a model ID only exists in `local.json`, it is added to the final configuration
+4. If a model ID only exists in base configuration, it remains unchanged
+
+**Example:**
+
+`default.json`:
+```json
+{
+  "models": [
+    {"id": "model-1", "name": "Model 1", "enabled": true},
+    {"id": "model-2", "name": "Model 2", "enabled": true}
+  ]
+}
+```
+
+`local.json`:
+```json
+{
+  "models": [
+    {"id": "model-2", "name": "Model 2 (Local)", "enabled": false},
+    {"id": "model-3", "name": "Model 3 (Test)", "enabled": true}
+  ],
+  "application": {
+    "debug": true
+  }
+}
+```
+
+**Result:**
+```json
+{
+  "models": [
+    {"id": "model-1", "name": "Model 1", "enabled": true},
+    {"id": "model-2", "name": "Model 2 (Local)", "enabled": false},
+    {"id": "model-3", "name": "Model 3 (Test)", "enabled": true}
+  ]
+}
+```
+
+Note: The `application.debug` setting from `local.json` is **ignored**.
+
+### For Non-Model Configuration Overrides
+
+To override non-model configuration locally:
+
+**Option 1: Use environment-specific files (recommended)**
+```bash
+# Edit config/development.json for development overrides
+# Edit config/production.json for production overrides
+```
+
+**Option 2: Use environment variables**
+```bash
+# In .env file
+DEBUG=true
+HOST=127.0.0.1
+PORT=9000
+```
+
+Environment variables have the highest priority and override all JSON configuration files.
 
 ---
 

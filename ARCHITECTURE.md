@@ -216,13 +216,19 @@ All requests → Authorization: Bearer {JWT}
 
 ```
 Priority (Highest → Lowest):
-1. Environment variables (.env) → Override specific values
-2. config/local.json            → Local overrides (gitignored)
-3. config/{APP_ENV}.json        → Environment-specific (production/dev/staging)
+1. Environment variables (.env) → Override specific values for all settings
+2. config/local.json            → Model configurations ONLY (gitignored)
+3. config/{APP_ENV}.json        → Environment-specific overrides (production/dev/staging)
 4. config/default.json          → Base config (REQUIRED)
 ```
 
 **Critical:** `default.json` MUST exist or app falls back to deprecated `.env`-only mode.
+
+**Important - `local.json` behavior:**
+- `local.json` is **exclusively for model configuration overrides**
+- Only the `models` array from `local.json` is merged (by model ID)
+- **All other configuration keys in `local.json` are ignored** (application, database, server, cors, etc.)
+- For non-model configuration overrides, use environment-specific files (`development.json`, `production.json`) or environment variables (.env)
 
 ---
 
@@ -245,9 +251,9 @@ Priority (Highest → Lowest):
 - `backend/config/default.json` - Base configuration (committed to git)
 
 **Optional Files:**
-- `backend/config/production.json` - Production overrides
-- `backend/config/development.json` - Development overrides
-- `backend/config/local.json` - Local overrides (HIGHEST priority, gitignored)
+- `backend/config/production.json` - Production overrides (all settings)
+- `backend/config/development.json` - Development overrides (all settings)
+- `backend/config/local.json` - **Model configuration ONLY** (gitignored, non-model keys ignored)
 
 **Configuration Sections:**
 - `application` - App name, version, debug, log level
