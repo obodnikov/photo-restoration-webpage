@@ -102,6 +102,16 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     if local_config_path.exists():
         try:
             local_config = load_json_config(local_config_path)
+
+            # Warn about ignored keys (anything other than 'models')
+            ignored_keys = [key for key in local_config.keys() if key != "models"]
+            if ignored_keys:
+                logger.warning(
+                    f"local.json contains non-model keys that will be ignored: {ignored_keys}. "
+                    f"local.json only affects 'models' array. "
+                    f"For other settings, use environment-specific files or environment variables."
+                )
+
             # Special handling for models array - merge by model ID
             # IMPORTANT: Only 'models' key is processed from local.json
             # All other keys (application, server, database, etc.) are ignored
