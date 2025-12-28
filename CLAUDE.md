@@ -16,3 +16,23 @@ Before proposing or making any changes:
 - Document architecture as-is, not as imagined
 
 If anything is unclear or contradictory, stop and ask.
+
+## Architecture Updates
+
+When making architectural changes:
+
+1. Identify change type in ARCHITECTURE_UPDATE_PROMPTS.md
+2. Use the appropriate scenario prompt
+3. Customize with your specifics
+4. Run with Claude to update ARCHITECTURE.md
+5. Validate with checklist
+6. Commit with proper message
+
+Common scenarios:
+- New feature → Scenario 1
+- Stability change → Scenario 2
+- Major decision → Scenario 3
+- Integration → Scenario 4
+
+See ARCHITECTURE_UPDATE_PROMPTS.md for all scenarios.
+
