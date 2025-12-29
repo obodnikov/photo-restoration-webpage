@@ -220,7 +220,7 @@ class TestModelConfig:
         assert config.custom.ui_controls["quality"].step == 5
 
     def test_custom_field_empty_default(self):
-        """Test that custom field defaults to ModelCustomConfig."""
+        """Test that custom field defaults to None."""
         config = ModelConfig(
             id="test-model",
             name="Test Model",
@@ -229,8 +229,61 @@ class TestModelConfig:
             category="upscale",
             description="Test"
         )
-        assert isinstance(config.custom, ModelCustomConfig)
-        assert config.custom.ui_controls is None
+        assert config.custom is None
+
+    def test_custom_field_truthiness_empty(self):
+        """Test that empty ModelCustomConfig is falsy (backwards compatibility)."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="huggingface",
+            category="upscale",
+            description="Test",
+            custom={}  # Empty custom config
+        )
+        # Should be falsy like empty dict
+        assert not config.custom
+        assert config.custom is not None  # But still exists
+
+    def test_custom_field_truthiness_with_ui_controls(self):
+        """Test that ModelCustomConfig with ui_controls is truthy."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "ui_controls": {
+                    "quality": {"type": "slider"}
+                }
+            }
+        )
+        # Should be truthy when ui_controls present
+        assert config.custom
+        assert bool(config.custom) is True
+
+    def test_custom_field_truthiness_with_extra_fields(self):
+        """Test that ModelCustomConfig with extra fields only is truthy."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "some_future_field": "value",
+                "another_custom_config": 123
+            }
+        )
+        # Should be truthy when extra fields present (even without ui_controls)
+        assert config.custom
+        assert bool(config.custom) is True
+        assert config.custom.ui_controls is None  # No ui_controls
+        assert config.custom.model_extra is not None  # But has extra fields
 
     def test_custom_field_invalid_ui_control_type(self):
         """Test that invalid UI control type is rejected."""
