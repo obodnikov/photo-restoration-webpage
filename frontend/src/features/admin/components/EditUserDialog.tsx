@@ -16,7 +16,7 @@ export interface EditUserDialogProps {
   isLoading?: boolean;
 }
 
-export const EditUserDialog: React.FC<EditUserDialogProps> = ({
+const EditUserDialogComponent: React.FC<EditUserDialogProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -193,3 +193,6 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
     </Modal>
   );
 };
+
+// Export memoized version to prevent unnecessary re-renders and focus loss
+export const EditUserDialog = React.memo(EditUserDialogComponent);

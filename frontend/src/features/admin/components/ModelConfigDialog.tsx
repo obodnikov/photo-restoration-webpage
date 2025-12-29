@@ -27,7 +27,7 @@ export interface ModelConfigDialogProps {
   isLoading?: boolean;
 }
 
-export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
+const ModelConfigDialogComponent: React.FC<ModelConfigDialogProps> = ({
   isOpen,
   onClose,
   onSave,
@@ -439,3 +439,6 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
     </Modal>
   );
 };
+
+// Export memoized version to prevent unnecessary re-renders and focus loss
+export const ModelConfigDialog = React.memo(ModelConfigDialogComponent);
