@@ -43,9 +43,10 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
                 schema_data = model_dict["replicate_schema"]
                 schema = ReplicateModelSchema(**schema_data)
 
-                # Build schema response for frontend (only UI-visible parameters)
+                # Build schema response for frontend (include ALL parameters with ui_hidden flag)
+                # Frontend will filter based on ui_hidden
                 parameters = []
-                for param in schema.get_ui_visible_parameters():
+                for param in schema.input.parameters:
                     parameters.append(
                         ParameterSchemaResponse(
                             name=param.name,
@@ -56,6 +57,7 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
                             min=param.min,
                             max=param.max,
                             values=param.values,
+                            ui_hidden=param.ui_hidden,
                             ui_group=param.ui_group,
                         )
                     )
