@@ -1,0 +1,237 @@
+/**
+ * MigrationWarningBanner styles
+ */
+
+.migration-warning-banner {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+  border: 2px solid #ff9800;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.15);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.migration-warning-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.migration-warning-icon {
+  flex-shrink: 0;
+  color: #ff9800;
+  margin-top: 2px;
+}
+
+.migration-warning-icon svg {
+  display: block;
+}
+
+.migration-warning-text {
+  flex: 1;
+}
+
+.migration-warning-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e65100;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.migration-warning-message {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9375rem;
+  color: #5d4037;
+  line-height: 1.5;
+}
+
+.migration-warning-details {
+  margin-top: 0.75rem;
+}
+
+.migration-warning-details summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #f57c00;
+  user-select: none;
+  padding: 0.25rem 0;
+  transition: color 0.2s ease;
+}
+
+.migration-warning-details summary:hover {
+  color: #e65100;
+}
+
+.migration-warning-details summary::-webkit-details-marker {
+  color: #ff9800;
+}
+
+.migration-details-content {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-left: 3px solid #ff9800;
+  border-radius: 4px;
+}
+
+.migration-details-content p {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #5d4037;
+}
+
+.migration-details-content strong {
+  color: #e65100;
+  font-weight: 600;
+}
+
+.migration-details-content ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.migration-details-content li {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+  color: #6d4c41;
+  font-family: 'Courier New', monospace;
+}
+
+.migration-command {
+  display: block;
+  margin: 0.5rem 0;
+  padding: 0.75rem;
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #d84315;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.migration-help-text {
+  font-size: 0.8125rem !important;
+  color: #795548 !important;
+  font-style: italic;
+}
+
+.migration-warning-dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: #bf360c;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.migration-warning-dismiss:hover {
+  background: rgba(191, 54, 12, 0.1);
+  color: #bf360c;
+  transform: scale(1.1);
+}
+
+.migration-warning-dismiss:active {
+  transform: scale(0.95);
+}
+
+.migration-warning-dismiss:focus {
+  outline: 2px solid #ff9800;
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .migration-warning-content {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .migration-warning-dismiss {
+    align-self: flex-end;
+  }
+
+  .migration-command {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+  }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+  .migration-warning-banner {
+    background: linear-gradient(135deg, #3e2723 0%, #4e342e 100%);
+    border-color: #ff6f00;
+  }
+
+  .migration-warning-title {
+    color: #ffb74d;
+  }
+
+  .migration-warning-message {
+    color: #d7ccc8;
+  }
+
+  .migration-warning-details summary {
+    color: #ffb74d;
+  }
+
+  .migration-warning-details summary:hover {
+    color: #ffa726;
+  }
+
+  .migration-details-content {
+    background: rgba(62, 39, 35, 0.7);
+    border-left-color: #ff9800;
+  }
+
+  .migration-details-content p {
+    color: #d7ccc8;
+  }
+
+  .migration-details-content strong {
+    color: #ffb74d;
+  }
+
+  .migration-details-content li {
+    color: #bcaaa4;
+  }
+
+  .migration-command {
+    background: #3e2723;
+    border-color: #ff9800;
+    color: #ffcc80;
+  }
+
+  .migration-help-text {
+    color: #a1887f !important;
+  }
+
+  .migration-warning-dismiss {
+    color: #ffab91;
+  }
+
+  .migration-warning-dismiss:hover {
+    background: rgba(255, 171, 145, 0.15);
+    color: #ffab91;
+  }
+}

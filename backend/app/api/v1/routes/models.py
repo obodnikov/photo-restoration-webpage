@@ -262,3 +262,35 @@ async def get_model(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Model '{model_id}' not found",
     )
+
+
+@router.get("/migration/status", summary="Get UI migration status")
+async def get_migration_status(
+    settings: Annotated[Settings, Depends(get_settings)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
+):
+    """
+    Get migration status for Custom Model Parameters UI feature.
+
+    Returns information about whether models need migration to support
+    the new UI parameter controls.
+
+    **Authentication:**
+    - Optional (follows models_require_auth setting)
+    - If auth required, returns 403 when credentials not provided
+
+    Returns:
+        Migration status with model IDs and parameter names
+    """
+    # Check auth if required (reuse same auth logic as models endpoint)
+    await check_auth_if_required(settings, credentials)
+
+    migration_info = settings.get_ui_migration_info()
+
+    return {
+        "needs_migration": migration_info['needs_migration'],
+        "count": migration_info['count'],
+        "model_ids": migration_info['model_ids'],
+        "missing_params": migration_info['missing_params'],
+        "migration_command": settings.migration_script_command
+    }

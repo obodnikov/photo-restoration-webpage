@@ -10,6 +10,7 @@ import { ImageComparison } from '../components/ImageComparison';
 import { useImageRestore } from '../hooks/useImageRestore';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
+import { MigrationWarningBanner } from '../components/MigrationWarningBanner';
 
 export const RestorationPage: React.FC = () => {
   const {
@@ -43,6 +44,8 @@ export const RestorationPage: React.FC = () => {
             Upload your old or damaged photos and restore them using advanced AI models
           </p>
         </div>
+
+        <MigrationWarningBanner />
 
         {error && (
           <ErrorMessage
