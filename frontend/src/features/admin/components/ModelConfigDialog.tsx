@@ -3,7 +3,7 @@
  * Main dialog for creating and editing model configurations
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -230,11 +230,11 @@ const ModelConfigDialogComponent: React.FC<ModelConfigDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
       onClose();
     }
-  };
+  }, [isLoading, onClose]);
 
   return (
     <Modal

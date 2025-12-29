@@ -2,7 +2,7 @@
  * Edit User Dialog component
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -80,12 +80,12 @@ const EditUserDialogComponent: React.FC<EditUserDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
       setError(null);
       onClose();
     }
-  };
+  }, [isLoading, onClose]);
 
   if (!user) return null;
 
