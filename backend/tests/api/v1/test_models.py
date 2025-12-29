@@ -364,3 +364,192 @@ class TestModelsCaching:
         data2 = response2.json()
         assert data2["total"] == 1
         assert data2["models"][0]["id"] == "new-model"
+
+
+class TestMigrationStatusEndpoint:
+    """Tests for migration status endpoint."""
+
+    def test_migration_status_no_migration_needed(self):
+        """Test migration status when no migration is needed."""
+        # Config with no Replicate models
+        config_data = {
+            "models": [
+                {
+                    "id": "hf-model",
+                    "name": "HF Model",
+                    "provider": "huggingface",
+                    "model": "test/model"
+                }
+            ]
+        }
+
+        settings = Settings(
+            secret_key="test-secret-key-min-32-chars-long-for-testing",
+            models_config=json.dumps(config_data["models"]),
+            auth_username="testuser",
+            auth_password="testpass",
+            hf_api_key="test-key",
+        )
+        settings._using_json_config = True
+        settings._config_data = config_data
+        settings._ui_migration_warnings = {"needs_migration": [], "missing_params": []}
+
+        app.dependency_overrides[get_settings] = lambda: settings
+        client = TestClient(app)
+
+        response = client.get("/api/v1/models/migration/status")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["needs_migration"] is False
+        assert data["count"] == 0
+        assert data["model_ids"] == []
+        assert data["missing_params"] == []
+        assert "migration_command" in data
+
+        app.dependency_overrides.clear()
+
+    def test_migration_status_migration_needed(self):
+        """Test migration status when migration is needed."""
+        # Config with Replicate model missing ui_hidden flags
+        config_data = {
+            "models": [
+                {
+                    "id": "replicate-restore",
+                    "name": "Replicate Restore",
+                    "provider": "replicate",
+                    "model": "test/restore",
+                    "replicate_schema": {
+                        "input": {
+                            "image": {
+                                "param_name": "input_image",
+                                "type": "uri"
+                            },
+                            "parameters": [
+                                {
+                                    "name": "output_format",
+                                    "type": "enum",
+                                    "values": ["jpg", "png"]
+                                    # Missing ui_hidden!
+                                },
+                                {
+                                    "name": "seed",
+                                    "type": "integer"
+                                    # Missing ui_hidden!
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+
+        settings = Settings(
+            secret_key="test-secret-key-min-32-chars-long-for-testing",
+            models_config=json.dumps(config_data["models"]),
+            auth_username="testuser",
+            auth_password="testpass",
+            hf_api_key="test-key",
+        )
+        settings._using_json_config = True
+        settings._config_data = config_data
+
+        # Manually trigger validation to populate warnings
+        from app.core.config import validate_ui_parameters
+        settings._ui_migration_warnings = validate_ui_parameters(config_data["models"])
+
+        app.dependency_overrides[get_settings] = lambda: settings
+        client = TestClient(app)
+
+        response = client.get("/api/v1/models/migration/status")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["needs_migration"] is True
+        assert data["count"] == 1
+        assert "replicate-restore" in data["model_ids"]
+        assert len(data["missing_params"]) == 2
+        assert "replicate-restore.output_format" in data["missing_params"]
+        assert "replicate-restore.seed" in data["missing_params"]
+        assert data["migration_command"] == "python backend/scripts/migrate_ui_parameters.py"
+
+        app.dependency_overrides.clear()
+
+    def test_migration_status_partial_migration(self):
+        """Test migration status with some parameters already migrated."""
+        config_data = {
+            "models": [
+                {
+                    "id": "replicate-model",
+                    "provider": "replicate",
+                    "replicate_schema": {
+                        "input": {
+                            "image": {"param_name": "input_image", "type": "uri"},
+                            "parameters": [
+                                {
+                                    "name": "param1",
+                                    "type": "string",
+                                    "ui_hidden": False  # Already migrated
+                                },
+                                {
+                                    "name": "param2",
+                                    "type": "integer"
+                                    # Missing ui_hidden
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+
+        settings = Settings(
+            secret_key="test-secret-key-min-32-chars-long-for-testing",
+            models_config=json.dumps(config_data["models"]),
+            auth_username="testuser",
+            auth_password="testpass",
+            hf_api_key="test-key",
+        )
+        settings._using_json_config = True
+        settings._config_data = config_data
+
+        from app.core.config import validate_ui_parameters
+        settings._ui_migration_warnings = validate_ui_parameters(config_data["models"])
+
+        app.dependency_overrides[get_settings] = lambda: settings
+        client = TestClient(app)
+
+        response = client.get("/api/v1/models/migration/status")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["needs_migration"] is True
+        assert data["count"] == 1
+        assert len(data["missing_params"]) == 1  # Only param2
+        assert "replicate-model.param2" in data["missing_params"]
+
+        app.dependency_overrides.clear()
+
+    def test_migration_status_no_warnings_when_not_using_json_config(self):
+        """Test that migration status works when not using JSON config."""
+        settings = Settings(
+            secret_key="test-secret-key-min-32-chars-long-for-testing",
+            models_config=json.dumps([]),
+            auth_username="testuser",
+            auth_password="testpass",
+            hf_api_key="test-key",
+        )
+        settings._using_json_config = False
+        settings._ui_migration_warnings = None
+
+        app.dependency_overrides[get_settings] = lambda: settings
+        client = TestClient(app)
+
+        response = client.get("/api/v1/models/migration/status")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["needs_migration"] is False
+        assert data["count"] == 0
+
+        app.dependency_overrides.clear()
