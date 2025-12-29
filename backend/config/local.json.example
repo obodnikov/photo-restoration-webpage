@@ -1,0 +1,154 @@
+{
+  "models": [
+    {
+      "id": "replicate-google-upscaler",
+      "name": "Google Photo Upscaler",
+      "model": "google/upscaler",
+      "provider": "replicate",
+      "category": "upscale",
+      "description": "Upscale images 2x or 4x times",
+      "enabled": true,
+      "tags": ["replicate", "advanced", "upscale"],
+      "version": "1.0",
+      "replicate_schema": {
+        "input": {
+          "image": {
+            "param_name": "image",
+            "type": "uri",
+            "format": "image",
+            "required": true,
+            "description": "Image to upscale"
+          },
+          "parameters": [
+            {
+              "name": "upscale_factor",
+              "type": "string",
+              "required": false,
+              "description": "Factor by which to upscale the image",
+              "default": "x2",
+              "ui_hidden": false
+            },
+            {
+              "name": "compression_quality",
+              "type": "integer",
+              "required": false,
+              "description": "Compression quality for output (1-100)",
+              "default": 80,
+              "min": 1,
+              "max": 100,
+              "ui_hidden": false
+            }
+          ]
+        },
+        "output": {
+          "type": "uri",
+          "format": "image"
+        },
+        "custom": {
+          "max_file_size_mb": 10,
+          "supported_formats": ["jpg", "jpeg", "png"],
+          "estimated_time_seconds": null
+        }
+      },
+      "custom": {
+        "ui_controls": {
+          "upscale_factor": {
+            "type": "radio",
+            "options": ["x2", "x4"],
+            "label": "Upscale Factor",
+            "help": "Choose 2x or 4x upscaling",
+            "order": 1
+          },
+          "compression_quality": {
+            "type": "slider",
+            "label": "Output Quality",
+            "help": "Higher quality = larger file size",
+            "order": 2,
+            "step": 5,
+            "marks": {
+              "1": "Low",
+              "50": "Medium",
+              "100": "High"
+            }
+          }
+        }
+      },
+      "parameters": {
+        "output_format": "png",
+        "safety_tolerance": 2
+      }
+    },
+    {
+      "id": "replicate-restore-auto",
+      "name": "FLUX Kontext Photo Restore (Auto UI)",
+      "model": "flux-kontext-apps/restore-image",
+      "provider": "replicate",
+      "category": "restore",
+      "description": "Advanced photo restoration (demonstrates auto-detection)",
+      "enabled": true,
+      "tags": ["restore", "replicate", "advanced"],
+      "version": "1.0",
+      "replicate_schema": {
+        "input": {
+          "image": {
+            "param_name": "input_image",
+            "type": "uri",
+            "format": "image",
+            "required": true,
+            "description": "Image to restore (jpeg, png, gif, webp)"
+          },
+          "parameters": [
+            {
+              "name": "seed",
+              "type": "integer",
+              "required": false,
+              "description": "Random seed for reproducible generation",
+              "ui_hidden": true
+            },
+            {
+              "name": "output_format",
+              "type": "enum",
+              "values": ["jpg", "png"],
+              "default": "png",
+              "required": false,
+              "description": "Output image format",
+              "ui_hidden": false
+            },
+            {
+              "name": "enable_enhancement",
+              "type": "boolean",
+              "default": true,
+              "required": false,
+              "description": "Apply AI-based enhancement",
+              "ui_hidden": false
+            },
+            {
+              "name": "safety_tolerance",
+              "type": "integer",
+              "min": 0,
+              "max": 2,
+              "default": 2,
+              "required": false,
+              "description": "Safety level (0=strict, 2=permissive)",
+              "ui_hidden": true
+            }
+          ]
+        },
+        "output": {
+          "type": "uri",
+          "format": "image"
+        },
+        "custom": {
+          "max_file_size_mb": 10,
+          "supported_formats": ["jpg", "jpeg", "png", "webp", "gif"],
+          "estimated_time_seconds": 30
+        }
+      },
+      "custom": {},
+      "parameters": {
+        "output_format": "png",
+        "safety_tolerance": 2
+      }
+    }
+  ]
+}

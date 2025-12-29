@@ -9,6 +9,7 @@ from app.core.config_schema import (
     ModelConfig,
     SecurityConfig,
     ServerConfig,
+    UIControlConfig,
 )
 
 
@@ -72,6 +73,67 @@ class TestServerConfig:
             ServerConfig(workers=17)
 
 
+class TestUIControlConfig:
+    """Tests for UIControlConfig schema."""
+
+    def test_valid_slider_control(self):
+        """Test valid slider UI control config."""
+        config = UIControlConfig(
+            type="slider",
+            label="Quality",
+            help="Image quality setting",
+            order=1,
+            step=5,
+            marks={"1": "Low", "50": "Medium", "100": "High"}
+        )
+        assert config.type == "slider"
+        assert config.label == "Quality"
+        assert config.step == 5
+        assert config.marks == {"1": "Low", "50": "Medium", "100": "High"}
+
+    def test_valid_dropdown_control(self):
+        """Test valid dropdown UI control config."""
+        config = UIControlConfig(
+            type="dropdown",
+            options=["x2", "x4"],
+            label="Upscale Factor",
+            help="Choose upscaling multiplier",
+            order=1
+        )
+        assert config.type == "dropdown"
+        assert config.options == ["x2", "x4"]
+
+    def test_valid_radio_control(self):
+        """Test valid radio UI control config."""
+        config = UIControlConfig(
+            type="radio",
+            options=["png", "jpg"]
+        )
+        assert config.type == "radio"
+        assert config.label is None  # Optional
+
+    def test_valid_toggle_control(self):
+        """Test valid toggle UI control config."""
+        config = UIControlConfig(
+            type="toggle",
+            label="Enable Feature"
+        )
+        assert config.type == "toggle"
+
+    def test_invalid_control_type(self):
+        """Test invalid control type raises error."""
+        with pytest.raises(ValidationError):
+            UIControlConfig(type="invalid")
+
+    def test_minimal_control(self):
+        """Test minimal control with only type."""
+        config = UIControlConfig(type="text")
+        assert config.type == "text"
+        assert config.label is None
+        assert config.help is None
+        assert config.options is None
+
+
 class TestModelConfig:
     """Tests for ModelConfig schema."""
 
@@ -126,6 +188,46 @@ class TestModelConfig:
         # Missing provider
         with pytest.raises(ValidationError):
             ModelConfig(id="test", name="Test", model="test/model", category="test", description="Test")
+
+    def test_custom_field_with_ui_controls(self):
+        """Test model with custom UI controls configuration."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "ui_controls": {
+                    "quality": {
+                        "type": "slider",
+                        "label": "Quality",
+                        "step": 5,
+                        "marks": {"1": "Low", "100": "High"}
+                    },
+                    "format": {
+                        "type": "radio",
+                        "options": ["png", "jpg"]
+                    }
+                }
+            }
+        )
+        assert "ui_controls" in config.custom
+        assert "quality" in config.custom["ui_controls"]
+        assert config.custom["ui_controls"]["quality"]["type"] == "slider"
+
+    def test_custom_field_empty_default(self):
+        """Test that custom field defaults to empty dict."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="huggingface",
+            category="upscale",
+            description="Test"
+        )
+        assert config.custom == {}
 
 
 class TestFileStorageConfig:

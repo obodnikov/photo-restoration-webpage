@@ -29,7 +29,23 @@ class ParameterSchemaResponse(BaseModel):
     min: int | float | None = Field(None, description="Minimum value (for numeric types)")
     max: int | float | None = Field(None, description="Maximum value (for numeric types)")
     values: list[str] | None = Field(None, description="Allowed values (for enum type)")
+    ui_hidden: bool | None = Field(None, description="Whether parameter should be hidden from UI")
     ui_group: str | None = Field(None, description="UI grouping hint")
+
+
+class UIControlConfigResponse(BaseModel):
+    """UI control configuration for frontend."""
+
+    type: Literal[
+        "text", "textarea", "number", "slider",
+        "dropdown", "radio", "toggle", "checkbox"
+    ] = Field(..., description="UI control type")
+    label: str | None = Field(None, description="Display label (overrides auto-generated)")
+    help: str | None = Field(None, description="Help text tooltip")
+    options: list[str] | None = Field(None, description="Options for dropdown/radio")
+    order: int | None = Field(None, description="Display order")
+    step: int | float | None = Field(None, description="Step size for slider/number")
+    marks: dict[str, str] | None = Field(None, description="Slider marks {value: label}")
 
 
 class CustomSchemaResponse(BaseModel):
@@ -88,6 +104,10 @@ class ModelInfo(BaseModel):
         alias="schema",
         serialization_alias="schema",
         description="Model schema (for Replicate models with parameter validation)"
+    )
+    custom: dict[str, Any] | None = Field(
+        None,
+        description="Custom application-specific configuration (e.g., ui_controls for parameter UI)"
     )
 
 

@@ -83,6 +83,40 @@ class ApiProvidersConfig(BaseModel):
     )
 
 
+class UIControlConfig(BaseModel):
+    """UI control configuration for a parameter."""
+
+    type: Literal[
+        "text", "textarea", "number", "slider",
+        "dropdown", "radio", "toggle", "checkbox"
+    ] = Field(description="UI control type")
+
+    label: str | None = Field(
+        None,
+        description="Display label (overrides auto-generated)"
+    )
+    help: str | None = Field(
+        None,
+        description="Help text tooltip"
+    )
+    options: list[str] | None = Field(
+        None,
+        description="Options for dropdown/radio"
+    )
+    order: int | None = Field(
+        None,
+        description="Display order"
+    )
+    step: int | float | None = Field(
+        None,
+        description="Step size for slider/number"
+    )
+    marks: dict[str, str] | None = Field(
+        None,
+        description="Slider marks {value: label}"
+    )
+
+
 class ModelConfig(BaseModel):
     """Individual model configuration."""
 
@@ -99,6 +133,10 @@ class ModelConfig(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="Model-specific parameters")
     tags: list[str] = Field(default_factory=list, description="Tags for filtering/search")
     version: str = Field(default="1.0", description="Model version")
+    custom: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Custom application-specific configuration (e.g., ui_controls for parameter UI)"
+    )
 
 
 class ModelsApiConfig(BaseModel):
