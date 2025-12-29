@@ -1008,14 +1008,111 @@ async def create_model_config(
 
 ---
 
+## Frontend - Model Parameter Configuration UI
+
+### 27. **Advanced Parameter Features** (Future Enhancement)
+**Context:** Custom Model Parameters UI - Phase 2 Optional Features
+**Status:** Not implemented - basic functionality complete
+**Effort:** 8-12 hours
+**Priority:** LOW
+
+**Current Implementation:**
+- Dynamic parameter UI with 8 control types (text, textarea, number, slider, dropdown, radio, toggle, checkbox)
+- Auto-detection from model schema
+- Custom UI configuration via `custom.ui_controls`
+- Parameter validation (min/max constraints)
+- Hidden parameters via `ui_hidden` flag
+- Label and help text customization
+- Parameter ordering via `order` field
+
+**Future Enhancement Options:**
+
+**1. Parameter Grouping**
+- Add `group` field to organize parameters into collapsible sections
+- Example: "Basic Settings", "Advanced Settings", "Output Options"
+- UI shows grouped parameters with expandable sections
+- Effort: 2-3 hours
+
+**2. Conditional Parameters**
+- Show/hide parameters based on other parameter values
+- Add `visible_when` condition to UIControlConfig
+- Example: Show "compression_quality" only when "output_format" is "jpg"
+- Effort: 3-4 hours
+
+**3. Advanced Validation**
+- Custom validation rules beyond min/max
+- Pattern matching for string parameters
+- Cross-parameter validation (e.g., min < max)
+- Custom error messages per validation rule
+- Effort: 2-3 hours
+
+**4. Presets**
+- Save/load parameter combinations
+- User-defined presets stored in localStorage
+- Admin-defined presets in model config
+- Example: "High Quality", "Fast Processing", "Balanced"
+- Effort: 3-4 hours
+
+**5. Parameter History**
+- Remember last used values per model per user
+- Auto-restore previous settings on model selection
+- Stored in localStorage or user preferences API
+- Clear history option
+- Effort: 2-3 hours
+
+**6. Visual Parameter Editor**
+- Admin UI to configure `ui_controls` visually
+- Form builder interface
+- Drag-and-drop parameter ordering
+- Live preview of parameter controls
+- Export configuration as JSON
+- Effort: 8-12 hours
+
+**Implementation Priority:**
+- **Phase 1**: Parameter Grouping (most requested, high UX value)
+- **Phase 2**: Presets (user productivity boost)
+- **Phase 3**: Conditional Parameters (advanced use cases)
+- **Phase 4**: Parameter History (convenience feature)
+- **Phase 5**: Advanced Validation (edge cases)
+- **Phase 6**: Visual Editor (admin productivity, complex)
+
+**Files to Create/Modify:**
+- `frontend/src/features/restoration/types.ts` - Add GroupConfig, PresetConfig interfaces
+- `frontend/src/features/restoration/utils/parameterUtils.ts` - Add grouping, validation logic
+- `frontend/src/features/restoration/components/ModelParameterControls.tsx` - Add group rendering
+- `frontend/src/features/restoration/components/parameter-inputs/ParameterPresets.tsx` - NEW
+- `frontend/src/features/admin/components/ParameterUIEditor.tsx` - NEW (for visual editor)
+
+**Benefits When Implemented:**
+- Better UX for models with many parameters (grouping)
+- Faster workflow for repeated tasks (presets)
+- More flexible model configuration (conditional parameters)
+- Reduced repetitive input (parameter history)
+- Safer parameter combinations (advanced validation)
+- Easier admin configuration (visual editor)
+
+**Trade-offs:**
+- Increased complexity in parameter system
+- More code to maintain and test
+- Risk of over-engineering if features aren't used
+- Need careful UX design to avoid cluttered UI
+
+**When to Implement:**
+- When users request specific features (e.g., "I need presets")
+- When models have 10+ parameters requiring organization
+- When conditional logic is needed for parameter relationships
+- During major UI/UX improvement sprint
+
+---
+
 ## Summary
 
-**Total Items:** 26
+**Total Items:** 27
 **Completed Items:** 8
-**Pending Items:** 18
+**Pending Items:** 19
 **High Priority:** 0 (All Phase 2.4 tasks complete!)
 **Medium Priority:** 1 (Test coverage for admin panel)
-**Low Priority:** 17 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories, API performance optimizations)
+**Low Priority:** 18 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories, API performance optimizations, advanced parameter features)
 
 **✅ Phase 2.4 Complete - All 3 Steps Finished:**
 - ✅ Step 1: User Profile Page (Complete, production-ready)
@@ -1048,9 +1145,11 @@ async def create_model_config(
 ---
 
 **Document Created:** 2024-12-22
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-29
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
 **Phase:** 2.5 - Admin Model Configuration (Backend Complete, Frontend In Progress)
+**Phase:** Custom Model Parameters UI ✅ COMPLETE (Frontend & Backend)
 **Test Coverage Improvements:** ✅ COMPLETE (5/5 critical items implemented)
 **Admin Model Config Optimizations:** Added items #25 and #26 based on code review suggestions
+**Advanced Parameter Features:** Added item #27 for future enhancements (Parameter Grouping, Presets, Conditional Parameters, etc.)
 **Maintainer:** Development Team

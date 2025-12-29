@@ -193,10 +193,28 @@ export class ApiClient {
 
 ## 7. Styling & Layout
 
+### 7.1 Brand Guidelines (sqowe)
+
+**IMPORTANT:** All UI/design work MUST follow the sqowe brand design system.
+
+* **Authoritative source:** `tmp/AI_WEB_DESIGN_SQOWE.md`
+* **Color palette:** Dark Ground (#222222), Light Purple (#8E88A3), Dark Purple (#5B5377), Light Grey (#B2B3B2)
+* **Typography:** Montserrat font family (Light 300, Regular 400, Medium 500, Bold 700)
+* **Components:** Use predefined button styles, card patterns, navigation, forms, hero sections
+* **Accessibility:** Ensure WCAG AA compliance with approved color combinations
+
+**Before implementing UI components:**
+1. Read `tmp/AI_WEB_DESIGN_SQOWE.md` for complete design guidelines
+2. Use CSS variables defined in the brandbook
+3. Follow Material-inspired component patterns
+4. Maintain brand consistency across all interfaces
+
+### 7.2 Styling System
+
 * Prefer one of:
 
   * **CSS Modules / SASS Modules**, or
-  * **TailwindCSS** with a small set of design tokens (colors, spacing, border radius).
+  * **TailwindCSS** with sqowe design tokens (colors, spacing, border radius).
 
 **Rules:**
 
