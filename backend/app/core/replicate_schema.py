@@ -165,21 +165,29 @@ class ReplicateModelSchema(BaseModel):
         description="Custom application-specific metadata"
     )
 
+    def get_all_parameters(self) -> list[ParameterSchema]:
+        """
+        Get all parameters (normalized, safe to iterate).
+
+        Returns empty list if parameters is None.
+        """
+        return self.input.parameters or []
+
     def get_parameter(self, name: str) -> ParameterSchema | None:
         """Get parameter schema by name."""
-        for param in self.input.parameters:
+        for param in self.get_all_parameters():
             if param.name == name:
                 return param
         return None
 
     def get_required_parameters(self) -> list[ParameterSchema]:
         """Get list of required parameters."""
-        return [p for p in self.input.parameters if p.required]
+        return [p for p in self.get_all_parameters() if p.required]
 
     def get_ui_visible_parameters(self) -> list[ParameterSchema]:
         """Get list of parameters visible in UI."""
-        return [p for p in self.input.parameters if not p.ui_hidden]
+        return [p for p in self.get_all_parameters() if not p.ui_hidden]
 
     def get_parameters_by_group(self, group: str) -> list[ParameterSchema]:
         """Get parameters in a specific UI group."""
-        return [p for p in self.input.parameters if p.ui_group == group]
+        return [p for p in self.get_all_parameters() if p.ui_group == group]
