@@ -21,9 +21,11 @@ export const RestorationPage: React.FC = () => {
     isProcessing,
     progress,
     error,
+    parameterValues,
     setSelectedModel,
     setSelectedFile,
     setViewMode,
+    setParameterValues,
     uploadAndRestore,
     reset,
     downloadProcessed,
@@ -57,6 +59,8 @@ export const RestorationPage: React.FC = () => {
               <ModelSelector
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
+                parameterValues={parameterValues}
+                onParameterChange={setParameterValues}
                 disabled={isProcessing}
               />
             </section>
