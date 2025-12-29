@@ -167,7 +167,7 @@ def test_get_all_parameters():
     assert params[0].name == "param1"
 
     # Schema with empty parameters list
-    schema_no_params = ReplicateModelSchema(
+    schema_empty_params = ReplicateModelSchema(
         input=InputSchema(
             image=ImageInputSchema(param_name="image"),
             parameters=[]
@@ -175,9 +175,22 @@ def test_get_all_parameters():
         output=OutputSchema(type="uri")
     )
 
-    params = schema_no_params.get_all_parameters()
+    params = schema_empty_params.get_all_parameters()
     assert params == []
     assert len(params) == 0  # Safe to iterate
+
+    # Schema with parameters=None (original crash scenario)
+    schema_none_params = ReplicateModelSchema(
+        input=InputSchema(
+            image=ImageInputSchema(param_name="image"),
+            parameters=None
+        ),
+        output=OutputSchema(type="uri")
+    )
+
+    params = schema_none_params.get_all_parameters()
+    assert params == []
+    assert len(params) == 0  # Safe to iterate - no crash
 
 
 def test_get_parameter():

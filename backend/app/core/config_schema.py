@@ -128,6 +128,24 @@ class ModelCustomConfig(BaseModel):
     # Allow extra fields for future custom configurations
     model_config = {"extra": "allow"}
 
+    def __bool__(self) -> bool:
+        """
+        Return True if any custom configuration is present.
+
+        Preserves backwards compatibility with dict-style truthiness checks.
+        Empty ModelCustomConfig (no ui_controls, no extra fields) is falsy.
+        """
+        # Check if ui_controls is present
+        if self.ui_controls:
+            return True
+
+        # Check if any extra fields are present using public API
+        # model_extra contains fields not explicitly defined
+        if self.model_extra:
+            return True
+
+        return False
+
 
 class ModelConfig(BaseModel):
     """Individual model configuration."""
@@ -145,8 +163,8 @@ class ModelConfig(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="Model-specific parameters")
     tags: list[str] = Field(default_factory=list, description="Tags for filtering/search")
     version: str = Field(default="1.0", description="Model version")
-    custom: ModelCustomConfig = Field(
-        default_factory=ModelCustomConfig,
+    custom: ModelCustomConfig | None = Field(
+        None,
         description="Custom application-specific configuration (e.g., ui_controls for parameter UI)"
     )
 

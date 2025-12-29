@@ -99,8 +99,8 @@ class InputSchema(BaseModel):
         ...,
         description="Image input configuration"
     )
-    parameters: list[ParameterSchema] = Field(
-        default_factory=list,
+    parameters: list[ParameterSchema] | None = Field(
+        default=None,
         description="Additional model parameters"
     )
 
