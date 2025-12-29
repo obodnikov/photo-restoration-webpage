@@ -11,6 +11,7 @@ export interface DropdownInputProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   options: string[];
+  placeholder?: string;
 }
 
 export const DropdownInput: React.FC<DropdownInputProps> = ({
@@ -20,6 +21,7 @@ export const DropdownInput: React.FC<DropdownInputProps> = ({
   onChange,
   disabled = false,
   options,
+  placeholder = 'Select...',
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange(e.target.value);
@@ -41,6 +43,11 @@ export const DropdownInput: React.FC<DropdownInputProps> = ({
         onChange={handleChange}
         disabled={disabled}
       >
+        {!value && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
         {options.map((option) => (
           <option key={option} value={option}>
             {option}

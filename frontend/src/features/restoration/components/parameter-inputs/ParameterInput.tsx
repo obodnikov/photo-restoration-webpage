@@ -48,7 +48,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
         <NumberInput
           label={label}
           help={help}
-          value={value ?? 0}
+          value={value ?? param.default ?? null}
           onChange={onChange}
           disabled={disabled}
           min={param.min}
@@ -93,6 +93,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
           onChange={onChange}
           disabled={disabled}
           options={uiConfig.options || param.values || []}
+          name={param.name}
         />
       );
 
