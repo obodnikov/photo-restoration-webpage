@@ -5,7 +5,7 @@
 
 import { get } from '../../../services/apiClient';
 import { uploadFile } from '../../../services/apiClient';
-import type { ModelListResponse, RestoreResponse, UploadProgressCallback } from '../types';
+import type { ModelListResponse, RestoreResponse, UploadProgressCallback, ModelParameterValues } from '../types';
 
 /**
  * Fetch available models from API
@@ -15,20 +15,21 @@ export async function fetchModels(): Promise<ModelListResponse> {
 }
 
 /**
- * Upload and restore an image
+ * Upload and restore an image with optional parameters
  */
 export async function restoreImage(
   file: File,
   modelId: string,
+  parameters?: ModelParameterValues,
   onProgress?: UploadProgressCallback
 ): Promise<RestoreResponse> {
   // Backend expects:
   // - file: UploadFile (multipart/form-data)
   // - model_id: Form field (multipart/form-data)
-  // So we need to send everything as FormData, not in query params
+  // - parameters: JSON string (optional, multipart/form-data)
   const endpoint = `/restore`;
 
   // uploadFile handles creating FormData with the file
-  // but we need to also send model_id as a form field
-  return uploadFile<RestoreResponse>(endpoint, file, onProgress, { modelId });
+  // Pass model_id and parameters as form fields
+  return uploadFile<RestoreResponse>(endpoint, file, onProgress, { modelId, parameters });
 }

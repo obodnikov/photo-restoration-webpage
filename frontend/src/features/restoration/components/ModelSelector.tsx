@@ -5,19 +5,24 @@
 
 import React, { useEffect, useState } from 'react';
 import { fetchModels } from '../services/restorationService';
-import type { ModelInfo } from '../types';
+import type { ModelInfo, ModelParameterValues } from '../types';
 import { Loader } from '../../../components/Loader';
 import { ErrorMessage } from '../../../components/ErrorMessage';
+import { ModelParameterControls } from './ModelParameterControls';
 
 export interface ModelSelectorProps {
   selectedModel: ModelInfo | null;
   onSelectModel: (model: ModelInfo) => void;
+  parameterValues: ModelParameterValues;
+  onParameterChange: (values: ModelParameterValues) => void;
   disabled?: boolean;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
   selectedModel,
   onSelectModel,
+  parameterValues,
+  onParameterChange,
   disabled = false,
 }) => {
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -75,34 +80,51 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         Select AI Model
       </label>
       <div className="model-selector-grid">
-        {models.map((model) => (
-          <button
-            key={model.id}
-            type="button"
-            className={`model-card ${
-              selectedModel?.id === model.id ? 'selected' : ''
-            }`}
-            onClick={() => onSelectModel(model)}
-            disabled={disabled}
-          >
-            <div className="model-card-header">
-              <h4 className="model-card-title">{model.name}</h4>
-              {model.category && (
-                <span className="model-card-category">{model.category}</span>
+        {models.map((model) => {
+          const isSelected = selectedModel?.id === model.id;
+          return (
+            <div
+              key={model.id}
+              className={`model-card-wrapper ${isSelected ? 'selected' : ''}`}
+            >
+              <button
+                type="button"
+                className={`model-card ${isSelected ? 'selected' : ''}`}
+                onClick={() => onSelectModel(model)}
+                disabled={disabled}
+              >
+                <div className="model-card-header">
+                  <h4 className="model-card-title">{model.name}</h4>
+                  {model.category && (
+                    <span className="model-card-category">{model.category}</span>
+                  )}
+                </div>
+                <p className="model-card-description">{model.description}</p>
+                {model.tags && model.tags.length > 0 && (
+                  <div className="model-card-tags">
+                    {model.tags.map((tag) => (
+                      <span key={tag} className="model-tag">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </button>
+
+              {/* Show parameters when model is selected */}
+              {isSelected && (
+                <div className="model-parameters-section">
+                  <ModelParameterControls
+                    model={model}
+                    values={parameterValues}
+                    onChange={onParameterChange}
+                    disabled={disabled}
+                  />
+                </div>
               )}
             </div>
-            <p className="model-card-description">{model.description}</p>
-            {model.tags && model.tags.length > 0 && (
-              <div className="model-card-tags">
-                {model.tags.map((tag) => (
-                  <span key={tag} className="model-tag">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
