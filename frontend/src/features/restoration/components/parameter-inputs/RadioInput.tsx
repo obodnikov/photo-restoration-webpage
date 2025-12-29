@@ -1,7 +1,7 @@
 /**
  * Radio button component for enum parameters with 2-3 options
  */
-import React from 'react';
+import React, { useId } from 'react';
 import './ParameterInput.css';
 
 export interface RadioInputProps {
@@ -11,6 +11,7 @@ export interface RadioInputProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   options: string[];
+  name?: string; // Unique identifier for the parameter
 }
 
 export const RadioInput: React.FC<RadioInputProps> = ({
@@ -20,7 +21,12 @@ export const RadioInput: React.FC<RadioInputProps> = ({
   onChange,
   disabled = false,
   options,
+  name,
 }) => {
+  // Generate unique ID for this radio group to prevent conflicts
+  const uniqueId = useId();
+  const radioGroupName = name || `radio-${uniqueId}`;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
   };
@@ -40,7 +46,7 @@ export const RadioInput: React.FC<RadioInputProps> = ({
           <label key={option} className="radio-input-option">
             <input
               type="radio"
-              name={label}
+              name={radioGroupName}
               value={option}
               checked={value === option}
               onChange={handleChange}

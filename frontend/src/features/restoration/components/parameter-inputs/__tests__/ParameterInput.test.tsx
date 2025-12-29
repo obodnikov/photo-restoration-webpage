@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ParameterInput } from '../ParameterInput';
 import type { ParameterSchema, UIControlConfig } from '../../../types';
 
@@ -351,7 +352,7 @@ describe('ParameterInput', () => {
       expect(input).toHaveValue('');
     });
 
-    it('should use 0 for undefined number value', () => {
+    it('should use null for undefined number value without default', () => {
       const param: ParameterSchema = {
         name: 'count',
         type: 'integer',
@@ -372,7 +373,34 @@ describe('ParameterInput', () => {
       );
 
       const input = screen.getByRole('spinbutton');
-      expect(input).toHaveValue(0);
+      // When value is null, input displays empty string
+      expect(input).toHaveValue(null);
+      expect(input.getAttribute('value')).toBe('');
+    });
+
+    it('should use default value for undefined number value with default', () => {
+      const param: ParameterSchema = {
+        name: 'count',
+        type: 'integer',
+        required: false,
+        description: 'Count',
+        default: 5,
+        ui_hidden: false,
+      };
+
+      const uiConfig: UIControlConfig = { type: 'number' };
+
+      render(
+        <ParameterInput
+          param={param}
+          uiConfig={uiConfig}
+          value={undefined}
+          onChange={mockOnChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton');
+      expect(input).toHaveValue(5);
     });
 
     it('should use false for undefined boolean value', () => {
@@ -397,6 +425,128 @@ describe('ParameterInput', () => {
 
       const checkbox = screen.getByRole('checkbox');
       expect(checkbox).not.toBeChecked();
+    });
+  });
+
+  describe('bug fixes', () => {
+    it('should allow clearing number input', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      const param: ParameterSchema = {
+        name: 'count',
+        type: 'integer',
+        required: false,
+        description: 'Count',
+        ui_hidden: false,
+      };
+
+      const uiConfig: UIControlConfig = { type: 'number' };
+
+      render(
+        <ParameterInput
+          param={param}
+          uiConfig={uiConfig}
+          value={42}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input).toHaveValue(42);
+
+      // User clears the field
+      await user.clear(input);
+
+      // onChange should be called with null
+      expect(onChange).toHaveBeenCalledWith(null);
+    });
+
+    it('should use unique names for radio buttons', () => {
+      const param1: ParameterSchema = {
+        name: 'mode1',
+        type: 'enum',
+        required: false,
+        description: 'Mode 1',
+        values: ['fast', 'slow'],
+        ui_hidden: false,
+      };
+
+      const param2: ParameterSchema = {
+        name: 'mode2',
+        type: 'enum',
+        required: false,
+        description: 'Mode 2',
+        values: ['high', 'low'],
+        ui_hidden: false,
+      };
+
+      const uiConfig: UIControlConfig = { type: 'radio' };
+
+      const { container } = render(
+        <>
+          <ParameterInput
+            param={param1}
+            uiConfig={uiConfig}
+            value="fast"
+            onChange={mockOnChange}
+          />
+          <ParameterInput
+            param={param2}
+            uiConfig={uiConfig}
+            value="high"
+            onChange={mockOnChange}
+          />
+        </>
+      );
+
+      // Get all radio inputs
+      const radios = container.querySelectorAll('input[type="radio"]');
+      expect(radios).toHaveLength(4);
+
+      // Extract name attributes
+      const names = Array.from(radios).map((r) => r.getAttribute('name'));
+
+      // All radios for param1 should have the same name (mode1)
+      expect(names[0]).toBe('mode1');
+      expect(names[1]).toBe('mode1');
+
+      // All radios for param2 should have the same name (mode2)
+      expect(names[2]).toBe('mode2');
+      expect(names[3]).toBe('mode2');
+
+      // The two groups should have different names
+      expect(names[0]).not.toBe(names[2]);
+    });
+
+    it('should show placeholder for empty dropdown', () => {
+      const param: ParameterSchema = {
+        name: 'format',
+        type: 'enum',
+        required: false,
+        description: 'Format',
+        values: ['jpg', 'png', 'webp'],
+        ui_hidden: false,
+      };
+
+      const uiConfig: UIControlConfig = { type: 'dropdown' };
+
+      render(
+        <ParameterInput
+          param={param}
+          uiConfig={uiConfig}
+          value=""
+          onChange={mockOnChange}
+        />
+      );
+
+      const select = screen.getByRole('combobox');
+      expect(select).toHaveValue('');
+
+      // Placeholder option should exist
+      const placeholder = screen.getByText('Select...');
+      expect(placeholder).toBeInTheDocument();
+      expect((placeholder as HTMLOptionElement).disabled).toBe(true);
     });
   });
 });
