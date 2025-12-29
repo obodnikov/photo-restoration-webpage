@@ -187,6 +187,13 @@
   gap: var(--space-lg);
 }
 
+/* Model card wrapper - contains card button and parameters section */
+.model-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
 .model-card {
   background: white;
   border: 2px solid var(--color-border);
@@ -195,6 +202,7 @@
   cursor: pointer;
   transition: all var(--transition-base);
   text-align: left;
+  width: 100%;
 }
 
 .model-card:hover:not(:disabled) {
@@ -284,6 +292,11 @@
   background: rgba(91, 83, 119, 0.1);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
+}
+
+/* Model parameters section - appears below selected card */
+.model-parameters-section {
+  width: 100%;
 }
 
 .model-selector-empty {
