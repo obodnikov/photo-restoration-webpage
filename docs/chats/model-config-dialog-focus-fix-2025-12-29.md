@@ -28,25 +28,34 @@ useEffect(() => {
 
 ## Solution
 
-Use a ref to store the config and only initialize the form when the dialog actually opens, not on every render.
+Use a ref to store the config and only initialize the form when:
+1. The dialog opens
+2. The config ID changes while dialog is open (user switches models)
+
+This prevents re-initialization on every render while still handling config changes correctly.
 
 ```typescript
 // Store config in a ref to avoid re-initialization when config object reference changes
-const configRef = useRef<ModelConfigDetail | null>(null);
+const configRef = useRef<ModelConfigDetail | null | undefined>(undefined);
 const lastIsOpenRef = useRef<boolean>(false);
+const lastConfigIdRef = useRef<string | null>(null);
 
 // Update config ref when config changes
 if (config !== configRef.current) {
   configRef.current = config;
 }
 
-// Load config data when editing - only when dialog opens
+// Load config data when editing - only when dialog opens or config ID changes
 useEffect(() => {
   const currentConfig = configRef.current;
+  const currentConfigId = currentConfig?.id || null;
   const isDialogOpening = isOpen && !lastIsOpenRef.current;
+  const isConfigChanged = isOpen && currentConfigId !== lastConfigIdRef.current;
 
-  // Only initialize form when dialog is opening
-  if (isDialogOpening) {
+  // Initialize form when:
+  // 1. Dialog is opening (wasn't open before, now is open)
+  // 2. OR config ID changed while dialog is already open (user switched models)
+  if (isDialogOpening || isConfigChanged) {
     if (currentConfig) {
       setFormData({
         id: currentConfig.id,
@@ -57,8 +66,9 @@ useEffect(() => {
     }
   }
 
-  // Update ref for next render
+  // Update refs for next render
   lastIsOpenRef.current = isOpen;
+  lastConfigIdRef.current = currentConfigId;
 }, [isOpen, availableCategories]); // ← No config in deps!
 ```
 
@@ -66,15 +76,17 @@ useEffect(() => {
 
 1. **Use `configRef`** to store the config without triggering re-renders
 2. **Track `isOpen` state** to detect when dialog is opening
-3. **Only initialize on dialog open**, not on every render
-4. **Remove `config` from dependency array** to prevent unnecessary effect runs
+3. **Track `lastConfigIdRef`** to detect when config ID changes
+4. **Initialize on dialog open OR config ID change**, not on every render
+5. **Remove `config` from dependency array** to prevent unnecessary effect runs
 
 ## Benefits
 
 - ✅ Input fields maintain focus while typing
 - ✅ Form state persists during user interaction
-- ✅ Form only resets when dialog opens/closes
-- ✅ No unnecessary re-renders
+- ✅ Form resets when dialog opens/closes
+- ✅ Form updates when switching to a different model (config ID changes)
+- ✅ No unnecessary re-renders on same config
 
 ## Same Issue in Other Dialogs
 

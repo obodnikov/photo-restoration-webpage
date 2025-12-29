@@ -61,8 +61,9 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   // Store config in a ref to avoid re-initialization when config object reference changes
-  const configRef = useRef<ModelConfigDetail | null>(null);
+  const configRef = useRef<ModelConfigDetail | null | undefined>(undefined);
   const lastIsOpenRef = useRef<boolean>(false);
+  const lastConfigIdRef = useRef<string | null>(null);
 
   // Update config ref when config changes
   if (config !== configRef.current) {
@@ -72,11 +73,14 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
   // Load config data when editing - only when dialog opens or config ID changes
   useEffect(() => {
     const currentConfig = configRef.current;
-    const configId = currentConfig?.id || null;
+    const currentConfigId = currentConfig?.id || null;
     const isDialogOpening = isOpen && !lastIsOpenRef.current;
+    const isConfigChanged = isOpen && currentConfigId !== lastConfigIdRef.current;
 
-    // Only initialize form when dialog is opening
-    if (isDialogOpening) {
+    // Initialize form when:
+    // 1. Dialog is opening (wasn't open before, now is open)
+    // 2. OR config ID changed while dialog is already open (user switched models)
+    if (isDialogOpening || isConfigChanged) {
       if (currentConfig) {
         setFormData({
           id: currentConfig.id,
@@ -113,8 +117,9 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
       setGeneralError(null);
     }
 
-    // Update ref for next render
+    // Update refs for next render
     lastIsOpenRef.current = isOpen;
+    lastConfigIdRef.current = currentConfigId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, availableCategories]);
 
