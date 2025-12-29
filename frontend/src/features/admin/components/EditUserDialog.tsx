@@ -2,7 +2,7 @@
  * Edit User Dialog component
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -29,16 +29,40 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Populate form when user changes
+  // Store user in a ref to avoid re-initialization when user object reference changes
+  const userRef = useRef<AdminUser | null>(null);
+  const lastIsOpenRef = useRef<boolean>(false);
+  const lastUserIdRef = useRef<number | null>(null);
+
+  // Update user ref when user changes
+  if (user !== userRef.current) {
+    userRef.current = user;
+  }
+
+  // Populate form when dialog opens or user ID changes
   useEffect(() => {
-    if (user) {
-      setEmail(user.email);
-      setFullName(user.full_name);
-      setRole(user.role);
-      setIsActive(user.is_active);
-      setError(null);
+    const currentUser = userRef.current;
+    const currentUserId = currentUser?.id || null;
+    const isDialogOpening = isOpen && !lastIsOpenRef.current;
+    const isUserChanged = isOpen && currentUserId !== lastUserIdRef.current;
+
+    // Initialize form when:
+    // 1. Dialog is opening (wasn't open before, now is open)
+    // 2. OR user ID changed while dialog is already open (switched users)
+    if (isDialogOpening || isUserChanged) {
+      if (currentUser) {
+        setEmail(currentUser.email);
+        setFullName(currentUser.full_name);
+        setRole(currentUser.role);
+        setIsActive(currentUser.is_active);
+        setError(null);
+      }
     }
-  }, [user]);
+
+    // Update refs for next render
+    lastIsOpenRef.current = isOpen;
+    lastUserIdRef.current = currentUserId;
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

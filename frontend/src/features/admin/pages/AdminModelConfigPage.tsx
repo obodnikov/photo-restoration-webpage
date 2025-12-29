@@ -49,6 +49,10 @@ export const AdminModelConfigPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
 
+  // Memoize available tags and categories to prevent creating new array references
+  const memoizedAvailableTags = useMemo(() => availableTags?.tags || [], [availableTags?.tags]);
+  const memoizedAvailableCategories = useMemo(() => availableTags?.categories || [], [availableTags?.categories]);
+
   // Filter configs
   const filteredConfigs = useMemo(() => {
     return configs.filter((config) => {
@@ -330,8 +334,8 @@ export const AdminModelConfigPage: React.FC = () => {
           isOpen={isCreateDialogOpen}
           onClose={handleCloseCreateDialog}
           onSave={handleCreateConfig}
-          availableTags={availableTags?.tags || []}
-          availableCategories={availableTags?.categories || []}
+          availableTags={memoizedAvailableTags}
+          availableCategories={memoizedAvailableCategories}
           isLoading={isCreating}
         />
 
@@ -340,8 +344,8 @@ export const AdminModelConfigPage: React.FC = () => {
           onClose={handleCloseEditDialog}
           onSave={handleUpdateConfig}
           config={selectedConfig}
-          availableTags={availableTags?.tags || []}
-          availableCategories={availableTags?.categories || []}
+          availableTags={memoizedAvailableTags}
+          availableCategories={memoizedAvailableCategories}
           isLoading={isUpdating}
         />
 
