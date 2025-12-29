@@ -6,12 +6,12 @@ This script helps migrate existing model configurations to include ui_hidden fla
 and optionally configure custom UI controls for parameters.
 
 Usage:
-    python scripts/migrate_ui_parameters.py [--config CONFIG_FILE] [--interactive] [--backup]
+    python scripts/migrate_ui_parameters.py [--config CONFIG_FILE] [--interactive] [--no-backup]
 
 Options:
     --config PATH       Config file to migrate (default: config/production.json)
     --interactive       Ask questions to configure custom UI controls
-    --backup            Create backup before modifying files (default: True)
+    --no-backup         Skip creating backup file (backups created by default)
     --output PATH       Output file path (default: creates local.json)
     --dry-run           Show what would change without modifying files
 """
