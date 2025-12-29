@@ -462,6 +462,56 @@ describe('ParameterInput', () => {
       expect(onChange).toHaveBeenCalledWith(null);
     });
 
+    it('should allow clearing number input with default value', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+
+      const param: ParameterSchema = {
+        name: 'count',
+        type: 'integer',
+        required: false,
+        description: 'Count',
+        default: 10,
+        ui_hidden: false,
+      };
+
+      const uiConfig: UIControlConfig = { type: 'number' };
+
+      const { rerender } = render(
+        <ParameterInput
+          param={param}
+          uiConfig={uiConfig}
+          value={42}
+          onChange={onChange}
+        />
+      );
+
+      let input = screen.getByRole('spinbutton') as HTMLInputElement;
+      expect(input).toHaveValue(42);
+
+      // User clears the field
+      await user.clear(input);
+
+      // onChange should be called with null
+      expect(onChange).toHaveBeenCalledWith(null);
+
+      // Re-render with null value (simulating parent state update)
+      rerender(
+        <ParameterInput
+          param={param}
+          uiConfig={uiConfig}
+          value={null}
+          onChange={onChange}
+        />
+      );
+
+      // Get the updated input after rerender
+      input = screen.getByRole('spinbutton') as HTMLInputElement;
+
+      // Input should remain empty, NOT revert to default
+      expect(input.value).toBe('');
+    });
+
     it('should use unique names for radio buttons', () => {
       const param1: ParameterSchema = {
         name: 'mode1',

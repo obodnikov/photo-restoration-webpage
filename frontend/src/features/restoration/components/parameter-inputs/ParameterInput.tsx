@@ -44,11 +44,13 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
       );
 
     case 'number':
+      // Only use default when value is truly undefined, not when explicitly null (cleared)
+      const numberValue = value !== undefined ? value : (param.default ?? null);
       return (
         <NumberInput
           label={label}
           help={help}
-          value={value ?? param.default ?? null}
+          value={numberValue}
           onChange={onChange}
           disabled={disabled}
           min={param.min}
