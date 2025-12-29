@@ -60,50 +60,46 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Store config in a ref to avoid re-initialization when config object reference changes
-  const configRef = useRef<ModelConfigDetail | null | undefined>(undefined);
+  // Track initialization to prevent form reset on every render
+  const initializedConfigIdRef = useRef<string | null>(null);
   const lastIsOpenRef = useRef<boolean>(false);
-  const lastConfigIdRef = useRef<string | null>(null);
 
-  // Update config ref when config changes
-  if (config !== configRef.current) {
-    configRef.current = config;
-  }
+  // Store availableCategories in a ref to avoid it being a dependency
+  const availableCategoriesRef = useRef(availableCategories);
+  availableCategoriesRef.current = availableCategories;
 
-  // Load config data when editing - only when dialog opens or config ID changes
+  // Load config data when editing or initialize when dialog opens
   useEffect(() => {
-    const currentConfig = configRef.current;
-    const currentConfigId = currentConfig?.id || null;
+    const configId = config?.id || null;
     const isDialogOpening = isOpen && !lastIsOpenRef.current;
-    const isConfigChanged = isOpen && currentConfigId !== lastConfigIdRef.current;
+    const isConfigChanged = configId !== initializedConfigIdRef.current;
 
-    // Initialize form when:
-    // 1. Dialog is opening (wasn't open before, now is open)
-    // 2. OR config ID changed while dialog is already open (user switched models)
-    if (isDialogOpening || isConfigChanged) {
-      if (currentConfig) {
+    // Initialize when dialog opens OR when config changes while dialog is open
+    if (isDialogOpening || (isOpen && isConfigChanged)) {
+      if (config) {
+        // Edit mode - Initialize form with config data
         setFormData({
-          id: currentConfig.id,
-          name: currentConfig.name,
-          model: currentConfig.model,
-          provider: currentConfig.provider,
-          category: currentConfig.category,
-          description: currentConfig.description || '',
-          version: currentConfig.version || '',
-          enabled: currentConfig.enabled,
-          tags: currentConfig.tags || [],
+          id: config.id,
+          name: config.name,
+          model: config.model,
+          provider: config.provider,
+          category: config.category,
+          description: config.description || '',
+          version: config.version || '',
+          enabled: config.enabled,
+          tags: config.tags || [],
         });
-        setReplicateSchemaJson(JSON.stringify(currentConfig.replicate_schema || {}, null, 2));
-        setCustomJson(JSON.stringify(currentConfig.custom || {}, null, 2));
-        setParametersJson(JSON.stringify(currentConfig.parameters || {}, null, 2));
+        setReplicateSchemaJson(JSON.stringify(config.replicate_schema || {}, null, 2));
+        setCustomJson(JSON.stringify(config.custom || {}, null, 2));
+        setParametersJson(JSON.stringify(config.parameters || {}, null, 2));
       } else {
-        // Reset form for create mode
+        // Create mode - Reset form with defaults
         setFormData({
           id: '',
           name: '',
           model: '',
           provider: 'replicate',
-          category: availableCategories[0] || '',
+          category: availableCategoriesRef.current[0] || '',
           description: '',
           version: '',
           enabled: true,
@@ -115,13 +111,11 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
       }
       setErrors({});
       setGeneralError(null);
+      initializedConfigIdRef.current = configId;
     }
 
-    // Update refs for next render
     lastIsOpenRef.current = isOpen;
-    lastConfigIdRef.current = currentConfigId;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, availableCategories]);
+  }, [isOpen, config?.id]); // Depend on dialog state and config ID - availableCategories accessed via ref
 
   // Parse JSON fields
   const parsedJson = useMemo(() => {
