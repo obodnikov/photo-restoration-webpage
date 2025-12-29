@@ -3,7 +3,7 @@
  * Main dialog for creating and editing model configurations
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -60,43 +60,63 @@ export const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Load config data when editing
+  // Store config in a ref to avoid re-initialization when config object reference changes
+  const configRef = useRef<ModelConfigDetail | null>(null);
+  const lastIsOpenRef = useRef<boolean>(false);
+
+  // Update config ref when config changes
+  if (config !== configRef.current) {
+    configRef.current = config;
+  }
+
+  // Load config data when editing - only when dialog opens or config ID changes
   useEffect(() => {
-    if (config) {
-      setFormData({
-        id: config.id,
-        name: config.name,
-        model: config.model,
-        provider: config.provider,
-        category: config.category,
-        description: config.description || '',
-        version: config.version || '',
-        enabled: config.enabled,
-        tags: config.tags || [],
-      });
-      setReplicateSchemaJson(JSON.stringify(config.replicate_schema || {}, null, 2));
-      setCustomJson(JSON.stringify(config.custom || {}, null, 2));
-      setParametersJson(JSON.stringify(config.parameters || {}, null, 2));
-    } else {
-      // Reset form for create mode
-      setFormData({
-        id: '',
-        name: '',
-        model: '',
-        provider: 'replicate',
-        category: availableCategories[0] || '',
-        description: '',
-        version: '',
-        enabled: true,
-        tags: [],
-      });
-      setReplicateSchemaJson('{}');
-      setCustomJson('{}');
-      setParametersJson('{}');
+    const currentConfig = configRef.current;
+    const configId = currentConfig?.id || null;
+    const isDialogOpening = isOpen && !lastIsOpenRef.current;
+
+    // Only initialize form when dialog is opening
+    if (isDialogOpening) {
+      if (currentConfig) {
+        setFormData({
+          id: currentConfig.id,
+          name: currentConfig.name,
+          model: currentConfig.model,
+          provider: currentConfig.provider,
+          category: currentConfig.category,
+          description: currentConfig.description || '',
+          version: currentConfig.version || '',
+          enabled: currentConfig.enabled,
+          tags: currentConfig.tags || [],
+        });
+        setReplicateSchemaJson(JSON.stringify(currentConfig.replicate_schema || {}, null, 2));
+        setCustomJson(JSON.stringify(currentConfig.custom || {}, null, 2));
+        setParametersJson(JSON.stringify(currentConfig.parameters || {}, null, 2));
+      } else {
+        // Reset form for create mode
+        setFormData({
+          id: '',
+          name: '',
+          model: '',
+          provider: 'replicate',
+          category: availableCategories[0] || '',
+          description: '',
+          version: '',
+          enabled: true,
+          tags: [],
+        });
+        setReplicateSchemaJson('{}');
+        setCustomJson('{}');
+        setParametersJson('{}');
+      }
+      setErrors({});
+      setGeneralError(null);
     }
-    setErrors({});
-    setGeneralError(null);
-  }, [config, availableCategories]);
+
+    // Update ref for next render
+    lastIsOpenRef.current = isOpen;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, availableCategories]);
 
   // Parse JSON fields
   const parsedJson = useMemo(() => {
