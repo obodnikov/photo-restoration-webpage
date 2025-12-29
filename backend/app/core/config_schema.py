@@ -117,6 +117,18 @@ class UIControlConfig(BaseModel):
     )
 
 
+class ModelCustomConfig(BaseModel):
+    """Custom application-specific model configuration."""
+
+    ui_controls: dict[str, UIControlConfig] | None = Field(
+        None,
+        description="UI control configurations keyed by parameter name"
+    )
+
+    # Allow extra fields for future custom configurations
+    model_config = {"extra": "allow"}
+
+
 class ModelConfig(BaseModel):
     """Individual model configuration."""
 
@@ -133,8 +145,8 @@ class ModelConfig(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict, description="Model-specific parameters")
     tags: list[str] = Field(default_factory=list, description="Tags for filtering/search")
     version: str = Field(default="1.0", description="Model version")
-    custom: dict[str, Any] = Field(
-        default_factory=dict,
+    custom: ModelCustomConfig = Field(
+        default_factory=ModelCustomConfig,
         description="Custom application-specific configuration (e.g., ui_controls for parameter UI)"
     )
 

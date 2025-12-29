@@ -7,6 +7,7 @@ from app.core.config_schema import (
     ConfigFile,
     FileStorageConfig,
     ModelConfig,
+    ModelCustomConfig,
     SecurityConfig,
     ServerConfig,
     UIControlConfig,
@@ -213,12 +214,13 @@ class TestModelConfig:
                 }
             }
         )
-        assert "ui_controls" in config.custom
-        assert "quality" in config.custom["ui_controls"]
-        assert config.custom["ui_controls"]["quality"]["type"] == "slider"
+        assert config.custom.ui_controls is not None
+        assert "quality" in config.custom.ui_controls
+        assert config.custom.ui_controls["quality"].type == "slider"
+        assert config.custom.ui_controls["quality"].step == 5
 
     def test_custom_field_empty_default(self):
-        """Test that custom field defaults to empty dict."""
+        """Test that custom field defaults to ModelCustomConfig."""
         config = ModelConfig(
             id="test-model",
             name="Test Model",
@@ -227,7 +229,27 @@ class TestModelConfig:
             category="upscale",
             description="Test"
         )
-        assert config.custom == {}
+        assert isinstance(config.custom, ModelCustomConfig)
+        assert config.custom.ui_controls is None
+
+    def test_custom_field_invalid_ui_control_type(self):
+        """Test that invalid UI control type is rejected."""
+        with pytest.raises(ValidationError):
+            ModelConfig(
+                id="test-model",
+                name="Test Model",
+                model="test/model",
+                provider="replicate",
+                category="upscale",
+                description="Test",
+                custom={
+                    "ui_controls": {
+                        "quality": {
+                            "type": "invalid_type"  # Invalid control type
+                        }
+                    }
+                }
+            )
 
 
 class TestFileStorageConfig:

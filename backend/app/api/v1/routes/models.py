@@ -46,7 +46,8 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
                 # Build schema response for frontend (include ALL parameters with ui_hidden flag)
                 # Frontend will filter based on ui_hidden
                 parameters = []
-                for param in schema.input.parameters:
+                # Guard against None - use helper method to get normalized parameter list
+                for param in schema.get_all_parameters():
                     parameters.append(
                         ParameterSchemaResponse(
                             name=param.name,
