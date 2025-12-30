@@ -151,7 +151,7 @@ async def login(
 
     # Capture session metadata from request
     metadata = capture_session_metadata(request)
-    logger.debug(f"Session metadata for {credentials.username}: browser={metadata.get('browser')}, device={metadata.get('device_type')}, ip={metadata.get('ip_address')}")
+    logger.debug(f"Session metadata for {credentials.username}: browser={metadata.get('browser')}, device={metadata.get('device_type')}, ip={metadata.get('ip_address')}, location={metadata.get('location')}")
 
     # Create new session for this login with metadata
     session_manager = SessionManager()
