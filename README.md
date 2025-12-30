@@ -30,6 +30,8 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 ### Technical Features ✅
 - **Async Architecture** - FastAPI + SQLAlchemy async for high performance
 - **Multi-Provider Support** - Configurable HuggingFace + Replicate models
+- **Custom Model Parameters UI** - Dynamic parameter controls with 8 UI types, auto-detection, and custom overrides
+  - 📖 See [Custom Model Parameters Guide](docs/CUSTOM_MODEL_PARAMETERS_GUIDE.md) for detailed documentation
 - **File Storage** - Session-based organization with UUID prefixes
 - **Background Cleanup** - Automated removal of old sessions and files
 - **Responsive Design** - Mobile-first with sqowe brand styling
@@ -53,6 +55,7 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 - [ROADMAP.md](ROADMAP.md) - Current and future development plans
 - [DONE_TASKS.md](DONE_TASKS.md) - Complete history of implemented features
 - [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) - Non-blocking improvements and enhancements
+- [Custom Model Parameters Guide](docs/CUSTOM_MODEL_PARAMETERS_GUIDE.md) - Configure model parameters UI (v1.9.0+)
 
 ## Tech Stack
 
