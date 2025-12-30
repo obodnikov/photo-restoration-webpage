@@ -29,6 +29,38 @@ export const SessionsList: React.FC<SessionsListProps> = ({
     return new Date(dateString).toLocaleString();
   };
 
+  const getDeviceIcon = (deviceType?: string | null): string => {
+    if (!deviceType) return '💻';
+    const type = deviceType.toLowerCase();
+    if (type.includes('mobile') || type.includes('phone')) return '📱';
+    if (type.includes('tablet')) return '📱';
+    return '💻';
+  };
+
+  const formatDeviceInfo = (session: Session): string => {
+    const parts: string[] = [];
+
+    if (session.browser) {
+      parts.push(session.browser);
+    }
+
+    if (session.os) {
+      parts.push(`on ${session.os}`);
+    }
+
+    if (session.device_type && parts.length > 0) {
+      parts.push(`(${session.device_type})`);
+    } else if (session.device_type) {
+      parts.push(session.device_type);
+    }
+
+    return parts.length > 0 ? parts.join(' ') : 'Unknown Device';
+  };
+
+  const formatLocation = (location?: string | null): string => {
+    return location || 'Unknown location';
+  };
+
   const handleDeleteClick = (sessionId: string) => {
     setSelectedSessionId(sessionId);
   };
@@ -102,21 +134,38 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                 className={`session-item ${session.is_current ? 'current' : ''}`}
               >
                 <div className="session-info">
-                  <div className="session-meta">
-                    {session.is_current && (
-                      <span className="current-badge">Current Session</span>
+                  {session.is_current && (
+                    <span className="current-badge">Current Session</span>
+                  )}
+
+                  <div className="session-device-location">
+                    <div className="session-section-label">Device & Location</div>
+                    <div className="session-device-info">
+                      <span className="device-icon">{getDeviceIcon(session.device_type)}</span>
+                      <span className="device-text">{formatDeviceInfo(session)}</span>
+                      <span className="location-separator">·</span>
+                      <span className="location-icon">📍</span>
+                      <span className="location-text">{formatLocation(session.location)}</span>
+                    </div>
+                    {session.ip_address && (
+                      <div className="session-ip">
+                        <span className="ip-icon">🌐</span>
+                        <span className="ip-text">{session.ip_address}</span>
+                      </div>
                     )}
-                    <div className="session-dates">
-                      <div className="session-field">
-                        <span className="session-label">Created:</span>
-                        <span className="session-value">{formatDate(session.created_at)}</span>
-                      </div>
-                      <div className="session-field">
-                        <span className="session-label">Last Active:</span>
-                        <span className="session-value">
-                          {formatDate(session.last_accessed)}
-                        </span>
-                      </div>
+                  </div>
+
+                  <div className="session-times">
+                    <div className="session-section-label">Session Times</div>
+                    <div className="session-field">
+                      <span className="session-label">Created:</span>
+                      <span className="session-value">{formatDate(session.created_at)}</span>
+                    </div>
+                    <div className="session-field">
+                      <span className="session-label">Last Active:</span>
+                      <span className="session-value">
+                        {formatDate(session.last_accessed)}
+                      </span>
                     </div>
                   </div>
                 </div>

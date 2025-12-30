@@ -18,6 +18,9 @@ services:
     volumes:
       - backend_data:/data
       - ./backend/config:/app/config  # Config volume (read-write for local.json)
+      # Optional: Mount GeoIP2 database for IP geolocation
+      # Uncomment the line below and place GeoLite2-City.mmdb in your preferred location
+      # - /path/to/GeoLite2-City.mmdb:/app/GeoLite2-City.mmdb:ro
     networks:
       - photo-restoration-network
     healthcheck:

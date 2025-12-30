@@ -9,7 +9,7 @@ This module provides endpoints for:
 import logging
 from datetime import timedelta
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas.auth import (
@@ -27,6 +27,7 @@ from app.core.security import (
 from app.core.config import get_settings
 from app.db.database import get_db
 from app.services.session_manager import SessionManager
+from app.utils.session_metadata import capture_session_metadata
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -95,6 +96,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 )
 async def login(
     credentials: LoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ) -> TokenResponse:
     """
@@ -147,9 +149,22 @@ async def login(
     )
     await db.commit()
 
-    # Create new session for this login
+    # Capture session metadata from request
+    metadata = capture_session_metadata(request)
+    logger.debug(f"Session metadata for {credentials.username}: browser={metadata.get('browser')}, device={metadata.get('device_type')}, ip={metadata.get('ip_address')}, location={metadata.get('location')}")
+
+    # Create new session for this login with metadata
     session_manager = SessionManager()
-    session = await session_manager.create_session(db, user["id"])
+    session = await session_manager.create_session(
+        db,
+        user["id"],
+        user_agent=metadata.get("user_agent"),
+        ip_address=metadata.get("ip_address"),
+        browser=metadata.get("browser"),
+        os=metadata.get("os"),
+        device_type=metadata.get("device_type"),
+        location=metadata.get("location"),
+    )
     logger.info(f"Created session {session.session_id} for user {credentials.username} (user_id={user['id']})")
 
     # Calculate token expiration

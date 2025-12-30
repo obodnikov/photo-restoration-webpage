@@ -20,18 +20,18 @@ This document tracks non-blocking improvements, enhancements, and nice-to-have f
 
 ## Summary
 
-**Total Items:** 27
-**Completed Items:** 11 (moved from pending)
-**Pending Items:** 16
+**Total Items:** 29
+**Completed Items:** 18 (moved from pending)
+**Pending Items:** 11
 
 **By Priority:**
 - High Priority: 0 (All Phase 2.4 critical items complete!)
-- Medium Priority: 1 (Test coverage for admin panel)
-- Low Priority: 15 (UX enhancements, documentation, optimizations, future features)
+- Medium Priority: 0 (All medium priority items complete!)
+- Low Priority: 11 (UX enhancements, documentation, CI/CD, optimizations, future features)
 
 **Phase Status:**
 - ✅ Phase 2.4 Complete - All 3 steps finished and tested
-- ✅ Test Coverage Improvements Complete - 5/5 critical items implemented
+- ✅ Test Coverage Improvements Complete - All critical items implemented (Profile, History, Admin Panel, Force Password Change)
 - 🔄 Phase 2.5 In Progress - Backend complete, frontend planned
 
 ---
@@ -346,6 +346,385 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 
 ---
 
+#### 17. **Test Coverage for Admin Panel** ✅ **COMPLETE**
+**Context:** Phase 2.4 Step 3 follow-up
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~4 hours
+
+**Completed Test Coverage:**
+
+**Test Files Created:**
+- ✅ `frontend/src/features/admin/__tests__/useAdminUsers.test.ts` - Hook tests (28 test cases)
+- ✅ `frontend/src/features/admin/__tests__/adminService.test.ts` - Service tests (25 test cases)
+- ✅ `frontend/src/features/admin/__tests__/UserList.test.tsx` - Component tests (25 test cases)
+- ✅ `frontend/src/features/admin/__tests__/CreateUserDialog.test.tsx` - Dialog tests (20 test cases)
+- ✅ `frontend/src/features/admin/__tests__/EditUserDialog.test.tsx` - Dialog tests (18 test cases)
+- ✅ `frontend/src/features/admin/__tests__/DeleteUserDialog.test.tsx` - Dialog tests (13 test cases)
+- ✅ `frontend/src/features/admin/__tests__/ResetPasswordDialog.test.tsx` - Dialog tests (15 test cases)
+
+**Total Test Cases:** 144 tests covering admin panel features
+
+**Test Scenarios Covered:**
+
+**Hook Tests (useAdminUsers.test.ts):**
+1. ✅ Initial state and user loading
+2. ✅ User list fetching with pagination (skip/limit)
+3. ✅ Loading states during async operations
+4. ✅ Error handling for failed API calls
+5. ✅ Role filtering (admin/user/all)
+6. ✅ Status filtering (active/inactive/all)
+7. ✅ Combined filters
+8. ✅ User creation and list refresh
+9. ✅ Error handling for duplicate username/email
+10. ✅ User update with local state sync
+11. ✅ Role assignment changes
+12. ✅ Active/inactive status toggle
+13. ✅ User deletion with list refresh
+14. ✅ Concurrent deletion prevention
+15. ✅ Page navigation after deletion (edge cases)
+16. ✅ Password reset operations
+17. ✅ Pagination (page changes, total pages calculation)
+18. ✅ Filter state management and page resets
+19. ✅ Manual list refresh
+
+**Service Tests (adminService.test.ts):**
+1. ✅ User list fetching with default/custom pagination
+2. ✅ Filter parameter building (role, is_active, combined)
+3. ✅ Single user fetching by ID
+4. ✅ User creation requests
+5. ✅ User updates (email, full_name, role, is_active)
+6. ✅ User deletion
+7. ✅ Password reset requests
+8. ✅ Password generation (length, character requirements)
+9. ✅ Secure random password generation with crypto.getRandomValues
+10. ✅ Password uniqueness verification
+
+**Component Tests:**
+- ✅ **UserList:** Table rendering, filters, pagination controls, action buttons, empty states, current user highlighting, self-deletion prevention
+- ✅ **CreateUserDialog:** Form rendering, validation (8 char min, uppercase, lowercase, digit), password generation, show/hide toggle, form submission, error handling, state clearing
+- ✅ **EditUserDialog:** Form pre-filling, change detection, partial updates, validation, error handling, user switching
+- ✅ **DeleteUserDialog:** Confirmation flow, cascade warning display, error handling, loading states
+- ✅ **ResetPasswordDialog:** Password generation, validation, show/hide toggle, password_must_change checkbox, form submission
+
+**Testing Tools Used:**
+- ✅ Vitest for test runner
+- ✅ @testing-library/react for component testing
+- ✅ @testing-library/react-hooks for hook testing
+- ✅ Mock implementations for API services
+- ✅ Crypto API mocking for secure password generation tests
+
+**Benefits Achieved:**
+- ✅ Prevent regressions when refactoring admin features
+- ✅ Document expected behavior for all CRUD operations
+- ✅ Catch edge cases before production deployment
+- ✅ Increase confidence in admin panel functionality
+- ✅ Maintain consistency with existing test patterns (profile, history features)
+
+**Implementation Notes:**
+- All tests follow existing patterns from profile and history feature tests
+- Comprehensive coverage of user management workflows
+- Security-focused testing for password generation and validation
+- Proper error handling and loading state testing throughout
+
+---
+
+#### 19. **Test Coverage for ForcePasswordChangePage Component** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~2 hours
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/features/auth/__tests__/ForcePasswordChangePage.test.tsx`
+
+**Test Scenarios Implemented (18 test cases):**
+
+**Rendering Tests (4 test cases):**
+- ✅ Form renders with all required fields (current password, new password, confirm password)
+- ✅ Warning message displays ("Password Change Required")
+- ✅ Submit and Logout buttons are present
+- ✅ Password requirements hint displayed
+
+**Validation Tests (7 test cases):**
+- ✅ Error shown when all fields are empty ("All fields are required")
+- ✅ Error for password < 8 characters
+- ✅ Error for missing uppercase letter
+- ✅ Error for missing lowercase letter
+- ✅ Error for missing digit
+- ✅ Error when passwords don't match
+- ✅ Error when new password equals current password
+
+**Submission Flow Tests (4 test cases):**
+- ✅ Successful password change redirects to login with success message
+- ✅ API error displays error message
+- ✅ Generic error handling for non-Error exceptions
+- ✅ Loading state disables form during submission
+
+**User Interaction Tests (3 test cases):**
+- ✅ Logout button calls clearAuth and redirects to login
+- ✅ Error cleared when submitting again after validation error
+- ✅ Buttons disabled during loading state
+
+**Testing Approach Used:**
+- ✅ @testing-library/react for component testing
+- ✅ Mocked useNavigate from react-router-dom
+- ✅ Mocked useAuthStore for auth state management
+- ✅ Mocked API client for password change endpoint
+- ✅ Form submission testing with proper event handling
+
+**Benefits Achieved:**
+- ✅ Comprehensive coverage of security-critical password change flow
+- ✅ Validation logic thoroughly tested (8+ validation rules)
+- ✅ Error handling and loading states verified
+- ✅ User interactions tested (logout, form submission, error recovery)
+- ✅ Follows established testing patterns from profile/admin features
+
+---
+
+#### 20. **Test Coverage for RequirePasswordChangeRoute Component** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~30 minutes
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/components/__tests__/RequirePasswordChangeRoute.test.tsx`
+
+**Test Scenarios Implemented (6 test cases):**
+
+**Access Control Tests (4 test cases):**
+- ✅ Unauthenticated user redirects to /login
+- ✅ Authenticated user with no user object redirects to /login
+- ✅ Authenticated user with password_must_change=false redirects to /
+- ✅ Authenticated user with password_must_change=true renders children
+
+**Navigation Behavior Tests (2 test cases):**
+- ✅ Uses replace prop to prevent history entry when redirecting
+- ✅ Renders children correctly when access is granted
+
+**Testing Approach Used:**
+- ✅ @testing-library/react for component testing
+- ✅ Mocked useAuthStore with different auth states
+- ✅ Mocked Navigate component from react-router-dom
+- ✅ Test child component to verify rendering
+- ✅ Verified correct redirect paths and conditions
+
+**Benefits Achieved:**
+- ✅ Route guard logic thoroughly tested
+- ✅ Access control scenarios comprehensively covered
+- ✅ Prevents regressions in password change enforcement
+- ✅ Ensures proper navigation behavior (replace, not push)
+
+---
+
+#### 21. **Test Coverage for Updated useAuth Hook** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~1 hour
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/features/auth/__tests__/useAuth.test.tsx`
+
+**Test Scenarios Implemented (14 test cases):**
+
+**Token Decoding Tests (6 test cases):**
+- ✅ Decodes token with password_must_change=true correctly
+- ✅ Decodes token with password_must_change=false correctly
+- ✅ Defaults to false when field is missing and logs warning
+- ✅ Handles malformed tokens gracefully (returns default values)
+- ✅ Extracts role field correctly (admin/user)
+- ✅ Extracts username from sub field correctly
+
+**Login Flow Tests (4 test cases):**
+- ✅ Navigates to /change-password when password_must_change=true
+- ✅ Navigates to / when password_must_change=false
+- ✅ Stores auth state correctly with decoded token data
+- ✅ Sets error state and re-throws on login failure
+
+**Logout Tests (2 test cases):**
+- ✅ Clears auth state on logout
+- ✅ Navigates to /login on logout
+
+**Loading and Error States Tests (2 test cases):**
+- ✅ Sets loading state during login
+- ✅ Clears error state on successful login after previous error
+
+**Testing Approach Used:**
+- ✅ @testing-library/react-hooks for hook testing
+- ✅ Mocked loginApi from authService
+- ✅ Mocked useNavigate from react-router-dom
+- ✅ Mocked useAuthStore methods (setAuth, clearAuth)
+- ✅ Helper function to create test JWT tokens with base64 encoding
+- ✅ Spy on console.warn to verify warning logs
+
+**Benefits Achieved:**
+- ✅ Critical JWT decoding logic thoroughly tested
+- ✅ Password change redirect flow verified
+- ✅ Error handling and fallback behavior tested
+- ✅ Loading states and error recovery verified
+- ✅ Comprehensive coverage of authentication hook functionality
+
+**Implementation Notes:**
+- All three test suites (items 19-21) work together to provide comprehensive coverage of the Force Password Change feature
+- Total of 38 test cases covering all aspects of forced password change flow
+- Tests follow established patterns from profile, admin, and history feature tests
+- Security-critical authentication and validation logic thoroughly tested
+
+---
+
+#### 6. **Session Details Expansion** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Sessions Management
+**Status:** ✅ **IMPLEMENTED** - Session metadata fully integrated
+**Implementation Date:** 2025-12-30
+**Effort:** ~4 hours
+**Bug Fixes:** 2025-12-30 (Post-implementation code review)
+
+**Completed Features:**
+- ✅ Backend Session model updated with metadata fields (user_agent, ip_address, device_type, browser, os, location)
+- ✅ Database migration created (001_add_session_metadata.py)
+- ✅ User-Agent parsing library added (user-agents 2.2.0)
+- ✅ IP geolocation support added (geoip2 4.8.1, optional GeoLite2 database)
+- ✅ Session metadata utility service created (backend/app/utils/session_metadata.py)
+- ✅ Login endpoint updated to capture session metadata from requests
+- ✅ SessionManager.create_session() updated to accept metadata parameters
+- ✅ UserSessionResponse schema updated with new fields
+- ✅ Frontend Session interface updated with metadata fields
+- ✅ SessionsList component redesigned with Option C (Hybrid) layout
+- ✅ CSS styles added for device/location/IP display
+- ✅ Backward compatibility ensured (all fields nullable, "Unknown" fallbacks)
+- ✅ **Critical bug fixes applied** (3 blocking issues resolved post-review)
+
+**Implementation Details:**
+
+**Backend Changes:**
+- Session model includes 6 new nullable columns for metadata
+- Metadata extraction utilities parse User-Agent headers using `user-agents` library
+- IP address extracted from X-Forwarded-For header (proxy-aware) or direct client host
+- Optional geolocation using GeoIP2 database (gracefully degrades if unavailable)
+- All metadata fields are optional - missing data shows as "Unknown"
+- **Module-level geoip2 imports** with try/except fallback for better testability
+
+**Bug Fixes Applied:**
+1. **Fixed geoip2.errors import issue** - Added missing import to prevent 500 errors on AddressNotFoundError
+2. **Refactored geoip2 imports to module level** - Moved imports from function scope to module scope with fallback for better testability
+3. **Fixed integration test queries** - Replaced `.scalar_one_or_none()` with `.scalars().first()` in 6 tests to handle multiple sessions correctly
+
+**Frontend Changes:**
+- Display format: Device & Location section + Session Times section
+- Device info: Icon (💻/📱) + "Browser OS (Device Type)"
+- Location: 📍 icon + "City, State/Country" or "Unknown location"
+- IP address: 🌐 icon + full IP (not masked per user preference)
+- Clean, organized layout following sqowe brand guidelines
+- Responsive design for mobile/tablet
+
+**Files Created:**
+- `backend/alembic/versions/001_add_session_metadata.py` - Database migration
+- `backend/app/utils/session_metadata.py` - Metadata extraction utilities
+
+**Files Modified:**
+- `backend/app/db/models.py` - Session model with 6 new fields
+- `backend/requirements.txt` - Added user-agents and geoip2
+- `backend/app/services/session_manager.py` - create_session() accepts metadata
+- `backend/app/api/v1/routes/auth.py` - Login captures and stores metadata
+- `backend/app/api/v1/schemas/user.py` - UserSessionResponse includes metadata
+- `frontend/src/features/profile/types.ts` - Session interface updated
+- `frontend/src/features/profile/components/SessionsList.tsx` - Redesigned UI (Option C)
+- `frontend/src/styles/components/profile.css` - New metadata styles
+
+**Benefits Achieved:**
+- ✅ Better security awareness - Users can identify suspicious logins
+- ✅ Device identification - Clear browser/OS/device information
+- ✅ Geographic awareness - Approximate location for anomaly detection
+- ✅ IP tracking - Full IP address displayed for security monitoring
+- ✅ Backward compatible - Existing sessions without metadata work correctly
+- ✅ Graceful degradation - GeoIP2 optional, works without database file
+- ✅ Clean UX - Option C layout provides all info without clutter
+
+**Notes:**
+- GeoIP2 database (GeoLite2-City.mmdb) is optional - feature works without it
+- To enable geolocation, download free GeoLite2-City database from MaxMind
+- Place database file in standard location (/usr/share/GeoIP/ or /var/lib/GeoIP/)
+- Metadata captured on login - existing sessions show "Unknown" until re-login
+- All new database columns are nullable for zero-downtime deployment
+
+---
+
+#### 8. **Session Metadata Enhancement** ✅ **COMPLETE**
+**Context:** Support for frontend session details (#6)
+**Status:** ✅ **IMPLEMENTED** - Integrated with item #6
+**Implementation Date:** 2025-12-30
+**Effort:** Included in item #6 implementation
+
+**Completed Implementation:**
+- ✅ Session model updated with metadata fields (completed in item #6)
+- ✅ Database migration created for schema changes
+- ✅ Login endpoint captures User-Agent, IP address, and device info
+- ✅ User-Agent parsing extracts browser, OS, device type
+- ✅ IP geolocation service integrated (optional GeoIP2)
+- ✅ All metadata returned in `/users/me/sessions` endpoint
+
+**Files Modified:**
+- Same files as item #6 (backend-focused changes)
+
+**Note:** This item was a backend prerequisite for item #6 and was completed as part of the same implementation. Both items #6 and #8 are now fully complete and production-ready.
+
+---
+
+#### 22. **Session Metadata Test Coverage** ✅ **COMPLETE**
+**Context:** Code Review - Test Coverage for Session Details Expansion
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test coverage added
+**Implementation Date:** 2025-12-30
+**Effort:** ~1.5 hours
+
+**Test Coverage Added:**
+
+**1. Utility Function Tests** (`tests/utils/test_session_metadata.py`):
+- ✅ `TestGetClientIP`: 5 tests for IP extraction (X-Forwarded-For, fallback, IPv6)
+- ✅ `TestParseUserAgentMetadata`: 8 tests for UA parsing (Chrome, Firefox, Safari, Mobile, Tablet, Edge cases)
+- ✅ `TestGetIPLocation`: 4 tests for geolocation (success, database not found, IP not found, minimal data)
+- ✅ `TestCaptureSessionMetadata`: 4 tests for end-to-end metadata capture
+- **Total: 21 unit tests**
+
+**2. Integration Tests** (`tests/api/v1/test_auth.py`):
+- ✅ `test_login_captures_user_agent_metadata`: Verifies UA, browser, OS, device type stored
+- ✅ `test_login_captures_ip_address_from_x_forwarded_for`: Verifies X-Forwarded-For handling
+- ✅ `test_login_with_mobile_user_agent`: Verifies mobile device detection
+- ✅ `test_login_with_geolocation`: Verifies geolocation capture with mocked GeoIP2
+- ✅ `test_login_handles_missing_metadata_gracefully`: Verifies graceful degradation
+- ✅ `test_login_handles_geolocation_failure_gracefully`: Verifies GeoIP2 failure handling
+- ✅ `test_multiple_logins_create_separate_sessions_with_metadata`: Verifies multiple sessions
+- **Total: 7 integration tests**
+
+**Test Coverage:**
+- User-Agent parsing: ✅ Chrome, Firefox, Safari, Mobile Safari, Android Chrome, Tablet, Bot
+- IP extraction: ✅ X-Forwarded-For (single, multiple), client.host, IPv6
+- Geolocation: ✅ Success, failure, database not found, minimal data
+- Error handling: ✅ Missing headers, invalid UA, GeoIP2 exceptions
+- Edge cases: ✅ None values, empty strings, multiple sessions
+
+**Files Created:**
+- `backend/tests/utils/test_session_metadata.py` - 21 unit tests for metadata utilities
+
+**Files Modified:**
+- `backend/tests/api/v1/test_auth.py` - Added 7 integration tests for login with metadata
+
+**Test Execution:**
+All tests pass successfully with proper mocking of GeoIP2 database and HTTP headers.
+
+**Benefits:**
+- ✅ Code review requirement addressed
+- ✅ 28 new tests ensure metadata capture works correctly
+- ✅ Graceful degradation verified (missing headers, GeoIP2 failures)
+- ✅ Multiple browsers and devices tested
+- ✅ Production-ready with full test coverage
+
+---
+
 ## Pending Technical Debts
 
 Items that remain to be implemented, organized by priority.
@@ -360,59 +739,7 @@ Items that remain to be implemented, organized by priority.
 
 ### Medium Priority
 
-#### 17. **Test Coverage for Admin Panel** (Recommended, Not Blocking)
-**Context:** Phase 2.4 Step 3 follow-up
-**Status:** Not implemented
-**Effort:** 3-4 hours
-**Priority:** MEDIUM
-
-**Current State:**
-- Admin panel is functionally complete and production-ready
-- Build successful with no TypeScript errors
-- Comprehensive error handling in place
-- No automated tests for admin features
-
-**Recommended Test Coverage:**
-
-**Test File:** `frontend/src/features/admin/__tests__/useAdminUsers.test.ts`
-
-**Test Scenarios:**
-1. **User List Fetching**
-   - Test fetching users with pagination
-   - Test applying role filter
-   - Test applying status filter
-   - Test error handling
-
-2. **CRUD Operations**
-   - Test creating user successfully
-   - Test creating user with duplicate username/email
-   - Test updating user
-   - Test deleting user
-   - Test reset password
-
-3. **Pagination**
-   - Test page changes
-   - Test filter changes reset page to 1
-   - Test total pages calculation
-
-**Component Tests:**
-- `UserList.test.tsx` - Table rendering, filters, pagination
-- `CreateUserDialog.test.tsx` - Form validation, password generation
-- `EditUserDialog.test.tsx` - Form updates, change detection
-- `DeleteUserDialog.test.tsx` - Confirmation flow
-- `ResetPasswordDialog.test.tsx` - Password generation, form submission
-
-**Benefits:**
-- Prevent regressions when refactoring
-- Document expected behavior
-- Catch edge cases in CI/CD pipeline
-- Increase confidence for production deployment
-
-**Not Blocking Because:**
-- Feature is functionally complete and tested manually
-- Build successful with no errors
-- Comprehensive error handling already in place
-- Can be added incrementally as part of test coverage improvements
+**Currently: NONE** - All medium priority items have been completed!
 
 ---
 
@@ -483,76 +810,6 @@ const handleConfirmDelete = async () => {
 
 ---
 
-#### 6. **Session Details Expansion**
-**Context:** Phase 2.4 - Sessions Management
-**Status:** Shows basic info (created, last accessed)
-**Effort:** ~4 hours (requires backend changes)
-**Benefit:** Better security awareness for users
-
-**Current Display:**
-- Session ID
-- Created date
-- Last accessed date
-- Current session indicator
-
-**Proposed Enhancement:**
-- Browser/device information
-- IP address (last used)
-- Geographic location (approximate)
-- Login method
-
-**Backend Requirements:**
-- Store additional session metadata
-- Update Session model
-- Update `/users/me/sessions` endpoint response
-
-**Frontend Changes:**
-- Update Session type definition
-- Enhance SessionsList display
-- Add expandable session details
-
----
-
-## Backend - Profile Feature
-
-#### 8. **Session Metadata Enhancement**
-**Context:** Support for frontend session details (#6)
-**Status:** Basic session tracking exists
-**Effort:** ~3 hours
-**Impact:** Better security monitoring
-
-**Current Schema:**
-```python
-class Session(Base):
-    id: str
-    user_id: int
-    created_at: datetime
-    last_accessed: datetime
-```
-
-**Proposed Schema:**
-```python
-class Session(Base):
-    id: str
-    user_id: int
-    created_at: datetime
-    last_accessed: datetime
-    # New fields:
-    user_agent: str | None
-    ip_address: str | None
-    device_type: str | None  # mobile, desktop, tablet
-    browser: str | None
-    os: str | None
-```
-
-**Files to Modify:**
-- `backend/app/db/models.py`
-- `backend/app/core/auth.py` (capture metadata on login)
-- `backend/app/api/v1/users.py` (return metadata in sessions endpoint)
-- Database migration script
-
----
-
 ### 14. **Enhanced Session Filter with Historical Session Selection** (Future Enhancement)
 **Context:** Extension of Phase 2.4 Step 2
 **Status:** Not implemented
@@ -587,62 +844,6 @@ Add ability to filter by any historical session:
 - Backend filters before pagination
 - Better performance for users with many images
 - Accurate pagination counts per session
-
----
-
-### 17. **Test Coverage for Admin Panel** (Recommended, Not Blocking)
-**Context:** Phase 2.4 Step 3 follow-up
-**Status:** Not implemented
-**Effort:** 3-4 hours
-**Priority:** MEDIUM
-
-**Current State:**
-- Admin panel is functionally complete and production-ready
-- Build successful with no TypeScript errors
-- Comprehensive error handling in place
-- No automated tests for admin features
-
-**Recommended Test Coverage:**
-
-**Test File:** `frontend/src/features/admin/__tests__/useAdminUsers.test.ts`
-
-**Test Scenarios:**
-1. **User List Fetching**
-   - Test fetching users with pagination
-   - Test applying role filter
-   - Test applying status filter
-   - Test error handling
-
-2. **CRUD Operations**
-   - Test creating user successfully
-   - Test creating user with duplicate username/email
-   - Test updating user
-   - Test deleting user
-   - Test reset password
-
-3. **Pagination**
-   - Test page changes
-   - Test filter changes reset page to 1
-   - Test total pages calculation
-
-**Component Tests:**
-- `UserList.test.tsx` - Table rendering, filters, pagination
-- `CreateUserDialog.test.tsx` - Form validation, password generation
-- `EditUserDialog.test.tsx` - Form updates, change detection
-- `DeleteUserDialog.test.tsx` - Confirmation flow
-- `ResetPasswordDialog.test.tsx` - Password generation, form submission
-
-**Benefits:**
-- Prevent regressions when refactoring
-- Document expected behavior
-- Catch edge cases in CI/CD pipeline
-- Increase confidence for production deployment
-
-**Not Blocking Because:**
-- Feature is functionally complete and tested manually
-- Build successful with no errors
-- Comprehensive error handling already in place
-- Can be added incrementally as part of test coverage improvements
 
 ---
 
@@ -797,71 +998,6 @@ export const SessionsList = React.memo<SessionsListProps>(({
 - If profile page shows performance issues
 - If users report slow rendering
 - After adding more complex features
-
----
-
-## Frontend - Force Password Change Feature
-
-### 19. **Test Coverage for ForcePasswordChangePage Component**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~2 hours
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- Form rendering and field presence
-- Password validation rules (length, uppercase, lowercase, digit)
-- Password mismatch validation
-- Same-as-current password validation
-- Successful submission flow and redirect to login
-- API error handling
-- Loading state management
-- Logout button functionality
-
-**Rationale:**
-The ForcePasswordChangePage is a security-critical component that forces users to change passwords on first login. Comprehensive tests would ensure robustness.
-
-**File:** `frontend/src/features/auth/__tests__/ForcePasswordChangePage.test.tsx` (to be created)
-
----
-
-### 20. **Test Coverage for RequirePasswordChangeRoute Component**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~30 minutes
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- Authenticated user with password_must_change=true can access
-- Authenticated user with password_must_change=false redirects to home
-- Unauthenticated user redirects to login
-- Component renders children when conditions are met
-
-**Rationale:**
-Route guard logic should be tested to prevent regressions in access control.
-
-**File:** `frontend/src/features/auth/__tests__/RequirePasswordChangeRoute.test.tsx` (to be created)
-
----
-
-### 21. **Test Coverage for Updated useAuth Hook**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~1 hour
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- JWT token decoding with password_must_change field
-- JWT token decoding without password_must_change field (defaults to false)
-- Warning log when password_must_change is missing
-- Login redirect to /change-password when flag is true
-- Login redirect to / when flag is false
-- Token decode error handling
-
-**Rationale:**
-The updated decodeToken function includes critical security logic that should be thoroughly tested.
-
-**File:** `frontend/src/features/auth/__tests__/useAuth.test.ts` (to be updated)
 
 ---
 
@@ -1203,25 +1339,109 @@ async def create_model_config(
 
 ---
 
+## CI/CD & Testing Infrastructure
+
+### 28. **Continuous Integration Test Pipeline** (Future Enhancement)
+**Context:** Automated testing in development workflow
+**Status:** Not implemented
+**Effort:** 2-3 hours
+**Priority:** LOW
+
+**Current State:**
+- Tests run locally via npm/docker commands
+- No automated CI/CD pipeline configured
+- Manual test execution before commits
+- Test coverage tracking is manual
+
+**Recommended CI/CD Setup:**
+
+**Option 1: GitHub Actions**
+```yaml
+name: Frontend Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '22.12'
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm test -- --run
+      - uses: codecov/codecov-action@v3  # Optional coverage reporting
+```
+
+**Option 2: GitLab CI**
+```yaml
+test:frontend:
+  image: node:22.12-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm test -- --run --coverage
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
+```
+
+**Features to Include:**
+- ✅ Run all tests on every commit/PR
+- ✅ Generate code coverage reports
+- ✅ Fail builds on test failures
+- ✅ Parallel test execution for speed
+- ✅ Test result caching for faster runs
+- ✅ Notifications on test failures
+
+**Additional Improvements:**
+1. **Pre-commit hooks:** Run tests before allowing commits
+2. **Coverage thresholds:** Enforce minimum coverage percentages
+3. **Performance testing:** Track test execution time
+4. **Visual regression testing:** Screenshot comparisons for UI components
+5. **E2E testing:** Add Playwright/Cypress tests for critical flows
+
+**Benefits:**
+- Early detection of breaking changes
+- Consistent test environment across team
+- Automated coverage tracking
+- Faster feedback loop for developers
+- Confidence in deployments
+
+**When to Implement:**
+- When team grows beyond 1-2 developers
+- When preparing for production deployment
+- When test suite becomes large (>500 tests)
+- During DevOps setup phase
+
+---
+
 ## Effort Summary
 
-**Completed Items (11 total):**
+**Completed Items (18 total):**
 - Frontend profile feature tests: ~4.5 hours
 - History session filter tests: ~3 hours
+- Admin panel tests: ~4 hours
+- Force password change tests: ~3.5 hours
 - API documentation updates: ~45 minutes
 - History component update: Production-ready
 - Admin panel: Production-ready
-- Total completed effort: ~8-9 hours
+- Session Details Expansion (items #6 & #8): ~4 hours
+- Session Metadata Test Coverage (item #22): ~1.5 hours
+- Total completed effort: ~21-22 hours
 
-**Pending Items (16 total):**
-- Medium Priority (1 item): 3-4 hours
-- Low Priority (15 items): 35-50 hours
-- **Estimated Total Effort for Remaining Items:** 38-54 hours
+**Pending Items (11 total):**
+- Medium Priority: 0 items (All complete!)
+- Low Priority (11 items): 31-48 hours
+- **Estimated Total Effort for Remaining Items:** 31-48 hours
 
 **Recommended Next Steps:**
-1. Add test coverage for admin panel (MEDIUM priority, 3-4 hours)
-2. Consider UX improvements (password strength indicator, session details)
-3. Future enhancements when needed (server-side search, advanced features)
+1. ✅ All critical test coverage complete!
+2. ✅ Session Details Expansion complete!
+3. Consider UX improvements (password strength indicator, local error handling)
+4. Implement CI/CD pipeline when team grows
+5. Future enhancements when needed (server-side search, advanced features)
 
 ---
 
@@ -1236,11 +1456,16 @@ async def create_model_config(
 ---
 
 **Document Created:** 2024-12-22
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
 **Phase:** 2.5 - Admin Model Configuration (Backend Complete, Frontend In Progress)
 **Phase:** Custom Model Parameters UI ✅ COMPLETE (Frontend & Backend)
-**Test Coverage Improvements:** ✅ COMPLETE (5/5 critical items implemented)
+**Test Coverage Improvements:** ✅ COMPLETE (All critical items implemented)
+- ✅ Profile feature tests (items #1, #2, #3, #7)
+- ✅ History session filter tests (item #15)
+- ✅ Admin panel tests - 144 tests (item #17)
+- ✅ Force password change tests - 38 tests (items #19, #20, #21)
+**CI/CD Infrastructure:** Added item #28 for future continuous integration pipeline
 **Admin Model Config Optimizations:** Added items #25 and #26 based on code review suggestions
 **Advanced Parameter Features:** Added item #27 for future enhancements (Parameter Grouping, Presets, Conditional Parameters, etc.)
 **Maintainer:** Development Team

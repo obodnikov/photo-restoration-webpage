@@ -25,6 +25,12 @@ export interface Session {
   created_at: string;
   last_accessed: string;
   is_current: boolean;
+  user_agent?: string | null;
+  ip_address?: string | null;
+  device_type?: string | null;
+  browser?: string | null;
+  os?: string | null;
+  location?: string | null;
 }
 
 export interface SessionsResponse {

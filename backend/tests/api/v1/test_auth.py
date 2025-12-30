@@ -1,11 +1,14 @@
 """Tests for authentication API endpoints."""
 import time
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.security import create_access_token
+from app.db.models import Session as SessionModel
 
 
 @pytest.mark.integration
@@ -473,3 +476,243 @@ class TestAuthenticationSecurity:
         )
 
         assert response.status_code == 401
+
+
+@pytest.mark.integration
+@pytest.mark.auth
+class TestLoginWithSessionMetadata:
+    """Test login endpoint captures session metadata."""
+
+    @pytest.mark.asyncio
+    async def test_login_captures_user_agent_metadata(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login captures User-Agent metadata in session."""
+        user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            },
+            headers={"User-Agent": user_agent}
+        )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        assert session.user_agent == user_agent
+        assert session.browser is not None
+        assert "Chrome" in session.browser
+        assert session.os is not None
+        assert "Mac OS X" in session.os
+        assert session.device_type == "Desktop"
+
+    @pytest.mark.asyncio
+    async def test_login_captures_ip_address_from_x_forwarded_for(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login captures IP from X-Forwarded-For header."""
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            },
+            headers={"X-Forwarded-For": "203.0.113.1, 198.51.100.1"}
+        )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        assert session.ip_address == "203.0.113.1"
+
+    @pytest.mark.asyncio
+    async def test_login_with_mobile_user_agent(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login correctly identifies mobile devices."""
+        mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            },
+            headers={"User-Agent": mobile_ua}
+        )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        assert session.device_type == "Mobile"
+        assert "iOS" in session.os or "iPhone" in session.os
+
+    @pytest.mark.asyncio
+    async def test_login_with_geolocation(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login captures geolocation when GeoIP2 available."""
+        with patch("app.utils.session_metadata.get_ip_location", return_value="San Francisco, CA, United States"):
+            response = client.post(
+                "/api/v1/auth/login",
+                json={
+                    "username": test_user_credentials["username"],
+                    "password": test_user_credentials["password"],
+                    "remember_me": False
+                },
+                headers={"X-Forwarded-For": "8.8.8.8"}
+            )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        assert session.location == "San Francisco, CA, United States"
+        assert session.ip_address == "8.8.8.8"
+
+    @pytest.mark.asyncio
+    async def test_login_handles_missing_metadata_gracefully(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login succeeds even without metadata headers."""
+        response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            }
+            # No User-Agent or X-Forwarded-For headers
+        )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        # Metadata fields should be None or have defaults
+        # Session creation should still succeed
+
+    @pytest.mark.asyncio
+    async def test_login_handles_geolocation_failure_gracefully(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test login succeeds even if geolocation fails."""
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+        with patch("app.utils.session_metadata.get_ip_location", return_value=None):
+            response = client.post(
+                "/api/v1/auth/login",
+                json={
+                    "username": test_user_credentials["username"],
+                    "password": test_user_credentials["password"],
+                    "remember_me": False
+                },
+                headers={
+                    "User-Agent": user_agent,
+                    "X-Forwarded-For": "192.168.1.1"
+                }
+            )
+
+        assert response.status_code == 200
+
+        # Get session from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        session = result.scalars().first()
+
+        assert session is not None
+        assert session.ip_address == "192.168.1.1"
+        assert session.location is None  # GeoIP failed
+        assert session.browser is not None  # But UA still parsed
+
+    @pytest.mark.asyncio
+    async def test_multiple_logins_create_separate_sessions_with_metadata(
+        self, client: TestClient, test_user_credentials, test_db
+    ):
+        """Test multiple logins create separate sessions with different metadata."""
+        # First login from Chrome
+        response1 = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            },
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+                "X-Forwarded-For": "203.0.113.1"
+            }
+        )
+
+        assert response1.status_code == 200
+
+        time.sleep(0.1)  # Small delay to ensure different timestamps
+
+        # Second login from Firefox
+        response2 = client.post(
+            "/api/v1/auth/login",
+            json={
+                "username": test_user_credentials["username"],
+                "password": test_user_credentials["password"],
+                "remember_me": False
+            },
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
+                "X-Forwarded-For": "198.51.100.1"
+            }
+        )
+
+        assert response2.status_code == 200
+
+        # Get sessions from database
+        result = await test_db.execute(
+            select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
+        )
+        sessions = result.scalars().all()
+
+        assert len(sessions) >= 2
+
+        # Most recent session should be Firefox
+        latest_session = sessions[0]
+        assert "Firefox" in latest_session.browser
+        assert latest_session.ip_address == "198.51.100.1"
+
+        # Previous session should be Chrome
+        previous_session = sessions[1]
+        assert "Chrome" in previous_session.browser
+        assert previous_session.ip_address == "203.0.113.1"

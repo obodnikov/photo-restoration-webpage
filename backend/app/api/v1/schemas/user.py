@@ -135,6 +135,12 @@ class UserSessionResponse(BaseModel):
     created_at: datetime
     last_accessed: datetime
     image_count: int
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_type: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    location: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

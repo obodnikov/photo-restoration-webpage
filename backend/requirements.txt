@@ -25,6 +25,12 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt<5.0.0  # passlib 1.7.4 not compatible with bcrypt 5.x
 
+# User-Agent parsing for session metadata
+user-agents==2.2.0
+
+# IP Geolocation
+geoip2==4.8.1
+
 # Database
 sqlalchemy[asyncio]==2.0.36
 aiosqlite==0.20.0

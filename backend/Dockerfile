@@ -36,8 +36,17 @@ COPY ./app ./app
 # Copy configuration files
 COPY ./config ./config
 
+# Copy Alembic configuration and migrations
+COPY alembic.ini .
+COPY ./alembic ./alembic
+
 # Create data directory
 RUN mkdir -p /data/uploads /data/processed
+
+# Optional: GeoIP2 database for IP geolocation
+# To enable IP geolocation, place GeoLite2-City.mmdb at /app/GeoLite2-City.mmdb
+# See docs/GEOIP_SETUP.md for download and setup instructions
+# The application will work without this file (location will show as "Unknown location")
 
 # Expose port
 EXPOSE 8000
