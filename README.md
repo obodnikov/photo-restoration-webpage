@@ -220,7 +220,24 @@ cp frontend/.env.example frontend/.env
 
 (Default values should work for Docker setup)
 
-### 3. Build and run with Docker Compose
+### 3. Optional: Enable IP Geolocation
+
+The application can display approximate geographic locations for user sessions based on IP addresses. This feature is **optional** and requires the GeoLite2-City database from MaxMind.
+
+**Quick Setup:**
+```bash
+# Download GeoLite2-City database (requires free MaxMind account)
+# See detailed instructions: docs/GEOIP_SETUP.md
+
+# For Docker: Place the database file and uncomment volume mount in docker-compose.yml
+# - /path/to/GeoLite2-City.mmdb:/app/GeoLite2-City.mmdb:ro
+```
+
+**Without this setup:** Sessions will show "📍Unknown location" but all other features work normally.
+
+**For detailed instructions:** See [docs/GEOIP_SETUP.md](docs/GEOIP_SETUP.md)
+
+### 4. Build and run with Docker Compose
 
 **IMPORTANT:** The application now requires an external reverse proxy. The docker-compose.yml no longer includes nginx. You must configure your own reverse proxy (nginx, Apache, Traefik, Caddy, etc.) to route requests.
 
@@ -246,7 +263,7 @@ This starts:
 
 See [docs/implementation.md](docs/implementation.md#individual-docker-run-commands) for manual Docker run commands.
 
-### 4. Configure your external reverse proxy
+### 5. Configure your external reverse proxy
 
 You must set up a reverse proxy to route requests. Example nginx configuration:
 
@@ -287,7 +304,7 @@ server {
 
 See [docs/implementation.md](docs/implementation.md#external-reverse-proxy-configuration) for complete nginx, Apache, Traefik, and Caddy examples.
 
-### 5. Access the application
+### 6. Access the application
 
 Once your reverse proxy is configured:
 

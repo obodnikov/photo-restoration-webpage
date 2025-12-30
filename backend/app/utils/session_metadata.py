@@ -125,35 +125,58 @@ def get_ip_location(ip_address: Optional[str]) -> Optional[str]:
         Location string (e.g., "San Francisco, CA, United States") or None
     """
     if not ip_address:
+        logger.debug("No IP address provided for location lookup")
         return None
 
     if not GEOIP2_AVAILABLE:
-        logger.debug("geoip2 library not installed, skipping location lookup")
+        logger.warning(
+            "geoip2 library not installed - IP geolocation disabled. "
+            "Install with: pip install geoip2"
+        )
         return None
 
     try:
         import os
 
+        logger.debug(f"Attempting to locate IP address: {ip_address}")
+
         # Check for GeoIP2 database file
-        # Try common locations
+        # Try common locations (including Docker path /app)
         db_paths = [
-            "/usr/share/GeoIP/GeoLite2-City.mmdb",
-            "/var/lib/GeoIP/GeoLite2-City.mmdb",
-            "GeoLite2-City.mmdb",
-            "backend/GeoLite2-City.mmdb",
+            os.environ.get("GEOIP_DB_PATH"),  # Custom path from environment
+            "/app/GeoLite2-City.mmdb",  # Docker container location
+            "/usr/share/GeoIP/GeoLite2-City.mmdb",  # System-wide location (Linux)
+            "/var/lib/GeoIP/GeoLite2-City.mmdb",  # Alternative system location
+            "GeoLite2-City.mmdb",  # Current directory
+            "backend/GeoLite2-City.mmdb",  # Development location
         ]
+
+        # Filter out None values (from env var if not set)
+        db_paths = [p for p in db_paths if p]
+
+        logger.debug(f"Searching for GeoIP2 database in {len(db_paths)} locations...")
 
         db_path = None
         for path in db_paths:
+            logger.debug(f"  Checking: {path}")
             if os.path.exists(path):
                 db_path = path
+                logger.debug(f"  ✓ Found database at: {path}")
                 break
+            else:
+                logger.debug(f"  ✗ Not found: {path}")
 
         if not db_path:
-            logger.debug("GeoIP2 database not found, skipping location lookup")
+            logger.warning(
+                "GeoIP2 database not found - IP geolocation disabled. "
+                "Session location will show as 'Unknown location'. "
+                "To enable: Download GeoLite2-City.mmdb from MaxMind and place at /app/GeoLite2-City.mmdb "
+                "See docs/GEOIP_SETUP.md for instructions."
+            )
             return None
 
         # Perform IP lookup
+        logger.debug(f"Opening GeoIP2 database: {db_path}")
         with geoip2.database.Reader(db_path) as reader:
             response = reader.city(ip_address)
 
@@ -172,13 +195,20 @@ def get_ip_location(ip_address: Optional[str]) -> Optional[str]:
             if response.country.name:
                 location_parts.append(response.country.name)
 
-            return ", ".join(location_parts) if location_parts else None
+            location = ", ".join(location_parts) if location_parts else None
+
+            if location:
+                logger.debug(f"Successfully resolved IP {ip_address} to: {location}")
+            else:
+                logger.debug(f"IP {ip_address} found but no location data available")
+
+            return location
 
     except geoip2.errors.AddressNotFoundError:
-        logger.debug(f"IP address {ip_address} not found in GeoIP2 database")
+        logger.debug(f"IP address {ip_address} not found in GeoIP2 database (may be private/local IP)")
         return None
     except Exception as e:
-        logger.warning(f"Failed to lookup IP location: {e}")
+        logger.warning(f"Failed to lookup IP location for {ip_address}: {e}")
         return None
 
 
