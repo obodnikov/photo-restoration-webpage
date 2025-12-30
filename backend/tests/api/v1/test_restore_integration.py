@@ -278,46 +278,105 @@ class TestRestoreIntegration:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_user_isolation_cannot_access_other_user_images(
-        self, async_client, test_image_jpeg, mock_hf_service, test_settings
+    async def test_cross_session_access_same_user_can_access_images(
+        self, auth_client, async_client, test_image_jpeg, mock_hf_service, test_settings
     ):
-        """Test users cannot access images from other sessions."""
-        # Create first user session and upload image
-        login1_response = await async_client.post(
-            "/api/v1/auth/login",
-            json={"username": "admin", "password": "changeme", "remember_me": False},
-        )
-        token1 = login1_response.json()["access_token"]
-
-        upload_response = await async_client.post(
+        """Test Phase 2.4: Same user can access images from different sessions."""
+        # Upload image using default auth_client (first session)
+        upload_response = await auth_client.post(
             "/api/v1/restore",
             data={"model_id": "swin2sr-2x"},
-            files={"file": ("user1.jpg", test_image_jpeg, "image/jpeg")},
-            headers={"Authorization": f"Bearer {token1}"},
+            files={"file": ("cross_session_test.jpg", test_image_jpeg, "image/jpeg")},
         )
+        assert upload_response.status_code == 200
         image_id = upload_response.json()["id"]
 
-        # Create second user session (new login = new session)
+        # Create second session for SAME user (new login = new session)
         login2_response = await async_client.post(
             "/api/v1/auth/login",
-            json={"username": "admin", "password": "changeme", "remember_me": False},
+            json={"username": "testuser", "password": "testpass", "remember_me": False},
         )
         token2 = login2_response.json()["access_token"]
 
-        # Try to access first user's image with second session
+        # Phase 2.4: Same user should be able to access image from first session
         get_response = await async_client.get(
             f"/api/v1/restore/{image_id}",
             headers={"Authorization": f"Bearer {token2}"},
         )
 
-        assert get_response.status_code == status.HTTP_404_NOT_FOUND
+        assert get_response.status_code == status.HTTP_200_OK
+        assert get_response.json()["id"] == image_id
 
-        # Try to delete first user's image with second session
+        # Phase 2.4: Same user should be able to download image from first session
+        download_response = await async_client.get(
+            f"/api/v1/restore/{image_id}/download",
+            headers={"Authorization": f"Bearer {token2}"},
+        )
+
+        assert download_response.status_code == status.HTTP_200_OK
+
+        # Phase 2.4: Same user should be able to delete image from first session
         delete_response = await async_client.delete(
             f"/api/v1/restore/{image_id}",
             headers={"Authorization": f"Bearer {token2}"},
         )
 
+        assert delete_response.status_code == status.HTTP_200_OK
+        assert delete_response.json()["success"] is True
+
+    async def test_user_isolation_different_users_cannot_access_images(
+        self, auth_client, async_client, test_image_jpeg, mock_hf_service, test_settings, test_db
+    ):
+        """Test that different users cannot access each other's images."""
+        from app.db.models import User
+        from app.core.security import get_password_hash
+
+        # Create a second user in the database
+        async with test_db() as db:
+            second_user = User(
+                username="otheruser",
+                email="otheruser@example.com",
+                full_name="Other User",
+                hashed_password=get_password_hash("otherpass"),
+                role="user",
+            )
+            db.add(second_user)
+            await db.commit()
+
+        # First user (testuser) uploads an image using auth_client
+        upload_response = await auth_client.post(
+            "/api/v1/restore",
+            data={"model_id": "swin2sr-2x"},
+            files={"file": ("testuser_image.jpg", test_image_jpeg, "image/jpeg")},
+        )
+        image_id = upload_response.json()["id"]
+
+        # Second user logs in
+        login2_response = await async_client.post(
+            "/api/v1/auth/login",
+            json={"username": "otheruser", "password": "otherpass", "remember_me": False},
+        )
+        token2 = login2_response.json()["access_token"]
+
+        # Second user should NOT be able to access first user's image
+        get_response = await async_client.get(
+            f"/api/v1/restore/{image_id}",
+            headers={"Authorization": f"Bearer {token2}"},
+        )
+        assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+        # Second user should NOT be able to download first user's image
+        download_response = await async_client.get(
+            f"/api/v1/restore/{image_id}/download",
+            headers={"Authorization": f"Bearer {token2}"},
+        )
+        assert download_response.status_code == status.HTTP_404_NOT_FOUND
+
+        # Second user should NOT be able to delete first user's image
+        delete_response = await async_client.delete(
+            f"/api/v1/restore/{image_id}",
+            headers={"Authorization": f"Bearer {token2}"},
+        )
         assert delete_response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_filename_preserved_with_uuid(
