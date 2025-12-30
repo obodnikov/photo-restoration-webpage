@@ -178,6 +178,14 @@ class Session(Base):
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
+    # Session metadata (for security and user awareness)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)  # IPv6 max length
+    device_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # mobile, desktop, tablet
+    browser: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    os: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # City, State/Country
+
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="sessions")
     processed_images: Mapped[List["ProcessedImage"]] = relationship(
@@ -208,6 +216,12 @@ class Session(Base):
             "created_at": self.created_at.isoformat(),
             "last_accessed": self.last_accessed.isoformat(),
             "image_count": self.image_count,
+            "user_agent": self.user_agent,
+            "ip_address": self.ip_address,
+            "device_type": self.device_type,
+            "browser": self.browser,
+            "os": self.os,
+            "location": self.location,
         }
 
 
