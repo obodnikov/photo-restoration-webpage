@@ -2,11 +2,43 @@
 
 This document tracks non-blocking improvements, enhancements, and nice-to-have features that can be implemented in future iterations.
 
+**Last Updated:** 2025-12-30
+
+---
+
+## Table of Contents
+
+- [Summary](#summary)
+- [Completed Technical Debts](#completed-technical-debts)
+- [Pending Technical Debts](#pending-technical-debts)
+  - [High Priority](#high-priority)
+  - [Medium Priority](#medium-priority)
+  - [Low Priority](#low-priority)
+- [Notes](#notes)
+
+---
+
+## Summary
+
+**Total Items:** 27
+**Completed Items:** 11 (moved from pending)
+**Pending Items:** 16
+
+**By Priority:**
+- High Priority: 0 (All Phase 2.4 critical items complete!)
+- Medium Priority: 1 (Test coverage for admin panel)
+- Low Priority: 15 (UX enhancements, documentation, optimizations, future features)
+
+**Phase Status:**
+- ✅ Phase 2.4 Complete - All 3 steps finished and tested
+- ✅ Test Coverage Improvements Complete - 5/5 critical items implemented
+- 🔄 Phase 2.5 In Progress - Backend complete, frontend planned
+
 ---
 
 ## Completed Technical Debts
 
-Items that have been implemented and are now complete.
+Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_TASKS.md) for Phase 1 and Phase 2.4 completion details.
 
 ### Frontend - Profile Feature
 
@@ -318,7 +350,73 @@ Items that have been implemented and are now complete.
 
 Items that remain to be implemented, organized by priority.
 
-### Frontend - Profile Feature
+---
+
+### High Priority
+
+**Currently: NONE** - All critical Phase 2.4 items have been completed!
+
+---
+
+### Medium Priority
+
+#### 17. **Test Coverage for Admin Panel** (Recommended, Not Blocking)
+**Context:** Phase 2.4 Step 3 follow-up
+**Status:** Not implemented
+**Effort:** 3-4 hours
+**Priority:** MEDIUM
+
+**Current State:**
+- Admin panel is functionally complete and production-ready
+- Build successful with no TypeScript errors
+- Comprehensive error handling in place
+- No automated tests for admin features
+
+**Recommended Test Coverage:**
+
+**Test File:** `frontend/src/features/admin/__tests__/useAdminUsers.test.ts`
+
+**Test Scenarios:**
+1. **User List Fetching**
+   - Test fetching users with pagination
+   - Test applying role filter
+   - Test applying status filter
+   - Test error handling
+
+2. **CRUD Operations**
+   - Test creating user successfully
+   - Test creating user with duplicate username/email
+   - Test updating user
+   - Test deleting user
+   - Test reset password
+
+3. **Pagination**
+   - Test page changes
+   - Test filter changes reset page to 1
+   - Test total pages calculation
+
+**Component Tests:**
+- `UserList.test.tsx` - Table rendering, filters, pagination
+- `CreateUserDialog.test.tsx` - Form validation, password generation
+- `EditUserDialog.test.tsx` - Form updates, change detection
+- `DeleteUserDialog.test.tsx` - Confirmation flow
+- `ResetPasswordDialog.test.tsx` - Password generation, form submission
+
+**Benefits:**
+- Prevent regressions when refactoring
+- Document expected behavior
+- Catch edge cases in CI/CD pipeline
+- Increase confidence for production deployment
+
+**Not Blocking Because:**
+- Feature is functionally complete and tested manually
+- Build successful with no errors
+- Comprehensive error handling already in place
+- Can be added incrementally as part of test coverage improvements
+
+---
+
+### Low Priority
 
 #### 4. **Local Error Handling in SessionsList for Delete Operations**
 **Context:** Phase 2.4 - Code Review Suggestion
@@ -1105,32 +1203,25 @@ async def create_model_config(
 
 ---
 
-## Summary
+## Effort Summary
 
-**Total Items:** 27
-**Completed Items:** 8
-**Pending Items:** 19
-**High Priority:** 0 (All Phase 2.4 tasks complete!)
-**Medium Priority:** 1 (Test coverage for admin panel)
-**Low Priority:** 18 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories, API performance optimizations, advanced parameter features)
+**Completed Items (11 total):**
+- Frontend profile feature tests: ~4.5 hours
+- History session filter tests: ~3 hours
+- API documentation updates: ~45 minutes
+- History component update: Production-ready
+- Admin panel: Production-ready
+- Total completed effort: ~8-9 hours
 
-**✅ Phase 2.4 Complete - All 3 Steps Finished:**
-- ✅ Step 1: User Profile Page (Complete, production-ready)
-- ✅ Step 2: Updated History Component (Complete, production-ready, tests recommended)
-- ✅ Step 3: Admin Panel (Complete, production-ready, tests recommended)
+**Pending Items (16 total):**
+- Medium Priority (1 item): 3-4 hours
+- Low Priority (15 items): 35-50 hours
+- **Estimated Total Effort for Remaining Items:** 38-54 hours
 
-**✅ Test Coverage Improvements Complete:**
-- ✅ Item #1: Additional Error Handling Tests for useProfile Hook (2 hours)
-- ✅ Item #2: SessionsList Error Prop Tests (45 minutes)
-- ✅ Item #3: ProfilePage Error Handling Tests (Already existed)
-- ✅ Item #7: Test Failures in Existing Test Suite (1.5 hours)
-- ✅ Item #15: Test Coverage for History Session Filter (3 hours)
-
-**Recommended Additions (Non-Blocking):**
-- Test coverage for admin panel (MEDIUM priority, 3-4 hours) - See Item #17
-- Server-side search for admin panel (LOW priority, 1-2 hours) - See Item #18
-
-**Estimated Total Effort for Remaining Items:** 39-51 hours
+**Recommended Next Steps:**
+1. Add test coverage for admin panel (MEDIUM priority, 3-4 hours)
+2. Consider UX improvements (password strength indicator, session details)
+3. Future enhancements when needed (server-side search, advanced features)
 
 ---
 
