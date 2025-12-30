@@ -30,6 +30,8 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 ### Technical Features ✅
 - **Async Architecture** - FastAPI + SQLAlchemy async for high performance
 - **Multi-Provider Support** - Configurable HuggingFace + Replicate models
+- **Custom Model Parameters UI** - Dynamic parameter controls with 8 UI types, auto-detection, and custom overrides
+  - 📖 See [Custom Model Parameters Guide](docs/CUSTOM_MODEL_PARAMETERS_GUIDE.md) for detailed documentation
 - **File Storage** - Session-based organization with UUID prefixes
 - **Background Cleanup** - Automated removal of old sessions and files
 - **Responsive Design** - Mobile-first with sqowe brand styling
@@ -49,7 +51,11 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 - **Phase 3 Planned** - OwnCloud integration, video frame restoration
 - **Phase 4 Planned** - Production polish, monitoring, security hardening
 
-📖 See [ROADMAP.md](ROADMAP.md) for detailed development plan and [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) for future enhancements.
+📖 **Documentation:**
+- [ROADMAP.md](ROADMAP.md) - Current and future development plans
+- [DONE_TASKS.md](DONE_TASKS.md) - Complete history of implemented features
+- [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) - Non-blocking improvements and enhancements
+- [Custom Model Parameters Guide](docs/CUSTOM_MODEL_PARAMETERS_GUIDE.md) - Configure model parameters UI (v1.9.0+)
 
 ## Tech Stack
 
@@ -295,6 +301,98 @@ For direct container access (without proxy):
 - **Backend**: http://localhost:8000 (if exposed)
 
 > **Note:** For production deployment with HTTPS, SSL/TLS configuration, multiple proxy examples, and advanced setup, see [docs/implementation.md](docs/implementation.md).
+
+## ⚠️ Breaking Changes & Migration
+
+### Custom Model Parameters UI (v1.9.0+)
+
+**What Changed:**
+The application now includes a Custom Model Parameters UI feature that allows users to customize model parameters through the web interface. This feature requires model configurations to include `ui_hidden` flags on parameters.
+
+**Who Is Affected:**
+- Users upgrading from versions prior to v1.9.0
+- Users with Replicate models in their configuration files
+- Production deployments with custom model configurations
+
+**Migration Required:**
+If you have Replicate models configured in your `backend/config/*.json` files, you **MUST** run the migration script before upgrading:
+
+```bash
+# Navigate to project root
+cd photo-restoration-webpage
+
+# Run migration script (interactive mode)
+python backend/scripts/migrate_ui_parameters.py --config backend/config/production.json --interactive
+
+# Or use automated migration (auto-hide internal parameters)
+python backend/scripts/migrate_ui_parameters.py --config backend/config/production.json
+
+# For dry-run (see what would change without modifying files)
+python backend/scripts/migrate_ui_parameters.py --config backend/config/production.json --dry-run
+```
+
+**Migration Script Options:**
+- `--config PATH` - Config file to migrate (default: backend/config/production.json)
+- `--interactive` - Ask questions to configure custom UI controls (recommended for production)
+- `--no-backup` - Skip creating backup file (not recommended)
+- `--output PATH` - Output file path (default: creates backend/config/local.json)
+- `--dry-run` - Show what would change without modifying files
+
+**What The Migration Does:**
+1. **Scans** your model configurations for Replicate models with parameters
+2. **Adds** `ui_hidden` flags to all parameters:
+   - `ui_hidden: true` for internal params (seed, safety_tolerance, webhook, etc.)
+   - `ui_hidden: false` for user-visible params (output_format, quality, etc.)
+3. **Optionally** creates custom UI controls (sliders, radio buttons, dropdowns)
+4. **Creates** a backup of your original config file
+
+**After Migration:**
+- Your application will show parameter controls for visible parameters
+- Users can customize model behavior through the UI
+- Hidden parameters remain accessible via API but not shown in the UI
+- Auto-detection provides sensible defaults (sliders for ranges, radio for 2-3 options, etc.)
+
+**Warning Indicators:**
+If migration is needed, you will see:
+1. **Backend startup warning** - Console logs showing models that need migration
+2. **Frontend banner** - Yellow warning banner on the homepage with migration instructions
+3. **API endpoint** - `/api/v1/models/migration/status` returns migration status
+
+**Example Migration Output:**
+```
+🔄 Loading configuration from: backend/config/production.json
+📋 Found 1 models
+
+************************************************************
+Model: Replicate Photo Restore (replicate-restore)
+Parameters: 3
+************************************************************
+
+⚠️  Parameter 'output_format' missing ui_hidden flag
+   → Auto-visible (will use auto-detection)
+
+=============================================================
+MIGRATION SUMMARY
+=============================================================
+  - replicate-restore: Added ui_hidden to 'output_format'
+
+Total models migrated: 1/1
+
+💾 Save changes to backend/config/local.json? [Y/n]:
+```
+
+**Reference Documentation:**
+- Full implementation details: [docs/chats/custom-model-parameters-ui-implementation-2025-12-28.md](docs/chats/custom-model-parameters-ui-implementation-2025-12-28.md)
+- Example configurations: [backend/config/local.json.example](backend/config/local.json.example)
+- Architecture details: [ARCHITECTURE.md](ARCHITECTURE.md) - Search for "Custom Model Parameters"
+
+**For Help:**
+- Run migration in dry-run mode first: `--dry-run`
+- Check example configs: `backend/config/*.json.example`
+- Review logs during startup for migration warnings
+- See migration status: `curl http://localhost:8000/api/v1/models/migration/status`
+
+---
 
 ## Local Development (Without Docker)
 

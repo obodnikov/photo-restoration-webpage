@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Status:** Production-Ready (Phase 1 Complete, Phase 2.4 Complete)
-**Last Updated:** 2025-12-28
+**Last Updated:** 2025-12-29
 
 ---
 
@@ -121,6 +121,11 @@ photo-restoration-webpage/
 - **Features** (`src/features/`) - Feature-oriented modules:
   - `auth/` - Login, JWT management
   - `restoration/` - Image upload, AI processing, before/after viewer
+    - **Custom Model Parameters UI** [🔄 Semi-Stable] - Dynamic parameter controls
+      - 8 UI control types (text, textarea, number, slider, dropdown, radio, toggle, checkbox)
+      - Auto-detection from `replicate_schema.input.parameters`
+      - Custom override via `custom.ui_controls`
+      - Parameter state management with auto-initialization
   - `history/` - Paginated image history
   - `admin/` - User management (admin-only)
   - `profile/` - User profile, password change, session management
@@ -314,6 +319,13 @@ Priority (Highest → Lowest):
 - **AI Providers:**
   - New models can be added via config
   - Provider-specific schemas
+
+- **Custom Model Parameters UI:**
+  - Parameter input components (7 components + factory)
+  - Auto-detection logic (type → UI control mapping)
+  - Custom configuration via `custom.ui_controls`
+  - May expand with advanced features (grouping, conditionals, presets)
+  - See TECHNICAL_DEBTS.md #27 for planned enhancements
 
 - **Testing:**
   - Edge case coverage expansion

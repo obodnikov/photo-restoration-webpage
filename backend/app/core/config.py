@@ -102,6 +102,16 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     if local_config_path.exists():
         try:
             local_config = load_json_config(local_config_path)
+
+            # Warn about ignored keys (anything other than 'models')
+            ignored_keys = [key for key in local_config.keys() if key != "models"]
+            if ignored_keys:
+                logger.warning(
+                    f"local.json contains non-model keys that will be ignored: {ignored_keys}. "
+                    f"local.json only affects 'models' array. "
+                    f"For other settings, use environment-specific files or environment variables."
+                )
+
             # Special handling for models array - merge by model ID
             # IMPORTANT: Only 'models' key is processed from local.json
             # All other keys (application, server, database, etc.) are ignored
@@ -138,6 +148,79 @@ def merge_model_configs(base_models: list[dict], local_models: list[dict]) -> li
             models_dict[model_id] = local_model
 
     return list(models_dict.values())
+
+
+def validate_ui_parameters(models: list[dict]) -> dict[str, list[str]]:
+    """
+    Validate that Replicate models have ui_hidden flags on parameters.
+
+    Args:
+        models: List of model configurations
+
+    Returns:
+        Dictionary with warnings:
+        - 'needs_migration': List of model IDs that need migration
+        - 'missing_params': List of parameter names missing ui_hidden
+    """
+    warnings_dict = {
+        'needs_migration': [],
+        'missing_params': []
+    }
+
+    for model in models:
+        # Only check Replicate models with schemas
+        if model.get('provider') != 'replicate':
+            continue
+
+        model_id = model.get('id', 'unknown')
+        schema = model.get('replicate_schema')
+
+        # Defensive: check for missing or invalid schema
+        if not schema:
+            logger.debug(f"Skipping model {model_id}: missing replicate_schema")
+            continue
+
+        if not isinstance(schema, dict):
+            logger.warning(f"Skipping model {model_id}: replicate_schema is not a dict (got {type(schema).__name__})")
+            continue
+
+        input_schema = schema.get('input')
+        if not input_schema:
+            logger.debug(f"Skipping model {model_id}: missing replicate_schema.input")
+            continue
+
+        if not isinstance(input_schema, dict):
+            logger.warning(f"Skipping model {model_id}: replicate_schema.input is not a dict (got {type(input_schema).__name__})")
+            continue
+
+        parameters = input_schema.get('parameters', [])
+
+        # Validate parameters is a list (guard against schema variations)
+        if not parameters:
+            logger.debug(f"Skipping model {model_id}: no parameters defined")
+            continue
+
+        if not isinstance(parameters, list):
+            logger.warning(f"Skipping model {model_id}: parameters is not a list (got {type(parameters).__name__})")
+            continue
+
+        needs_migration = False
+
+        for param in parameters:
+            # Validate param is a dict
+            if not isinstance(param, dict):
+                logger.warning(f"Skipping invalid parameter in model {model_id}: expected dict, got {type(param).__name__}")
+                continue
+
+            param_name = param.get('name', 'unknown')
+            if 'ui_hidden' not in param:
+                needs_migration = True
+                warnings_dict['missing_params'].append(f"{model_id}.{param_name}")
+
+        if needs_migration:
+            warnings_dict['needs_migration'].append(model_id)
+
+    return warnings_dict
 
 
 class Settings(BaseSettings):
@@ -225,9 +308,13 @@ class Settings(BaseSettings):
     # Processing limits
     max_concurrent_uploads_per_session: int = 3  # Concurrent processing limit per session
 
+    # Migration settings
+    migration_script_command: str = "python backend/scripts/migrate_ui_parameters.py"
+
     # Internal flag to track if using new config system
     _using_json_config: bool = False
     _config_data: dict[str, Any] | None = None
+    _ui_migration_warnings: dict[str, list[str]] | None = None
 
     def __init__(self, **kwargs: Any):
         """Initialize settings with config file support."""
@@ -310,6 +397,10 @@ class Settings(BaseSettings):
         # Set flags AFTER all initialization
         self._using_json_config = using_json
         self._config_data = config_data_dict
+
+        # Lazy validation: don't validate UI parameters on init, only when first requested
+        # This improves startup performance, especially in test environments
+        # Validation will happen on first call to needs_ui_migration() or get_ui_migration_info()
 
         # Log configuration source and summary
         if self._using_json_config:
@@ -564,6 +655,85 @@ class Settings(BaseSettings):
 
         logger.info(f"Deleted model '{model_id}' from local.json")
         return True
+
+    def _ensure_ui_validation(self) -> None:
+        """
+        Lazy validation of UI parameters (runs only once, on first access).
+
+        This improves startup performance by deferring validation until needed.
+        """
+        # Skip if already validated or not using JSON config
+        if self._ui_migration_warnings is not None or not self._using_json_config:
+            return
+
+        # Perform validation once
+        models = self._config_data.get("models", []) if self._config_data else []
+        if models:
+            self._ui_migration_warnings = validate_ui_parameters(models)
+
+            # Log warnings if migration needed (only on first validation)
+            if self._ui_migration_warnings.get('needs_migration'):
+                logger.warning("=" * 70)
+                logger.warning("⚠️  MIGRATION REQUIRED: Custom Model Parameters UI")
+                logger.warning("=" * 70)
+                logger.warning(
+                    f"Models need migration: {', '.join(self._ui_migration_warnings['needs_migration'])}"
+                )
+                logger.warning(
+                    f"Parameters missing ui_hidden: {len(self._ui_migration_warnings['missing_params'])}"
+                )
+                logger.warning("")
+                logger.warning("The Custom Model Parameters UI feature requires model")
+                logger.warning("configurations to include 'ui_hidden' flags on parameters.")
+                logger.warning("")
+                logger.warning("To migrate your configuration, run:")
+                logger.warning(f"  {self.migration_script_command}")
+                logger.warning("")
+                logger.warning("For more info, see README.md 'Breaking Changes' section")
+                logger.warning("=" * 70)
+        else:
+            self._ui_migration_warnings = {"needs_migration": [], "missing_params": []}
+
+    def needs_ui_migration(self) -> bool:
+        """
+        Check if any models need UI parameter migration.
+
+        Uses lazy validation - validation only runs on first call.
+
+        Returns:
+            True if migration is needed, False otherwise
+        """
+        self._ensure_ui_validation()
+
+        if not self._ui_migration_warnings:
+            return False
+        return len(self._ui_migration_warnings.get('needs_migration', [])) > 0
+
+    def get_ui_migration_info(self) -> dict[str, Any]:
+        """
+        Get detailed information about UI migration status.
+
+        Uses lazy validation - validation only runs on first call.
+
+        Returns:
+            Dictionary with migration status and details
+        """
+        self._ensure_ui_validation()
+
+        if not self._ui_migration_warnings:
+            return {
+                'needs_migration': False,
+                'model_ids': [],
+                'missing_params': [],
+                'count': 0
+            }
+
+        return {
+            'needs_migration': self.needs_ui_migration(),
+            'model_ids': self._ui_migration_warnings.get('needs_migration', []),
+            'missing_params': self._ui_migration_warnings.get('missing_params', []),
+            'count': len(self._ui_migration_warnings.get('needs_migration', []))
+        }
 
     def reload_config(self) -> None:
         """

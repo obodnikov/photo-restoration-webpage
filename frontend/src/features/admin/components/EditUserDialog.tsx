@@ -2,7 +2,7 @@
  * Edit User Dialog component
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../../../components/Modal';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
@@ -16,7 +16,7 @@ export interface EditUserDialogProps {
   isLoading?: boolean;
 }
 
-export const EditUserDialog: React.FC<EditUserDialogProps> = ({
+const EditUserDialogComponent: React.FC<EditUserDialogProps> = ({
   isOpen,
   onClose,
   onSubmit,
@@ -80,12 +80,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
       setError(null);
       onClose();
     }
-  };
+  }, [isLoading, onClose]);
 
   if (!user) return null;
 
@@ -193,3 +193,6 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
     </Modal>
   );
 };
+
+// Export memoized version to prevent unnecessary re-renders and focus loss
+export const EditUserDialog = React.memo(EditUserDialogComponent);

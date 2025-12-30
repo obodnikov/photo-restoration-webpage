@@ -7,8 +7,10 @@ from app.core.config_schema import (
     ConfigFile,
     FileStorageConfig,
     ModelConfig,
+    ModelCustomConfig,
     SecurityConfig,
     ServerConfig,
+    UIControlConfig,
 )
 
 
@@ -72,6 +74,67 @@ class TestServerConfig:
             ServerConfig(workers=17)
 
 
+class TestUIControlConfig:
+    """Tests for UIControlConfig schema."""
+
+    def test_valid_slider_control(self):
+        """Test valid slider UI control config."""
+        config = UIControlConfig(
+            type="slider",
+            label="Quality",
+            help="Image quality setting",
+            order=1,
+            step=5,
+            marks={"1": "Low", "50": "Medium", "100": "High"}
+        )
+        assert config.type == "slider"
+        assert config.label == "Quality"
+        assert config.step == 5
+        assert config.marks == {"1": "Low", "50": "Medium", "100": "High"}
+
+    def test_valid_dropdown_control(self):
+        """Test valid dropdown UI control config."""
+        config = UIControlConfig(
+            type="dropdown",
+            options=["x2", "x4"],
+            label="Upscale Factor",
+            help="Choose upscaling multiplier",
+            order=1
+        )
+        assert config.type == "dropdown"
+        assert config.options == ["x2", "x4"]
+
+    def test_valid_radio_control(self):
+        """Test valid radio UI control config."""
+        config = UIControlConfig(
+            type="radio",
+            options=["png", "jpg"]
+        )
+        assert config.type == "radio"
+        assert config.label is None  # Optional
+
+    def test_valid_toggle_control(self):
+        """Test valid toggle UI control config."""
+        config = UIControlConfig(
+            type="toggle",
+            label="Enable Feature"
+        )
+        assert config.type == "toggle"
+
+    def test_invalid_control_type(self):
+        """Test invalid control type raises error."""
+        with pytest.raises(ValidationError):
+            UIControlConfig(type="invalid")
+
+    def test_minimal_control(self):
+        """Test minimal control with only type."""
+        config = UIControlConfig(type="text")
+        assert config.type == "text"
+        assert config.label is None
+        assert config.help is None
+        assert config.options is None
+
+
 class TestModelConfig:
     """Tests for ModelConfig schema."""
 
@@ -126,6 +189,120 @@ class TestModelConfig:
         # Missing provider
         with pytest.raises(ValidationError):
             ModelConfig(id="test", name="Test", model="test/model", category="test", description="Test")
+
+    def test_custom_field_with_ui_controls(self):
+        """Test model with custom UI controls configuration."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "ui_controls": {
+                    "quality": {
+                        "type": "slider",
+                        "label": "Quality",
+                        "step": 5,
+                        "marks": {"1": "Low", "100": "High"}
+                    },
+                    "format": {
+                        "type": "radio",
+                        "options": ["png", "jpg"]
+                    }
+                }
+            }
+        )
+        assert config.custom.ui_controls is not None
+        assert "quality" in config.custom.ui_controls
+        assert config.custom.ui_controls["quality"].type == "slider"
+        assert config.custom.ui_controls["quality"].step == 5
+
+    def test_custom_field_empty_default(self):
+        """Test that custom field defaults to None."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="huggingface",
+            category="upscale",
+            description="Test"
+        )
+        assert config.custom is None
+
+    def test_custom_field_truthiness_empty(self):
+        """Test that empty ModelCustomConfig is falsy (backwards compatibility)."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="huggingface",
+            category="upscale",
+            description="Test",
+            custom={}  # Empty custom config
+        )
+        # Should be falsy like empty dict
+        assert not config.custom
+        assert config.custom is not None  # But still exists
+
+    def test_custom_field_truthiness_with_ui_controls(self):
+        """Test that ModelCustomConfig with ui_controls is truthy."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "ui_controls": {
+                    "quality": {"type": "slider"}
+                }
+            }
+        )
+        # Should be truthy when ui_controls present
+        assert config.custom
+        assert bool(config.custom) is True
+
+    def test_custom_field_truthiness_with_extra_fields(self):
+        """Test that ModelCustomConfig with extra fields only is truthy."""
+        config = ModelConfig(
+            id="test-model",
+            name="Test Model",
+            model="test/model",
+            provider="replicate",
+            category="upscale",
+            description="Test",
+            custom={
+                "some_future_field": "value",
+                "another_custom_config": 123
+            }
+        )
+        # Should be truthy when extra fields present (even without ui_controls)
+        assert config.custom
+        assert bool(config.custom) is True
+        assert config.custom.ui_controls is None  # No ui_controls
+        assert config.custom.model_extra is not None  # But has extra fields
+
+    def test_custom_field_invalid_ui_control_type(self):
+        """Test that invalid UI control type is rejected."""
+        with pytest.raises(ValidationError):
+            ModelConfig(
+                id="test-model",
+                name="Test Model",
+                model="test/model",
+                provider="replicate",
+                category="upscale",
+                description="Test",
+                custom={
+                    "ui_controls": {
+                        "quality": {
+                            "type": "invalid_type"  # Invalid control type
+                        }
+                    }
+                }
+            )
 
 
 class TestFileStorageConfig:

@@ -3,9 +3,10 @@
  * Manages image restoration state and logic
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { restoreImage } from '../services/restorationService';
-import type { ModelInfo, RestoreResponse, ImageViewMode } from '../types';
+import type { ModelInfo, RestoreResponse, ImageViewMode, ModelParameterValues } from '../types';
+import { getDefaultParameterValues } from '../utils/parameterUtils';
 import { config } from '../../../config/config';
 
 export interface UseImageRestoreResult {
@@ -18,9 +19,11 @@ export interface UseImageRestoreResult {
   progress: number;
   error: string | null;
   result: RestoreResponse | null;
+  parameterValues: ModelParameterValues;
   setSelectedModel: (model: ModelInfo | null) => void;
   setSelectedFile: (file: File | null) => void;
   setViewMode: (mode: ImageViewMode) => void;
+  setParameterValues: (values: ModelParameterValues) => void;
   uploadAndRestore: () => Promise<void>;
   reset: () => void;
   downloadProcessed: () => void;
@@ -36,6 +39,17 @@ export function useImageRestore(): UseImageRestoreResult {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RestoreResponse | null>(null);
+  const [parameterValues, setParameterValues] = useState<ModelParameterValues>({});
+
+  // Initialize parameters when model changes
+  useEffect(() => {
+    if (selectedModel) {
+      const defaults = getDefaultParameterValues(selectedModel);
+      setParameterValues(defaults);
+    } else {
+      setParameterValues({});
+    }
+  }, [selectedModel]);
 
   const uploadAndRestore = async () => {
     if (!selectedFile || !selectedModel) {
@@ -48,10 +62,11 @@ export function useImageRestore(): UseImageRestoreResult {
       setError(null);
       setProgress(0);
 
-      // Upload and process
+      // Upload and process with parameters
       const response = await restoreImage(
         selectedFile,
         selectedModel.id,
+        parameterValues,
         (uploadProgress) => {
           setProgress(uploadProgress);
         }
@@ -135,9 +150,11 @@ export function useImageRestore(): UseImageRestoreResult {
     progress,
     error,
     result,
+    parameterValues,
     setSelectedModel,
     setSelectedFile,
     setViewMode,
+    setParameterValues,
     uploadAndRestore,
     reset,
     downloadProcessed,

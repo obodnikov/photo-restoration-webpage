@@ -193,10 +193,28 @@ export class ApiClient {
 
 ## 7. Styling & Layout
 
+### 7.1 Brand Guidelines (sqowe)
+
+**IMPORTANT:** All UI/design work MUST follow the sqowe brand design system.
+
+* **Authoritative source:** `tmp/AI_WEB_DESIGN_SQOWE.md`
+* **Color palette:** Dark Ground (#222222), Light Purple (#8E88A3), Dark Purple (#5B5377), Light Grey (#B2B3B2)
+* **Typography:** Montserrat font family (Light 300, Regular 400, Medium 500, Bold 700)
+* **Components:** Use predefined button styles, card patterns, navigation, forms, hero sections
+* **Accessibility:** Ensure WCAG AA compliance with approved color combinations
+
+**Before implementing UI components:**
+1. Read `tmp/AI_WEB_DESIGN_SQOWE.md` for complete design guidelines
+2. Use CSS variables defined in the brandbook
+3. Follow Material-inspired component patterns
+4. Maintain brand consistency across all interfaces
+
+### 7.2 Styling System
+
 * Prefer one of:
 
   * **CSS Modules / SASS Modules**, or
-  * **TailwindCSS** with a small set of design tokens (colors, spacing, border radius).
+  * **TailwindCSS** with sqowe design tokens (colors, spacing, border radius).
 
 **Rules:**
 
@@ -279,6 +297,48 @@ describe("ChatInput", () => {
 
   * move them to workers or backend side.
 * Lazy-load large feature modules (code splitting) when appropriate.
+
+### 11.1 Modal and Dialog Components - Preventing Focus Loss
+
+When creating Modal or Dialog components that contain form inputs, follow these rules to prevent focus loss during typing:
+
+**Problem:** Modal components with `useEffect` that includes callback props (like `onClose`) in dependencies will re-run on every parent re-render, potentially stealing focus from input fields.
+
+**Solution Pattern:**
+
+1. **Memoize the component** with `React.memo`:
+   ```tsx
+   const MyDialogComponent: React.FC<MyDialogProps> = ({ isOpen, onClose, ... }) => {
+     // component implementation
+   };
+
+   // Export memoized version to prevent unnecessary re-renders and focus loss
+   export const MyDialog = React.memo(MyDialogComponent);
+   ```
+
+2. **Wrap callback handlers with `useCallback`**:
+   ```tsx
+   const handleClose = useCallback(() => {
+     if (!isLoading) {
+       // cleanup logic
+       onClose();
+     }
+   }, [isLoading, onClose]);
+   ```
+
+3. **Pass the memoized handler to Modal**:
+   ```tsx
+   <Modal isOpen={isOpen} onClose={handleClose} title="My Dialog">
+     {/* form content */}
+   </Modal>
+   ```
+
+**Reference implementations:** See `frontend/src/features/admin/components/CreateUserDialog.tsx`, `EditUserDialog.tsx`, and `ModelConfigDialog.tsx` for complete examples.
+
+**Why this works:**
+- `React.memo` prevents the dialog from re-rendering when unrelated parent state changes
+- `useCallback` ensures the `handleClose` function reference stays stable unless its dependencies change
+- Together, they prevent the Modal's internal `useEffect` from re-running unnecessarily and stealing focus
 
 ---
 

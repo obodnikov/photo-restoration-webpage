@@ -2,11 +2,43 @@
 
 This document tracks non-blocking improvements, enhancements, and nice-to-have features that can be implemented in future iterations.
 
+**Last Updated:** 2025-12-30
+
+---
+
+## Table of Contents
+
+- [Summary](#summary)
+- [Completed Technical Debts](#completed-technical-debts)
+- [Pending Technical Debts](#pending-technical-debts)
+  - [High Priority](#high-priority)
+  - [Medium Priority](#medium-priority)
+  - [Low Priority](#low-priority)
+- [Notes](#notes)
+
+---
+
+## Summary
+
+**Total Items:** 27
+**Completed Items:** 11 (moved from pending)
+**Pending Items:** 16
+
+**By Priority:**
+- High Priority: 0 (All Phase 2.4 critical items complete!)
+- Medium Priority: 1 (Test coverage for admin panel)
+- Low Priority: 15 (UX enhancements, documentation, optimizations, future features)
+
+**Phase Status:**
+- ✅ Phase 2.4 Complete - All 3 steps finished and tested
+- ✅ Test Coverage Improvements Complete - 5/5 critical items implemented
+- 🔄 Phase 2.5 In Progress - Backend complete, frontend planned
+
 ---
 
 ## Completed Technical Debts
 
-Items that have been implemented and are now complete.
+Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_TASKS.md) for Phase 1 and Phase 2.4 completion details.
 
 ### Frontend - Profile Feature
 
@@ -318,7 +350,73 @@ Items that have been implemented and are now complete.
 
 Items that remain to be implemented, organized by priority.
 
-### Frontend - Profile Feature
+---
+
+### High Priority
+
+**Currently: NONE** - All critical Phase 2.4 items have been completed!
+
+---
+
+### Medium Priority
+
+#### 17. **Test Coverage for Admin Panel** (Recommended, Not Blocking)
+**Context:** Phase 2.4 Step 3 follow-up
+**Status:** Not implemented
+**Effort:** 3-4 hours
+**Priority:** MEDIUM
+
+**Current State:**
+- Admin panel is functionally complete and production-ready
+- Build successful with no TypeScript errors
+- Comprehensive error handling in place
+- No automated tests for admin features
+
+**Recommended Test Coverage:**
+
+**Test File:** `frontend/src/features/admin/__tests__/useAdminUsers.test.ts`
+
+**Test Scenarios:**
+1. **User List Fetching**
+   - Test fetching users with pagination
+   - Test applying role filter
+   - Test applying status filter
+   - Test error handling
+
+2. **CRUD Operations**
+   - Test creating user successfully
+   - Test creating user with duplicate username/email
+   - Test updating user
+   - Test deleting user
+   - Test reset password
+
+3. **Pagination**
+   - Test page changes
+   - Test filter changes reset page to 1
+   - Test total pages calculation
+
+**Component Tests:**
+- `UserList.test.tsx` - Table rendering, filters, pagination
+- `CreateUserDialog.test.tsx` - Form validation, password generation
+- `EditUserDialog.test.tsx` - Form updates, change detection
+- `DeleteUserDialog.test.tsx` - Confirmation flow
+- `ResetPasswordDialog.test.tsx` - Password generation, form submission
+
+**Benefits:**
+- Prevent regressions when refactoring
+- Document expected behavior
+- Catch edge cases in CI/CD pipeline
+- Increase confidence for production deployment
+
+**Not Blocking Because:**
+- Feature is functionally complete and tested manually
+- Build successful with no errors
+- Comprehensive error handling already in place
+- Can be added incrementally as part of test coverage improvements
+
+---
+
+### Low Priority
 
 #### 4. **Local Error Handling in SessionsList for Delete Operations**
 **Context:** Phase 2.4 - Code Review Suggestion
@@ -1008,32 +1106,122 @@ async def create_model_config(
 
 ---
 
-## Summary
+## Frontend - Model Parameter Configuration UI
 
-**Total Items:** 26
-**Completed Items:** 8
-**Pending Items:** 18
-**High Priority:** 0 (All Phase 2.4 tasks complete!)
-**Medium Priority:** 1 (Test coverage for admin panel)
-**Low Priority:** 17 (UX enhancements, documentation, optimization, enhanced session filter, server-side search, password change tests, schema editor, configurable categories, API performance optimizations)
+### 27. **Advanced Parameter Features** (Future Enhancement)
+**Context:** Custom Model Parameters UI - Phase 2 Optional Features
+**Status:** Not implemented - basic functionality complete
+**Effort:** 8-12 hours
+**Priority:** LOW
 
-**✅ Phase 2.4 Complete - All 3 Steps Finished:**
-- ✅ Step 1: User Profile Page (Complete, production-ready)
-- ✅ Step 2: Updated History Component (Complete, production-ready, tests recommended)
-- ✅ Step 3: Admin Panel (Complete, production-ready, tests recommended)
+**Current Implementation:**
+- Dynamic parameter UI with 8 control types (text, textarea, number, slider, dropdown, radio, toggle, checkbox)
+- Auto-detection from model schema
+- Custom UI configuration via `custom.ui_controls`
+- Parameter validation (min/max constraints)
+- Hidden parameters via `ui_hidden` flag
+- Label and help text customization
+- Parameter ordering via `order` field
 
-**✅ Test Coverage Improvements Complete:**
-- ✅ Item #1: Additional Error Handling Tests for useProfile Hook (2 hours)
-- ✅ Item #2: SessionsList Error Prop Tests (45 minutes)
-- ✅ Item #3: ProfilePage Error Handling Tests (Already existed)
-- ✅ Item #7: Test Failures in Existing Test Suite (1.5 hours)
-- ✅ Item #15: Test Coverage for History Session Filter (3 hours)
+**Future Enhancement Options:**
 
-**Recommended Additions (Non-Blocking):**
-- Test coverage for admin panel (MEDIUM priority, 3-4 hours) - See Item #17
-- Server-side search for admin panel (LOW priority, 1-2 hours) - See Item #18
+**1. Parameter Grouping**
+- Add `group` field to organize parameters into collapsible sections
+- Example: "Basic Settings", "Advanced Settings", "Output Options"
+- UI shows grouped parameters with expandable sections
+- Effort: 2-3 hours
 
-**Estimated Total Effort for Remaining Items:** 39-51 hours
+**2. Conditional Parameters**
+- Show/hide parameters based on other parameter values
+- Add `visible_when` condition to UIControlConfig
+- Example: Show "compression_quality" only when "output_format" is "jpg"
+- Effort: 3-4 hours
+
+**3. Advanced Validation**
+- Custom validation rules beyond min/max
+- Pattern matching for string parameters
+- Cross-parameter validation (e.g., min < max)
+- Custom error messages per validation rule
+- Effort: 2-3 hours
+
+**4. Presets**
+- Save/load parameter combinations
+- User-defined presets stored in localStorage
+- Admin-defined presets in model config
+- Example: "High Quality", "Fast Processing", "Balanced"
+- Effort: 3-4 hours
+
+**5. Parameter History**
+- Remember last used values per model per user
+- Auto-restore previous settings on model selection
+- Stored in localStorage or user preferences API
+- Clear history option
+- Effort: 2-3 hours
+
+**6. Visual Parameter Editor**
+- Admin UI to configure `ui_controls` visually
+- Form builder interface
+- Drag-and-drop parameter ordering
+- Live preview of parameter controls
+- Export configuration as JSON
+- Effort: 8-12 hours
+
+**Implementation Priority:**
+- **Phase 1**: Parameter Grouping (most requested, high UX value)
+- **Phase 2**: Presets (user productivity boost)
+- **Phase 3**: Conditional Parameters (advanced use cases)
+- **Phase 4**: Parameter History (convenience feature)
+- **Phase 5**: Advanced Validation (edge cases)
+- **Phase 6**: Visual Editor (admin productivity, complex)
+
+**Files to Create/Modify:**
+- `frontend/src/features/restoration/types.ts` - Add GroupConfig, PresetConfig interfaces
+- `frontend/src/features/restoration/utils/parameterUtils.ts` - Add grouping, validation logic
+- `frontend/src/features/restoration/components/ModelParameterControls.tsx` - Add group rendering
+- `frontend/src/features/restoration/components/parameter-inputs/ParameterPresets.tsx` - NEW
+- `frontend/src/features/admin/components/ParameterUIEditor.tsx` - NEW (for visual editor)
+
+**Benefits When Implemented:**
+- Better UX for models with many parameters (grouping)
+- Faster workflow for repeated tasks (presets)
+- More flexible model configuration (conditional parameters)
+- Reduced repetitive input (parameter history)
+- Safer parameter combinations (advanced validation)
+- Easier admin configuration (visual editor)
+
+**Trade-offs:**
+- Increased complexity in parameter system
+- More code to maintain and test
+- Risk of over-engineering if features aren't used
+- Need careful UX design to avoid cluttered UI
+
+**When to Implement:**
+- When users request specific features (e.g., "I need presets")
+- When models have 10+ parameters requiring organization
+- When conditional logic is needed for parameter relationships
+- During major UI/UX improvement sprint
+
+---
+
+## Effort Summary
+
+**Completed Items (11 total):**
+- Frontend profile feature tests: ~4.5 hours
+- History session filter tests: ~3 hours
+- API documentation updates: ~45 minutes
+- History component update: Production-ready
+- Admin panel: Production-ready
+- Total completed effort: ~8-9 hours
+
+**Pending Items (16 total):**
+- Medium Priority (1 item): 3-4 hours
+- Low Priority (15 items): 35-50 hours
+- **Estimated Total Effort for Remaining Items:** 38-54 hours
+
+**Recommended Next Steps:**
+1. Add test coverage for admin panel (MEDIUM priority, 3-4 hours)
+2. Consider UX improvements (password strength indicator, session details)
+3. Future enhancements when needed (server-side search, advanced features)
 
 ---
 
@@ -1048,9 +1236,11 @@ async def create_model_config(
 ---
 
 **Document Created:** 2024-12-22
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-29
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
 **Phase:** 2.5 - Admin Model Configuration (Backend Complete, Frontend In Progress)
+**Phase:** Custom Model Parameters UI ✅ COMPLETE (Frontend & Backend)
 **Test Coverage Improvements:** ✅ COMPLETE (5/5 critical items implemented)
 **Admin Model Config Optimizations:** Added items #25 and #26 based on code review suggestions
+**Advanced Parameter Features:** Added item #27 for future enhancements (Parameter Grouping, Presets, Conditional Parameters, etc.)
 **Maintainer:** Development Team

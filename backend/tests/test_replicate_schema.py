@@ -148,6 +148,51 @@ def test_replicate_model_schema():
     assert schema.output.type == "uri"
 
 
+def test_get_all_parameters():
+    """Test get_all_parameters method handles None safely."""
+    # Schema with parameters
+    schema_with_params = ReplicateModelSchema(
+        input=InputSchema(
+            image=ImageInputSchema(param_name="image"),
+            parameters=[
+                ParameterSchema(name="param1", type="string"),
+                ParameterSchema(name="param2", type="integer")
+            ]
+        ),
+        output=OutputSchema(type="uri")
+    )
+
+    params = schema_with_params.get_all_parameters()
+    assert len(params) == 2
+    assert params[0].name == "param1"
+
+    # Schema with empty parameters list
+    schema_empty_params = ReplicateModelSchema(
+        input=InputSchema(
+            image=ImageInputSchema(param_name="image"),
+            parameters=[]
+        ),
+        output=OutputSchema(type="uri")
+    )
+
+    params = schema_empty_params.get_all_parameters()
+    assert params == []
+    assert len(params) == 0  # Safe to iterate
+
+    # Schema with parameters=None (original crash scenario)
+    schema_none_params = ReplicateModelSchema(
+        input=InputSchema(
+            image=ImageInputSchema(param_name="image"),
+            parameters=None
+        ),
+        output=OutputSchema(type="uri")
+    )
+
+    params = schema_none_params.get_all_parameters()
+    assert params == []
+    assert len(params) == 0  # Safe to iterate - no crash
+
+
 def test_get_parameter():
     """Test get_parameter method."""
     schema = ReplicateModelSchema(

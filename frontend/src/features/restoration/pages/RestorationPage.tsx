@@ -10,6 +10,7 @@ import { ImageComparison } from '../components/ImageComparison';
 import { useImageRestore } from '../hooks/useImageRestore';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
+import { MigrationWarningBanner } from '../components/MigrationWarningBanner';
 
 export const RestorationPage: React.FC = () => {
   const {
@@ -21,9 +22,11 @@ export const RestorationPage: React.FC = () => {
     isProcessing,
     progress,
     error,
+    parameterValues,
     setSelectedModel,
     setSelectedFile,
     setViewMode,
+    setParameterValues,
     uploadAndRestore,
     reset,
     downloadProcessed,
@@ -42,6 +45,8 @@ export const RestorationPage: React.FC = () => {
           </p>
         </div>
 
+        <MigrationWarningBanner />
+
         {error && (
           <ErrorMessage
             message={error}
@@ -57,6 +62,8 @@ export const RestorationPage: React.FC = () => {
               <ModelSelector
                 selectedModel={selectedModel}
                 onSelectModel={setSelectedModel}
+                parameterValues={parameterValues}
+                onParameterChange={setParameterValues}
                 disabled={isProcessing}
               />
             </section>

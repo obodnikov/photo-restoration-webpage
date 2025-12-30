@@ -43,9 +43,11 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
                 schema_data = model_dict["replicate_schema"]
                 schema = ReplicateModelSchema(**schema_data)
 
-                # Build schema response for frontend (only UI-visible parameters)
+                # Build schema response for frontend (include ALL parameters with ui_hidden flag)
+                # Frontend will filter based on ui_hidden
                 parameters = []
-                for param in schema.get_ui_visible_parameters():
+                # Guard against None - use helper method to get normalized parameter list
+                for param in schema.get_all_parameters():
                     parameters.append(
                         ParameterSchemaResponse(
                             name=param.name,
@@ -56,6 +58,7 @@ def get_cached_models(settings: Settings) -> list[ModelInfo]:
                             min=param.min,
                             max=param.max,
                             values=param.values,
+                            ui_hidden=param.ui_hidden,
                             ui_group=param.ui_group,
                         )
                     )
@@ -259,3 +262,35 @@ async def get_model(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Model '{model_id}' not found",
     )
+
+
+@router.get("/migration/status", summary="Get UI migration status")
+async def get_migration_status(
+    settings: Annotated[Settings, Depends(get_settings)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
+):
+    """
+    Get migration status for Custom Model Parameters UI feature.
+
+    Returns information about whether models need migration to support
+    the new UI parameter controls.
+
+    **Authentication:**
+    - Optional (follows models_require_auth setting)
+    - If auth required, returns 403 when credentials not provided
+
+    Returns:
+        Migration status with model IDs and parameter names
+    """
+    # Check auth if required (reuse same auth logic as models endpoint)
+    await check_auth_if_required(settings, credentials)
+
+    migration_info = settings.get_ui_migration_info()
+
+    return {
+        "needs_migration": migration_info['needs_migration'],
+        "count": migration_info['count'],
+        "model_ids": migration_info['model_ids'],
+        "missing_params": migration_info['missing_params'],
+        "migration_command": settings.migration_script_command
+    }
