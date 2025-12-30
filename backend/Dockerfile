@@ -36,6 +36,10 @@ COPY ./app ./app
 # Copy configuration files
 COPY ./config ./config
 
+# Copy Alembic configuration and migrations
+COPY alembic.ini .
+COPY ./alembic ./alembic
+
 # Create data directory
 RUN mkdir -p /data/uploads /data/processed
 
