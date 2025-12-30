@@ -49,7 +49,10 @@ AI-powered web application for restoring old scanned photos using multiple AI pr
 - **Phase 3 Planned** - OwnCloud integration, video frame restoration
 - **Phase 4 Planned** - Production polish, monitoring, security hardening
 
-📖 See [ROADMAP.md](ROADMAP.md) for detailed development plan and [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) for future enhancements.
+📖 **Documentation:**
+- [ROADMAP.md](ROADMAP.md) - Current and future development plans
+- [DONE_TASKS.md](DONE_TASKS.md) - Complete history of implemented features
+- [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) - Non-blocking improvements and enhancements
 
 ## Tech Stack
 
