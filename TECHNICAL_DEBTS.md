@@ -21,17 +21,17 @@ This document tracks non-blocking improvements, enhancements, and nice-to-have f
 ## Summary
 
 **Total Items:** 28
-**Completed Items:** 12 (moved from pending)
-**Pending Items:** 16
+**Completed Items:** 15 (moved from pending)
+**Pending Items:** 13
 
 **By Priority:**
 - High Priority: 0 (All Phase 2.4 critical items complete!)
 - Medium Priority: 0 (All medium priority items complete!)
-- Low Priority: 16 (UX enhancements, documentation, CI/CD, optimizations, future features)
+- Low Priority: 13 (UX enhancements, documentation, CI/CD, optimizations, future features)
 
 **Phase Status:**
 - ✅ Phase 2.4 Complete - All 3 steps finished and tested
-- ✅ Test Coverage Improvements Complete - 5/5 critical items implemented
+- ✅ Test Coverage Improvements Complete - All critical items implemented (Profile, History, Admin Panel, Force Password Change)
 - 🔄 Phase 2.5 In Progress - Backend complete, frontend planned
 
 ---
@@ -429,6 +429,154 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 
 ---
 
+#### 19. **Test Coverage for ForcePasswordChangePage Component** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~2 hours
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/features/auth/__tests__/ForcePasswordChangePage.test.tsx`
+
+**Test Scenarios Implemented (18 test cases):**
+
+**Rendering Tests (4 test cases):**
+- ✅ Form renders with all required fields (current password, new password, confirm password)
+- ✅ Warning message displays ("Password Change Required")
+- ✅ Submit and Logout buttons are present
+- ✅ Password requirements hint displayed
+
+**Validation Tests (7 test cases):**
+- ✅ Error shown when all fields are empty ("All fields are required")
+- ✅ Error for password < 8 characters
+- ✅ Error for missing uppercase letter
+- ✅ Error for missing lowercase letter
+- ✅ Error for missing digit
+- ✅ Error when passwords don't match
+- ✅ Error when new password equals current password
+
+**Submission Flow Tests (4 test cases):**
+- ✅ Successful password change redirects to login with success message
+- ✅ API error displays error message
+- ✅ Generic error handling for non-Error exceptions
+- ✅ Loading state disables form during submission
+
+**User Interaction Tests (3 test cases):**
+- ✅ Logout button calls clearAuth and redirects to login
+- ✅ Error cleared when submitting again after validation error
+- ✅ Buttons disabled during loading state
+
+**Testing Approach Used:**
+- ✅ @testing-library/react for component testing
+- ✅ Mocked useNavigate from react-router-dom
+- ✅ Mocked useAuthStore for auth state management
+- ✅ Mocked API client for password change endpoint
+- ✅ Form submission testing with proper event handling
+
+**Benefits Achieved:**
+- ✅ Comprehensive coverage of security-critical password change flow
+- ✅ Validation logic thoroughly tested (8+ validation rules)
+- ✅ Error handling and loading states verified
+- ✅ User interactions tested (logout, form submission, error recovery)
+- ✅ Follows established testing patterns from profile/admin features
+
+---
+
+#### 20. **Test Coverage for RequirePasswordChangeRoute Component** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~30 minutes
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/components/__tests__/RequirePasswordChangeRoute.test.tsx`
+
+**Test Scenarios Implemented (6 test cases):**
+
+**Access Control Tests (4 test cases):**
+- ✅ Unauthenticated user redirects to /login
+- ✅ Authenticated user with no user object redirects to /login
+- ✅ Authenticated user with password_must_change=false redirects to /
+- ✅ Authenticated user with password_must_change=true renders children
+
+**Navigation Behavior Tests (2 test cases):**
+- ✅ Uses replace prop to prevent history entry when redirecting
+- ✅ Renders children correctly when access is granted
+
+**Testing Approach Used:**
+- ✅ @testing-library/react for component testing
+- ✅ Mocked useAuthStore with different auth states
+- ✅ Mocked Navigate component from react-router-dom
+- ✅ Test child component to verify rendering
+- ✅ Verified correct redirect paths and conditions
+
+**Benefits Achieved:**
+- ✅ Route guard logic thoroughly tested
+- ✅ Access control scenarios comprehensively covered
+- ✅ Prevents regressions in password change enforcement
+- ✅ Ensures proper navigation behavior (replace, not push)
+
+---
+
+#### 21. **Test Coverage for Updated useAuth Hook** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Forced Password Change Implementation
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test suite created
+**Implementation Date:** 2025-12-30
+**Effort:** ~1 hour
+
+**Completed Test Coverage:**
+
+**Test File:** `frontend/src/features/auth/__tests__/useAuth.test.tsx`
+
+**Test Scenarios Implemented (14 test cases):**
+
+**Token Decoding Tests (6 test cases):**
+- ✅ Decodes token with password_must_change=true correctly
+- ✅ Decodes token with password_must_change=false correctly
+- ✅ Defaults to false when field is missing and logs warning
+- ✅ Handles malformed tokens gracefully (returns default values)
+- ✅ Extracts role field correctly (admin/user)
+- ✅ Extracts username from sub field correctly
+
+**Login Flow Tests (4 test cases):**
+- ✅ Navigates to /change-password when password_must_change=true
+- ✅ Navigates to / when password_must_change=false
+- ✅ Stores auth state correctly with decoded token data
+- ✅ Sets error state and re-throws on login failure
+
+**Logout Tests (2 test cases):**
+- ✅ Clears auth state on logout
+- ✅ Navigates to /login on logout
+
+**Loading and Error States Tests (2 test cases):**
+- ✅ Sets loading state during login
+- ✅ Clears error state on successful login after previous error
+
+**Testing Approach Used:**
+- ✅ @testing-library/react-hooks for hook testing
+- ✅ Mocked loginApi from authService
+- ✅ Mocked useNavigate from react-router-dom
+- ✅ Mocked useAuthStore methods (setAuth, clearAuth)
+- ✅ Helper function to create test JWT tokens with base64 encoding
+- ✅ Spy on console.warn to verify warning logs
+
+**Benefits Achieved:**
+- ✅ Critical JWT decoding logic thoroughly tested
+- ✅ Password change redirect flow verified
+- ✅ Error handling and fallback behavior tested
+- ✅ Loading states and error recovery verified
+- ✅ Comprehensive coverage of authentication hook functionality
+
+**Implementation Notes:**
+- All three test suites (items 19-21) work together to provide comprehensive coverage of the Force Password Change feature
+- Total of 38 test cases covering all aspects of forced password change flow
+- Tests follow established patterns from profile, admin, and history feature tests
+- Security-critical authentication and validation logic thoroughly tested
+
+---
+
 ## Pending Technical Debts
 
 Items that remain to be implemented, organized by priority.
@@ -621,62 +769,6 @@ Add ability to filter by any historical session:
 
 ---
 
-### 17. **Test Coverage for Admin Panel** (Recommended, Not Blocking)
-**Context:** Phase 2.4 Step 3 follow-up
-**Status:** Not implemented
-**Effort:** 3-4 hours
-**Priority:** MEDIUM
-
-**Current State:**
-- Admin panel is functionally complete and production-ready
-- Build successful with no TypeScript errors
-- Comprehensive error handling in place
-- No automated tests for admin features
-
-**Recommended Test Coverage:**
-
-**Test File:** `frontend/src/features/admin/__tests__/useAdminUsers.test.ts`
-
-**Test Scenarios:**
-1. **User List Fetching**
-   - Test fetching users with pagination
-   - Test applying role filter
-   - Test applying status filter
-   - Test error handling
-
-2. **CRUD Operations**
-   - Test creating user successfully
-   - Test creating user with duplicate username/email
-   - Test updating user
-   - Test deleting user
-   - Test reset password
-
-3. **Pagination**
-   - Test page changes
-   - Test filter changes reset page to 1
-   - Test total pages calculation
-
-**Component Tests:**
-- `UserList.test.tsx` - Table rendering, filters, pagination
-- `CreateUserDialog.test.tsx` - Form validation, password generation
-- `EditUserDialog.test.tsx` - Form updates, change detection
-- `DeleteUserDialog.test.tsx` - Confirmation flow
-- `ResetPasswordDialog.test.tsx` - Password generation, form submission
-
-**Benefits:**
-- Prevent regressions when refactoring
-- Document expected behavior
-- Catch edge cases in CI/CD pipeline
-- Increase confidence for production deployment
-
-**Not Blocking Because:**
-- Feature is functionally complete and tested manually
-- Build successful with no errors
-- Comprehensive error handling already in place
-- Can be added incrementally as part of test coverage improvements
-
----
-
 ### 18. **Server-Side Search for Admin Panel** (Future Enhancement)
 **Context:** Phase 2.4 Step 3 enhancement
 **Status:** Not implemented
@@ -828,71 +920,6 @@ export const SessionsList = React.memo<SessionsListProps>(({
 - If profile page shows performance issues
 - If users report slow rendering
 - After adding more complex features
-
----
-
-## Frontend - Force Password Change Feature
-
-### 19. **Test Coverage for ForcePasswordChangePage Component**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~2 hours
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- Form rendering and field presence
-- Password validation rules (length, uppercase, lowercase, digit)
-- Password mismatch validation
-- Same-as-current password validation
-- Successful submission flow and redirect to login
-- API error handling
-- Loading state management
-- Logout button functionality
-
-**Rationale:**
-The ForcePasswordChangePage is a security-critical component that forces users to change passwords on first login. Comprehensive tests would ensure robustness.
-
-**File:** `frontend/src/features/auth/__tests__/ForcePasswordChangePage.test.tsx` (to be created)
-
----
-
-### 20. **Test Coverage for RequirePasswordChangeRoute Component**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~30 minutes
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- Authenticated user with password_must_change=true can access
-- Authenticated user with password_must_change=false redirects to home
-- Unauthenticated user redirects to login
-- Component renders children when conditions are met
-
-**Rationale:**
-Route guard logic should be tested to prevent regressions in access control.
-
-**File:** `frontend/src/features/auth/__tests__/RequirePasswordChangeRoute.test.tsx` (to be created)
-
----
-
-### 21. **Test Coverage for Updated useAuth Hook**
-**Context:** Phase 2.4 - Forced Password Change Implementation
-**Status:** Feature complete, tests recommended
-**Effort:** ~1 hour
-**Priority:** LOW
-
-**Missing Test Coverage:**
-- JWT token decoding with password_must_change field
-- JWT token decoding without password_must_change field (defaults to false)
-- Warning log when password_must_change is missing
-- Login redirect to /change-password when flag is true
-- Login redirect to / when flag is false
-- Token decode error handling
-
-**Rationale:**
-The updated decodeToken function includes critical security logic that should be thoroughly tested.
-
-**File:** `frontend/src/features/auth/__tests__/useAuth.test.ts` (to be updated)
 
 ---
 
@@ -1314,22 +1341,23 @@ test:frontend:
 
 ## Effort Summary
 
-**Completed Items (12 total):**
+**Completed Items (15 total):**
 - Frontend profile feature tests: ~4.5 hours
 - History session filter tests: ~3 hours
 - Admin panel tests: ~4 hours
+- Force password change tests: ~3.5 hours
 - API documentation updates: ~45 minutes
 - History component update: Production-ready
 - Admin panel: Production-ready
-- Total completed effort: ~12-13 hours
+- Total completed effort: ~15.5-16.5 hours
 
-**Pending Items (16 total):**
+**Pending Items (13 total):**
 - Medium Priority: 0 items (All complete!)
-- Low Priority (16 items): 39-56 hours
-- **Estimated Total Effort for Remaining Items:** 39-56 hours
+- Low Priority (13 items): 35-52 hours
+- **Estimated Total Effort for Remaining Items:** 35-52 hours
 
 **Recommended Next Steps:**
-1. ✅ All medium priority items complete!
+1. ✅ All critical test coverage complete!
 2. Consider UX improvements (password strength indicator, session details)
 3. Implement CI/CD pipeline when team grows
 4. Future enhancements when needed (server-side search, advanced features)
@@ -1351,8 +1379,11 @@ test:frontend:
 **Phase:** 2.4 - Enhanced Authentication Features ✅ COMPLETE
 **Phase:** 2.5 - Admin Model Configuration (Backend Complete, Frontend In Progress)
 **Phase:** Custom Model Parameters UI ✅ COMPLETE (Frontend & Backend)
-**Test Coverage Improvements:** ✅ COMPLETE (6/6 critical items implemented - including Admin Panel tests)
-**Admin Panel Test Coverage:** ✅ COMPLETE - 144 tests covering all admin user management features (item #17)
+**Test Coverage Improvements:** ✅ COMPLETE (All critical items implemented)
+- ✅ Profile feature tests (items #1, #2, #3, #7)
+- ✅ History session filter tests (item #15)
+- ✅ Admin panel tests - 144 tests (item #17)
+- ✅ Force password change tests - 38 tests (items #19, #20, #21)
 **CI/CD Infrastructure:** Added item #28 for future continuous integration pipeline
 **Admin Model Config Optimizations:** Added items #25 and #26 based on code review suggestions
 **Advanced Parameter Features:** Added item #27 for future enhancements (Parameter Grouping, Presets, Conditional Parameters, etc.)
