@@ -12,6 +12,14 @@ from typing import Optional
 from user_agents import parse as parse_user_agent
 from fastapi import Request
 
+# Optional GeoIP2 imports - available only if library is installed
+try:
+    import geoip2.database
+    import geoip2.errors
+    GEOIP2_AVAILABLE = True
+except ImportError:
+    GEOIP2_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,8 +127,11 @@ def get_ip_location(ip_address: Optional[str]) -> Optional[str]:
     if not ip_address:
         return None
 
+    if not GEOIP2_AVAILABLE:
+        logger.debug("geoip2 library not installed, skipping location lookup")
+        return None
+
     try:
-        import geoip2.database
         import os
 
         # Check for GeoIP2 database file
@@ -163,9 +174,6 @@ def get_ip_location(ip_address: Optional[str]) -> Optional[str]:
 
             return ", ".join(location_parts) if location_parts else None
 
-    except ImportError:
-        logger.debug("geoip2 library not installed, skipping location lookup")
-        return None
     except geoip2.errors.AddressNotFoundError:
         logger.debug(f"IP address {ip_address} not found in GeoIP2 database")
         return None
