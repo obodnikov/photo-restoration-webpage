@@ -31,13 +31,14 @@ The GeoIP2 database:
 
 ## Step 2: Generate License Key
 
-1. Log in to your MaxMind account
-2. Navigate to "My License Key" in the left sidebar
+1. Log in to your MaxMind account at https://www.maxmind.com/en/account/login
+2. Navigate to "Account" → "Manage License Keys"
 3. Click "Generate new license key"
-4. Enter a description (e.g., "Photo Restoration App")
-5. Select "No" for "Will this key be used for GeoIP Update?"
+4. Enter a description (e.g., "Photo Restoration App - geoipupdate")
+5. Select "**Yes**" for "Will this key be used for GeoIP Update?" (required for geoipupdate)
 6. Click "Confirm"
-7. **Save the license key** - you'll need it for downloads
+7. **Save the license key immediately** - it's only shown once and you'll need it for downloads
+8. **Note your Account ID** - you'll also need this for configuration
 
 ## Step 3: Download GeoLite2-City Database
 
@@ -57,11 +58,14 @@ The GeoIP2 database:
    ls -la GeoLite2-City.mmdb
    ```
 
-### Option B: Command Line (with geoipupdate)
+### Option B: Command Line (with geoipupdate) - Recommended
+
+**Note:** As of 2025, MaxMind requires using `geoipupdate` with proper credentials. Direct downloads are no longer available without authentication.
 
 ```bash
 # Install geoipupdate tool
 # Ubuntu/Debian:
+sudo apt-get update
 sudo apt-get install geoipupdate
 
 # macOS:
@@ -70,16 +74,31 @@ brew install geoipupdate
 # Configure geoipupdate
 sudo nano /etc/GeoIP.conf
 
-# Add your credentials:
-AccountID YOUR_ACCOUNT_ID
-LicenseKey YOUR_LICENSE_KEY
-EditionIDs GeoLite2-City
+# Add your credentials (replace with your actual values):
+AccountID YOUR_ACCOUNT_ID_HERE
+LicenseKey YOUR_LICENSE_KEY_HERE
+EditionIDs GeoLite2-City GeoLite2-Country GeoLite2-ASN
+
+# Optional: Specify database directory (default is /var/lib/GeoIP)
+# DatabaseDirectory /var/lib/GeoIP
+
+# Save and exit (Ctrl+X, Y, Enter)
 
 # Run update
 sudo geoipupdate
 
-# Database will be at: /usr/share/GeoIP/GeoLite2-City.mmdb
+# Verify download
+ls -la /var/lib/GeoIP/
+# Should show: GeoLite2-City.mmdb, GeoLite2-Country.mmdb, GeoLite2-ASN.mmdb
+
+# Database will be at: /var/lib/GeoIP/GeoLite2-City.mmdb (default since 2025)
 ```
+
+**Important Notes:**
+- The license key must be generated with "Yes" for "Will this key be used for GeoIP Update?"
+- Default database directory changed from `/usr/share/GeoIP` to `/var/lib/GeoIP` in recent versions
+- `geoipupdate` will create the directory if it doesn't exist
+- Database files are named `GeoLite2-City.mmdb`, `GeoLite2-Country.mmdb`, etc.
 
 ## Step 4: Install Database
 
@@ -266,6 +285,57 @@ docker-compose build backend
 pip install -r requirements.txt
 ```
 
+### Issue: Old GeoIP.dat files instead of GeoLite2-City.mmdb
+
+**Symptoms:**
+```bash
+ls -la /usr/share/GeoIP/
+# Shows: GeoIP.dat, GeoIPv6.dat (from 2020)
+# Missing: GeoLite2-City.mmdb
+```
+
+**Cause:** You have the legacy GeoIP format, not the current GeoLite2 format.
+
+**Solution:**
+
+1. **Check your GeoIP.conf** configuration:
+   ```bash
+   cat /etc/GeoIP.conf
+   ```
+
+2. **Verify EditionIDs** includes GeoLite2 databases:
+   ```bash
+   # Should have:
+   EditionIDs GeoLite2-City GeoLite2-Country GeoLite2-ASN
+
+   # NOT legacy formats like:
+   # EditionIDs GeoIP-City GeoIP-Country
+   ```
+
+3. **Run geoipupdate** to download current databases:
+   ```bash
+   sudo geoipupdate -v  # Verbose mode to see what's being downloaded
+   ```
+
+4. **Check the correct location** (default changed in 2025):
+   ```bash
+   # New default:
+   ls -la /var/lib/GeoIP/
+
+   # Should show:
+   # GeoLite2-City.mmdb
+   # GeoLite2-Country.mmdb
+   # GeoLite2-ASN.mmdb
+   ```
+
+5. **If files are still in wrong location**, check your `DatabaseDirectory` setting:
+   ```bash
+   grep DatabaseDirectory /etc/GeoIP.conf
+   # If not set, it defaults to /var/lib/GeoIP
+   ```
+
+**Important:** The old `GeoIP.dat` files (legacy format) will NOT work with this application. You must use the `GeoLite2-City.mmdb` (MaxMind DB format) files.
+
 ## Database Updates
 
 MaxMind updates the GeoLite2 databases weekly. To keep your database current:
@@ -294,8 +364,14 @@ sudo nano /usr/local/bin/update-geoip.sh
 #!/bin/bash
 # Update GeoIP database and restart backend
 
+# Run geoipupdate
 geoipupdate
-cp /usr/share/GeoIP/GeoLite2-City.mmdb /opt/geoip/GeoLite2-City.mmdb
+
+# If using Docker with volume mount, copy to mounted location
+# Adjust source path based on your geoipupdate DatabaseDirectory setting
+cp /var/lib/GeoIP/GeoLite2-City.mmdb /opt/geoip/GeoLite2-City.mmdb
+
+# Restart backend container
 cd /path/to/photo-restoration-webpage
 docker-compose restart backend
 ```
@@ -309,16 +385,20 @@ sudo crontab -e
 # Add: 0 3 * * 0 /usr/local/bin/update-geoip.sh
 ```
 
+**Note:** Verify the source path matches your `geoipupdate` configuration. Check `/etc/GeoIP.conf` for the `DatabaseDirectory` setting (default is `/var/lib/GeoIP`).
+
 ## Database Search Paths
 
 The application searches for the database in these locations (in order):
 
-1. **Custom path** from `GEOIP_DB_PATH` environment variable
+1. **Custom path** from `GEOIP_DB_PATH` environment variable (highest priority)
 2. **Docker location:** `/app/GeoLite2-City.mmdb` (recommended for containers)
-3. **System-wide:** `/usr/share/GeoIP/GeoLite2-City.mmdb` (Linux)
-4. **Alternative system:** `/var/lib/GeoIP/GeoLite2-City.mmdb`
+3. **System default (2025+):** `/var/lib/GeoIP/GeoLite2-City.mmdb` (geoipupdate default)
+4. **Legacy system path:** `/usr/share/GeoIP/GeoLite2-City.mmdb` (pre-2025)
 5. **Current directory:** `GeoLite2-City.mmdb`
 6. **Development:** `backend/GeoLite2-City.mmdb`
+
+**Note:** As of 2025, the default `geoipupdate` installation directory is `/var/lib/GeoIP/`, not `/usr/share/GeoIP/`.
 
 You can specify a custom location using the `GEOIP_DB_PATH` environment variable in `.env`:
 

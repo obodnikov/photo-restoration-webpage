@@ -145,8 +145,8 @@ def get_ip_location(ip_address: Optional[str]) -> Optional[str]:
         db_paths = [
             os.environ.get("GEOIP_DB_PATH"),  # Custom path from environment
             "/app/GeoLite2-City.mmdb",  # Docker container location
-            "/usr/share/GeoIP/GeoLite2-City.mmdb",  # System-wide location (Linux)
-            "/var/lib/GeoIP/GeoLite2-City.mmdb",  # Alternative system location
+            "/var/lib/GeoIP/GeoLite2-City.mmdb",  # Default geoipupdate location (2025+)
+            "/usr/share/GeoIP/GeoLite2-City.mmdb",  # Legacy system location
             "GeoLite2-City.mmdb",  # Current directory
             "backend/GeoLite2-City.mmdb",  # Development location
         ]
