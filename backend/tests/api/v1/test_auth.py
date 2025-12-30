@@ -506,7 +506,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         assert session.user_agent == user_agent
@@ -537,7 +537,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         assert session.ip_address == "203.0.113.1"
@@ -565,7 +565,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         assert session.device_type == "Mobile"
@@ -593,7 +593,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         assert session.location == "San Francisco, CA, United States"
@@ -620,7 +620,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         # Metadata fields should be None or have defaults
@@ -653,7 +653,7 @@ class TestLoginWithSessionMetadata:
         result = await test_db.execute(
             select(SessionModel).where(SessionModel.user_id == 1).order_by(SessionModel.created_at.desc())
         )
-        session = result.scalar_one_or_none()
+        session = result.scalars().first()
 
         assert session is not None
         assert session.ip_address == "192.168.1.1"

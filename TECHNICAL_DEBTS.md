@@ -582,6 +582,7 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 **Status:** ✅ **IMPLEMENTED** - Session metadata fully integrated
 **Implementation Date:** 2025-12-30
 **Effort:** ~4 hours
+**Bug Fixes:** 2025-12-30 (Post-implementation code review)
 
 **Completed Features:**
 - ✅ Backend Session model updated with metadata fields (user_agent, ip_address, device_type, browser, os, location)
@@ -596,6 +597,7 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 - ✅ SessionsList component redesigned with Option C (Hybrid) layout
 - ✅ CSS styles added for device/location/IP display
 - ✅ Backward compatibility ensured (all fields nullable, "Unknown" fallbacks)
+- ✅ **Critical bug fixes applied** (3 blocking issues resolved post-review)
 
 **Implementation Details:**
 
@@ -605,6 +607,12 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 - IP address extracted from X-Forwarded-For header (proxy-aware) or direct client host
 - Optional geolocation using GeoIP2 database (gracefully degrades if unavailable)
 - All metadata fields are optional - missing data shows as "Unknown"
+- **Module-level geoip2 imports** with try/except fallback for better testability
+
+**Bug Fixes Applied:**
+1. **Fixed geoip2.errors import issue** - Added missing import to prevent 500 errors on AddressNotFoundError
+2. **Refactored geoip2 imports to module level** - Moved imports from function scope to module scope with fallback for better testability
+3. **Fixed integration test queries** - Replaced `.scalar_one_or_none()` with `.scalars().first()` in 6 tests to handle multiple sessions correctly
 
 **Frontend Changes:**
 - Display format: Device & Location section + Session Times section
