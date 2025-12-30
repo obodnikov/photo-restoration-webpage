@@ -65,13 +65,29 @@ class SessionManager:
         self.storage_path.mkdir(parents=True, exist_ok=True)
         self.processed_path.mkdir(parents=True, exist_ok=True)
 
-    async def create_session(self, db: AsyncSession, user_id: int) -> Session:
+    async def create_session(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+        browser: str | None = None,
+        os: str | None = None,
+        device_type: str | None = None,
+        location: str | None = None,
+    ) -> Session:
         """
         Create a new user session.
 
         Args:
             db: Database session
             user_id: ID of the user this session belongs to
+            user_agent: User-Agent header string (optional)
+            ip_address: Client IP address (optional)
+            browser: Browser name and version (optional)
+            os: Operating system name and version (optional)
+            device_type: Device type (Mobile/Desktop/Tablet) (optional)
+            location: Geographic location (optional)
 
         Returns:
             Created Session object
@@ -89,6 +105,12 @@ class SessionManager:
                 user_id=user_id,
                 created_at=datetime.utcnow(),
                 last_accessed=datetime.utcnow(),
+                user_agent=user_agent,
+                ip_address=ip_address,
+                browser=browser,
+                os=os,
+                device_type=device_type,
+                location=location,
             )
 
             # Add to database

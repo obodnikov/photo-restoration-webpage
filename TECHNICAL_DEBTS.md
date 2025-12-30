@@ -20,14 +20,14 @@ This document tracks non-blocking improvements, enhancements, and nice-to-have f
 
 ## Summary
 
-**Total Items:** 28
-**Completed Items:** 15 (moved from pending)
-**Pending Items:** 13
+**Total Items:** 29
+**Completed Items:** 18 (moved from pending)
+**Pending Items:** 11
 
 **By Priority:**
 - High Priority: 0 (All Phase 2.4 critical items complete!)
 - Medium Priority: 0 (All medium priority items complete!)
-- Low Priority: 13 (UX enhancements, documentation, CI/CD, optimizations, future features)
+- Low Priority: 11 (UX enhancements, documentation, CI/CD, optimizations, future features)
 
 **Phase Status:**
 - ✅ Phase 2.4 Complete - All 3 steps finished and tested
@@ -577,6 +577,146 @@ Items that have been implemented and are now complete. See [DONE_TASKS.md](DONE_
 
 ---
 
+#### 6. **Session Details Expansion** ✅ **COMPLETE**
+**Context:** Phase 2.4 - Sessions Management
+**Status:** ✅ **IMPLEMENTED** - Session metadata fully integrated
+**Implementation Date:** 2025-12-30
+**Effort:** ~4 hours
+
+**Completed Features:**
+- ✅ Backend Session model updated with metadata fields (user_agent, ip_address, device_type, browser, os, location)
+- ✅ Database migration created (001_add_session_metadata.py)
+- ✅ User-Agent parsing library added (user-agents 2.2.0)
+- ✅ IP geolocation support added (geoip2 4.8.1, optional GeoLite2 database)
+- ✅ Session metadata utility service created (backend/app/utils/session_metadata.py)
+- ✅ Login endpoint updated to capture session metadata from requests
+- ✅ SessionManager.create_session() updated to accept metadata parameters
+- ✅ UserSessionResponse schema updated with new fields
+- ✅ Frontend Session interface updated with metadata fields
+- ✅ SessionsList component redesigned with Option C (Hybrid) layout
+- ✅ CSS styles added for device/location/IP display
+- ✅ Backward compatibility ensured (all fields nullable, "Unknown" fallbacks)
+
+**Implementation Details:**
+
+**Backend Changes:**
+- Session model includes 6 new nullable columns for metadata
+- Metadata extraction utilities parse User-Agent headers using `user-agents` library
+- IP address extracted from X-Forwarded-For header (proxy-aware) or direct client host
+- Optional geolocation using GeoIP2 database (gracefully degrades if unavailable)
+- All metadata fields are optional - missing data shows as "Unknown"
+
+**Frontend Changes:**
+- Display format: Device & Location section + Session Times section
+- Device info: Icon (💻/📱) + "Browser OS (Device Type)"
+- Location: 📍 icon + "City, State/Country" or "Unknown location"
+- IP address: 🌐 icon + full IP (not masked per user preference)
+- Clean, organized layout following sqowe brand guidelines
+- Responsive design for mobile/tablet
+
+**Files Created:**
+- `backend/alembic/versions/001_add_session_metadata.py` - Database migration
+- `backend/app/utils/session_metadata.py` - Metadata extraction utilities
+
+**Files Modified:**
+- `backend/app/db/models.py` - Session model with 6 new fields
+- `backend/requirements.txt` - Added user-agents and geoip2
+- `backend/app/services/session_manager.py` - create_session() accepts metadata
+- `backend/app/api/v1/routes/auth.py` - Login captures and stores metadata
+- `backend/app/api/v1/schemas/user.py` - UserSessionResponse includes metadata
+- `frontend/src/features/profile/types.ts` - Session interface updated
+- `frontend/src/features/profile/components/SessionsList.tsx` - Redesigned UI (Option C)
+- `frontend/src/styles/components/profile.css` - New metadata styles
+
+**Benefits Achieved:**
+- ✅ Better security awareness - Users can identify suspicious logins
+- ✅ Device identification - Clear browser/OS/device information
+- ✅ Geographic awareness - Approximate location for anomaly detection
+- ✅ IP tracking - Full IP address displayed for security monitoring
+- ✅ Backward compatible - Existing sessions without metadata work correctly
+- ✅ Graceful degradation - GeoIP2 optional, works without database file
+- ✅ Clean UX - Option C layout provides all info without clutter
+
+**Notes:**
+- GeoIP2 database (GeoLite2-City.mmdb) is optional - feature works without it
+- To enable geolocation, download free GeoLite2-City database from MaxMind
+- Place database file in standard location (/usr/share/GeoIP/ or /var/lib/GeoIP/)
+- Metadata captured on login - existing sessions show "Unknown" until re-login
+- All new database columns are nullable for zero-downtime deployment
+
+---
+
+#### 8. **Session Metadata Enhancement** ✅ **COMPLETE**
+**Context:** Support for frontend session details (#6)
+**Status:** ✅ **IMPLEMENTED** - Integrated with item #6
+**Implementation Date:** 2025-12-30
+**Effort:** Included in item #6 implementation
+
+**Completed Implementation:**
+- ✅ Session model updated with metadata fields (completed in item #6)
+- ✅ Database migration created for schema changes
+- ✅ Login endpoint captures User-Agent, IP address, and device info
+- ✅ User-Agent parsing extracts browser, OS, device type
+- ✅ IP geolocation service integrated (optional GeoIP2)
+- ✅ All metadata returned in `/users/me/sessions` endpoint
+
+**Files Modified:**
+- Same files as item #6 (backend-focused changes)
+
+**Note:** This item was a backend prerequisite for item #6 and was completed as part of the same implementation. Both items #6 and #8 are now fully complete and production-ready.
+
+---
+
+#### 22. **Session Metadata Test Coverage** ✅ **COMPLETE**
+**Context:** Code Review - Test Coverage for Session Details Expansion
+**Status:** ✅ **IMPLEMENTED** - Comprehensive test coverage added
+**Implementation Date:** 2025-12-30
+**Effort:** ~1.5 hours
+
+**Test Coverage Added:**
+
+**1. Utility Function Tests** (`tests/utils/test_session_metadata.py`):
+- ✅ `TestGetClientIP`: 5 tests for IP extraction (X-Forwarded-For, fallback, IPv6)
+- ✅ `TestParseUserAgentMetadata`: 8 tests for UA parsing (Chrome, Firefox, Safari, Mobile, Tablet, Edge cases)
+- ✅ `TestGetIPLocation`: 4 tests for geolocation (success, database not found, IP not found, minimal data)
+- ✅ `TestCaptureSessionMetadata`: 4 tests for end-to-end metadata capture
+- **Total: 21 unit tests**
+
+**2. Integration Tests** (`tests/api/v1/test_auth.py`):
+- ✅ `test_login_captures_user_agent_metadata`: Verifies UA, browser, OS, device type stored
+- ✅ `test_login_captures_ip_address_from_x_forwarded_for`: Verifies X-Forwarded-For handling
+- ✅ `test_login_with_mobile_user_agent`: Verifies mobile device detection
+- ✅ `test_login_with_geolocation`: Verifies geolocation capture with mocked GeoIP2
+- ✅ `test_login_handles_missing_metadata_gracefully`: Verifies graceful degradation
+- ✅ `test_login_handles_geolocation_failure_gracefully`: Verifies GeoIP2 failure handling
+- ✅ `test_multiple_logins_create_separate_sessions_with_metadata`: Verifies multiple sessions
+- **Total: 7 integration tests**
+
+**Test Coverage:**
+- User-Agent parsing: ✅ Chrome, Firefox, Safari, Mobile Safari, Android Chrome, Tablet, Bot
+- IP extraction: ✅ X-Forwarded-For (single, multiple), client.host, IPv6
+- Geolocation: ✅ Success, failure, database not found, minimal data
+- Error handling: ✅ Missing headers, invalid UA, GeoIP2 exceptions
+- Edge cases: ✅ None values, empty strings, multiple sessions
+
+**Files Created:**
+- `backend/tests/utils/test_session_metadata.py` - 21 unit tests for metadata utilities
+
+**Files Modified:**
+- `backend/tests/api/v1/test_auth.py` - Added 7 integration tests for login with metadata
+
+**Test Execution:**
+All tests pass successfully with proper mocking of GeoIP2 database and HTTP headers.
+
+**Benefits:**
+- ✅ Code review requirement addressed
+- ✅ 28 new tests ensure metadata capture works correctly
+- ✅ Graceful degradation verified (missing headers, GeoIP2 failures)
+- ✅ Multiple browsers and devices tested
+- ✅ Production-ready with full test coverage
+
+---
+
 ## Pending Technical Debts
 
 Items that remain to be implemented, organized by priority.
@@ -659,76 +799,6 @@ const handleConfirmDelete = async () => {
 - `frontend/src/features/profile/components/PasswordStrengthIndicator.tsx`
 - `frontend/src/features/profile/components/ChangePasswordForm.tsx`
 - `frontend/src/styles/components/profile.css`
-
----
-
-#### 6. **Session Details Expansion**
-**Context:** Phase 2.4 - Sessions Management
-**Status:** Shows basic info (created, last accessed)
-**Effort:** ~4 hours (requires backend changes)
-**Benefit:** Better security awareness for users
-
-**Current Display:**
-- Session ID
-- Created date
-- Last accessed date
-- Current session indicator
-
-**Proposed Enhancement:**
-- Browser/device information
-- IP address (last used)
-- Geographic location (approximate)
-- Login method
-
-**Backend Requirements:**
-- Store additional session metadata
-- Update Session model
-- Update `/users/me/sessions` endpoint response
-
-**Frontend Changes:**
-- Update Session type definition
-- Enhance SessionsList display
-- Add expandable session details
-
----
-
-## Backend - Profile Feature
-
-#### 8. **Session Metadata Enhancement**
-**Context:** Support for frontend session details (#6)
-**Status:** Basic session tracking exists
-**Effort:** ~3 hours
-**Impact:** Better security monitoring
-
-**Current Schema:**
-```python
-class Session(Base):
-    id: str
-    user_id: int
-    created_at: datetime
-    last_accessed: datetime
-```
-
-**Proposed Schema:**
-```python
-class Session(Base):
-    id: str
-    user_id: int
-    created_at: datetime
-    last_accessed: datetime
-    # New fields:
-    user_agent: str | None
-    ip_address: str | None
-    device_type: str | None  # mobile, desktop, tablet
-    browser: str | None
-    os: str | None
-```
-
-**Files to Modify:**
-- `backend/app/db/models.py`
-- `backend/app/core/auth.py` (capture metadata on login)
-- `backend/app/api/v1/users.py` (return metadata in sessions endpoint)
-- Database migration script
 
 ---
 
@@ -1341,7 +1411,7 @@ test:frontend:
 
 ## Effort Summary
 
-**Completed Items (15 total):**
+**Completed Items (18 total):**
 - Frontend profile feature tests: ~4.5 hours
 - History session filter tests: ~3 hours
 - Admin panel tests: ~4 hours
@@ -1349,18 +1419,21 @@ test:frontend:
 - API documentation updates: ~45 minutes
 - History component update: Production-ready
 - Admin panel: Production-ready
-- Total completed effort: ~15.5-16.5 hours
+- Session Details Expansion (items #6 & #8): ~4 hours
+- Session Metadata Test Coverage (item #22): ~1.5 hours
+- Total completed effort: ~21-22 hours
 
-**Pending Items (13 total):**
+**Pending Items (11 total):**
 - Medium Priority: 0 items (All complete!)
-- Low Priority (13 items): 35-52 hours
-- **Estimated Total Effort for Remaining Items:** 35-52 hours
+- Low Priority (11 items): 31-48 hours
+- **Estimated Total Effort for Remaining Items:** 31-48 hours
 
 **Recommended Next Steps:**
 1. ✅ All critical test coverage complete!
-2. Consider UX improvements (password strength indicator, session details)
-3. Implement CI/CD pipeline when team grows
-4. Future enhancements when needed (server-side search, advanced features)
+2. ✅ Session Details Expansion complete!
+3. Consider UX improvements (password strength indicator, local error handling)
+4. Implement CI/CD pipeline when team grows
+5. Future enhancements when needed (server-side search, advanced features)
 
 ---
 
