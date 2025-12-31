@@ -1,8 +1,8 @@
 # Architecture Overview
 
 **Version:** 1.0.0
-**Status:** Production-Ready (Phase 1 Complete, Phase 2.4 Complete)
-**Last Updated:** 2025-12-29
+**Status:** Production-Ready (Phase 1 Complete, Phase 2.5 Complete)
+**Last Updated:** 2025-12-31
 
 ---
 
@@ -30,7 +30,7 @@ Photo Restoration Webpage is an AI-powered web application for restoring old pho
 
 **Key Characteristics:**
 - **Type:** Long-living personal PET project
-- **Evolution:** Incremental phased development (currently Phase 2.4)
+- **Evolution:** Incremental phased development (Phase 2.5 complete)
 - **Stack:** FastAPI (async Python 3.13) + React 18 + TypeScript (strict)
 - **Deployment:** Docker Compose + user-provided external reverse proxy
 - **Database:** SQLite (MVP) with planned PostgreSQL migration
@@ -60,53 +60,37 @@ External Proxy (user-provided)
 
 ```
 photo-restoration-webpage/
-├── backend/                    # FastAPI async application
+├── backend/
 │   ├── app/
 │   │   ├── api/v1/            # Routes: auth, models, restore, admin, users
-│   │   ├── core/              # Config, security, deps, providers
-│   │   ├── db/                # SQLAlchemy models (User, Session, RestorationImage)
+│   │   ├── core/              # Config (with versioning), security, deps
+│   │   │   ├── config_migrations.py  # Migration framework
+│   │   │   └── config_backup.py      # Backup/restore utilities
+│   │   ├── db/                # SQLAlchemy models
 │   │   ├── services/          # HuggingFace, Replicate, session manager
 │   │   └── utils/             # Image processing, file handling
-│   ├── alembic/               # Database migrations (Alembic)
-│   ├── config/                # JSON config files (default, production, local)
-│   ├── tests/                 # 279 tests (99% coverage)
-│   └── requirements.txt
-│
-├── frontend/                   # Vite + React + TypeScript
+│   ├── config/                # JSON configs + backups/
+│   ├── docs/                  # CONFIG_VERSIONING_TEST_COVERAGE.md, PERFORMANCE.md
+│   ├── scripts/               # migrate_config.py, backup_config.py, restore_config.py
+│   ├── tests/                 # 338 tests (99% coverage)
+│   └── alembic/               # Database migrations
+├── frontend/
 │   ├── src/
 │   │   ├── app/               # App shell, routing, layout
 │   │   ├── features/          # Auth, restoration, history, admin, profile
-│   │   ├── components/        # Shared UI (sqowe brand, Material-inspired)
-│   │   ├── services/          # API client, auth store (Zustand)
-│   │   └── styles/            # CSS Modules + design tokens
-│   ├── __tests__/             # 224 tests (Vitest + RTL)
-│   └── package.json
-│
-├── docs/                       # Documentation
-│   ├── chats/                 # 45+ previous implementation conversations
-│   ├── implementation.md      # Deployment, proxy config, troubleshooting
-│   ├── configuration.md       # Auto-generated config reference
-│   └── [phase-specific docs]
-│
-├── tmp/                        # Brand assets, temporary files
-│   ├── 02. logotype/          # sqowe logos (SVG, PNG)
-│   ├── Brand-Guidelines.pdf   # Official sqowe brand guidelines
-│   └── AI_WEB_DESIGN_SQOWE.md # sqowe design rules for AI
-│
-├── AI*.md                      # 9 AI coding rule files (see Section 8)
-├── CLAUDE.md                   # Project workflow (propose before implementing)
-├── README.md                   # User-facing documentation
-├── ROADMAP.md                  # Development phases (1.1-2.4 complete)
-├── TECHNICAL_DEBTS.md         # Known issues and future improvements
-├── docker-compose.yml         # Production deployment
-└── docker-compose.dev.yml     # Development with hot reload
+│   │   ├── components/        # Shared UI (sqowe brand)
+│   │   └── services/          # API client, auth store (Zustand)
+│   └── __tests__/             # 224 tests (Vitest + RTL)
+├── docs/chats/                # 47 implementation conversations
+├── AI*.md                     # 9 AI coding rule files
+├── ROADMAP.md, TECHNICAL_DEBTS.md, CLAUDE.md
+└── docker-compose.yml
 ```
 
 **Critical Paths:**
-- Backend entry: `backend/app/main.py`
-- Frontend entry: `frontend/src/main.tsx`
-- Config: `backend/config/default.json` (REQUIRED base)
-- Tests: `backend/tests/`, `frontend/src/__tests__/`
+- Backend: `backend/app/main.py`, `backend/config/default.json` (v1.0.0 required)
+- Frontend: `frontend/src/main.tsx`
+- Config versioning: `backend/app/core/config_migrations.py`
 
 ---
 
@@ -116,335 +100,183 @@ photo-restoration-webpage/
 
 **Tech:** Vite + React 18 + TypeScript (strict) + Zustand + CSS Modules
 
-**Key Components:**
-- **App Shell** (`src/app/`) - Routing, layout, auth guards
-- **Features** (`src/features/`) - Feature-oriented modules:
-  - `auth/` - Login, JWT management
-  - `restoration/` - Image upload, AI processing, before/after viewer
-    - **Custom Model Parameters UI** [🔄 Semi-Stable] - Dynamic parameter controls
-      - 8 UI control types (text, textarea, number, slider, dropdown, radio, toggle, checkbox)
-      - Auto-detection from `replicate_schema.input.parameters`
-      - Custom override via `custom.ui_controls`
-      - Parameter state management with auto-initialization
-  - `history/` - Paginated image history
-  - `admin/` - User management (admin-only)
-  - `profile/` - User profile, password change, session management
-- **Shared Components** (`src/components/`) - sqowe-branded UI components
-- **Auth Store** (`src/services/authStore.ts`) - Global Zustand store for auth state
+**Features:**
+- **Auth** - Login, JWT management
+- **Restoration** - Upload, AI processing, before/after viewer, custom model parameters UI
+- **History** - Paginated image history
+- **Admin** - User management, model configuration
+- **Profile** - Password change, session management
 
-**Routing:**
-- `/` → Login (if not authenticated)
-- `/restoration` → Photo restoration (protected)
-- `/history` → History (protected)
-- `/admin` → Admin panel (admin-only)
-- `/profile` → User profile (protected)
+**Routing:** `/` (login), `/restoration`, `/history`, `/admin`, `/profile`
 
 ### 4.2 Backend (Stable ✅)
 
 **Tech:** FastAPI + SQLAlchemy (async) + SQLite + JWT
 
-**Key Components:**
-- **API Routes** (`app/api/v1/routes/`) - RESTful endpoints
-- **Authentication** (`app/core/security.py`) - JWT + bcrypt + multi-session
-- **Configuration** (`app/core/config.py`) - Hierarchical JSON loader
-- **AI Providers** (`app/services/`) - HuggingFace + Replicate async clients
-- **Database** (`app/db/`) - SQLAlchemy models (User, Session, RestorationImage)
-- **Session Manager** (`app/services/session_manager.py`) - Background cleanup
-
-**API Endpoints:**
-- `/api/v1/auth/*` - Login, validate, me
-- `/api/v1/models` - List AI models
-- `/api/v1/restore` - Upload, process, history
-- `/api/v1/admin/*` - User CRUD (admin-only)
-- `/api/v1/users/me/*` - Profile, sessions, password
+**Components:**
+- **API Routes** - `/api/v1/{auth,models,restore,admin,users}`
+- **Authentication** - JWT + bcrypt + multi-session
+- **Configuration** - Hierarchical JSON loader with versioning system
+- **Config Versioning** - Auto-migration, backup/restore (`config_migrations.py`, `config_backup.py`)
+- **AI Providers** - HuggingFace + Replicate async clients
+- **Database** - SQLAlchemy models (User, Session, RestorationImage)
+- **Session Manager** - Background cleanup
 
 ### 4.3 External Integrations
 
-**AI Providers (External APIs):**
-- **HuggingFace Inference API** - Upscaling, enhancement (HF_API_KEY)
-- **Replicate API** - Advanced restoration (REPLICATE_API_TOKEN, optional)
-
-**Reverse Proxy (User-Provided):**
-- **Required:** nginx, Apache, Traefik, Caddy, or equivalent
-- **Purpose:** Route `/api`, `/uploads`, `/processed` → backend; `/` → frontend
-- **Config Examples:** See `docs/implementation.md`
+**AI Providers:** HuggingFace Inference API (HF_API_KEY), Replicate API (REPLICATE_API_TOKEN)
+**Reverse Proxy:** User-provided (nginx/Apache/Traefik/Caddy) - routes `/api`, `/uploads` → backend; `/` → frontend
 
 ### 4.4 Data Storage
 
-**Database (Semi-Stable ⚠️):**
-- **Current:** SQLite (file-based, `/data/photo_restoration.db`)
-- **Future:** PostgreSQL migration planned for production scale
-- **Migrations:** Alembic (first migration has known blocking issue)
-
-**File Storage (Stable ✅):**
-- **Uploads:** `/data/uploads/{session_id}/{uuid}_original.ext`
-- **Processed:** `/data/processed/{session_id}/{uuid}_processed.ext`
-- **Cleanup:** Automatic via session manager (configurable TTL)
+**Database (Semi-Stable ⚠️):** SQLite (`/data/photo_restoration.db`), PostgreSQL migration planned
+**File Storage (Stable ✅):** `/data/uploads/`, `/data/processed/`, auto-cleanup via session manager
 
 ---
 
 ## 5. Data Flow & Runtime Model
 
 ### Authentication Flow
-
 ```
-User → Login Form → POST /api/v1/auth/login
-                    ↓
-        Backend: Verify credentials (bcrypt)
-                 Create Session record
-                 Generate JWT (7d or 24h)
-                    ↓
-        Frontend: Store JWT in localStorage
-                    ↓
-All requests → Authorization: Bearer {JWT}
-                    ↓
-        Backend: Verify JWT signature
-                 Check expiration
-                 Execute request
+Login → Verify credentials (bcrypt) → Create Session → Generate JWT → Store in localStorage
+All requests → Authorization: Bearer {JWT} → Verify JWT → Execute
 ```
 
 ### Image Restoration Flow
-
 ```
-1. Upload    → POST /api/v1/restore (multipart/form-data)
-2. Validate  → Size, format, dimensions
-3. Save      → /data/uploads/{session_id}/{uuid}_original.ext
-4. DB Record → Create RestorationImage entry
-5. AI Call   → HuggingFace or Replicate API (async)
-6. Save      → /data/processed/{session_id}/{uuid}_processed.ext
-7. DB Update → Update RestorationImage with URLs
-8. Response  → Return original_url, processed_url, metadata
-9. Display   → Frontend shows before/after comparison
+1. Upload → POST /api/v1/restore
+2. Validate → Size, format, dimensions
+3. Save → /data/uploads/{session_id}/{uuid}_original.ext
+4. AI Call → HuggingFace or Replicate API
+5. Save → /data/processed/{session_id}/{uuid}_processed.ext
+6. Response → Return URLs + metadata
 ```
 
-### Configuration Loading (Hierarchical)
-
+### Configuration Loading with Versioning
 ```
-Priority (Highest → Lowest):
-1. Environment variables (.env) → Override specific values for all settings
-2. config/local.json            → Model configurations ONLY (gitignored)
-3. config/{APP_ENV}.json        → Environment-specific overrides (production/dev/staging)
-4. config/default.json          → Base config (REQUIRED)
+1. Load → default.json, {env}.json, local.json
+2. Detect Version → Check config_version (default: "0.9.0")
+3. Validate → Ensure consistency across files
+4. Backup → Auto-backup before migration (CONFIG_AUTO_MIGRATE=true)
+5. Migrate → Apply migrations if version < 1.0.0
+6. Merge → Deep merge: default → env → local
+7. Validate → Pydantic schema validation
 ```
 
-**Critical:** `default.json` MUST exist or app falls back to deprecated `.env`-only mode.
-
-**Important - `local.json` behavior:**
-- `local.json` is **exclusively for model configuration overrides**
-- Only the `models` array from `local.json` is merged (by model ID)
-- **All other configuration keys in `local.json` are ignored** (application, database, server, cors, etc.)
-- For non-model configuration overrides, use environment-specific files (`development.json`, `production.json`) or environment variables (.env)
+**Migration:** Legacy (0.9.0) → 1.0.0, auto-backup, rollback support
 
 ---
 
 ## 6. Configuration & Environment Assumptions
 
-### Environment Variables (Secrets in `.env`)
+### Environment Variables (`.env`)
 
-**Required:**
-- `HF_API_KEY` - HuggingFace API key
-- `SECRET_KEY` - JWT signing key (min 32 chars, generate with `secrets.token_urlsafe(32)`)
-- `AUTH_USERNAME` / `AUTH_PASSWORD` - Initial admin credentials
+**Required:** `HF_API_KEY`, `SECRET_KEY`, `AUTH_USERNAME`, `AUTH_PASSWORD`
+**Optional:** `REPLICATE_API_TOKEN`, `APP_ENV` (production/development/staging), `CONFIG_AUTO_MIGRATE` (default: true)
 
-**Optional:**
-- `REPLICATE_API_TOKEN` - Replicate API token (only if using Replicate models)
-- `APP_ENV` - Environment selection: `production` (default), `development`, `staging`
+### JSON Configuration
 
-### JSON Configuration Files
+**Files:** `default.json` (required, v1.0.0), `{env}.json` (optional), `local.json` (models only, gitignored)
 
-**Required Files:**
-- `backend/config/default.json` - Base configuration (committed to git)
+**Versioning:**
+- All configs include `config_version` (semver: "major.minor.patch")
+- Auto-migration on startup (configurable)
+- Auto-backups in `config/backups/`
+- Version compatibility: rejects future versions, supports legacy 0.9.0 → 1.x
+- Current version: 1.0.0
 
-**Optional Files:**
-- `backend/config/production.json` - Production overrides (all settings)
-- `backend/config/development.json` - Development overrides (all settings)
-- `backend/config/local.json` - **Model configuration ONLY** (gitignored, non-model keys ignored)
+**Sections:** `config_version`, `application`, `server`, `cors`, `models`, `database`, `file_storage`, `session`, `processing`
 
-**Configuration Sections:**
-- `application` - App name, version, debug, log level
-- `server` - Host, port, workers
-- `cors` - CORS origins (JSON array)
-- `models` - AI model definitions with flexible `replicate_schema`
-- `database`, `file_storage`, `session`, `processing`
+**See:** `docs/configuration.md`, `docs/CONFIG_VERSIONING_PERFORMANCE.md`
 
-**See:** `docs/configuration.md` for complete reference
+### Deployment
 
-### Deployment Assumptions
-
-**Docker:**
-- Backend container: Port 8000 (internal network only)
-- Frontend container: Port 3000 (exposed to host)
-- External reverse proxy: User-provided (nginx, Apache, Traefik, Caddy)
-
-**Development:**
-- Python 3.13+ (`/opt/homebrew/bin/python3.13`)
-- Node.js 22.12 (use Docker: `node:22.12-alpine`)
-- Docker commands via CLAUDE.md rules
+**Docker:** Backend:8000 (internal), Frontend:3000 (exposed)
+**Dev:** Python 3.13+ (`/opt/homebrew/bin/python3.13`), Node 22.12 (`docker run node:22.12-alpine`)
 
 ---
 
 ## 7. Stability Zones
 
-### ✅ Stable (Production-Ready, Low Risk)
+### ✅ Stable (Production-Ready)
 
-**Do NOT restructure without explicit user approval:**
+**Backend:**
+- FastAPI app structure, authentication (JWT, bcrypt, multi-session)
+- Configuration loader with versioning (`config.py`, `config_migrations.py`, `config_backup.py`)
+- AI provider clients, file storage, session manager
 
-- **Backend:**
-  - FastAPI app structure (`app/main.py`, `app/api/v1/`)
-  - Authentication system (JWT, bcrypt, multi-session)
-  - Configuration loader (JSON hierarchy)
-  - AI provider clients (HuggingFace, Replicate)
-  - File storage system
-  - Session manager
+**Frontend:**
+- App shell, routing, feature modules, auth store (Zustand)
 
-- **Frontend:**
-  - App shell and routing (`app/App.tsx`, `app/Layout.tsx`)
-  - Feature modules (`features/auth`, `features/restoration`, `features/history`, `features/admin`, `features/profile`)
-  - Shared components (sqowe brand)
-  - Auth store (Zustand)
+**Deployment:**
+- Docker Compose, external proxy architecture
 
-- **Deployment:**
-  - Docker Compose setup
-  - External proxy architecture
+### 🔄 Semi-Stable (May Evolve)
 
-### 🔄 Semi-Stable (Functional, May Evolve)
+- Admin UI for model config (in progress)
+- `local.json` priority system, flexible `replicate_schema`
+- Custom Model Parameters UI (7 input types, auto-detection, may expand)
 
-**Changes require planning and testing:**
+### ⚠️ Experimental (May Be Replaced)
 
-- **Configuration:**
-  - Admin UI for model config (in progress)
-  - `local.json` priority system (recently added)
-  - Flexible `replicate_schema` (may expand)
+- SQLite → PostgreSQL migration planned
+- Session management (may move to separate worker)
 
-- **AI Providers:**
-  - New models can be added via config
-  - Provider-specific schemas
-
-- **Custom Model Parameters UI:**
-  - Parameter input components (7 components + factory)
-  - Auto-detection logic (type → UI control mapping)
-  - Custom configuration via `custom.ui_controls`
-  - May expand with advanced features (grouping, conditionals, presets)
-  - See TECHNICAL_DEBTS.md #27 for planned enhancements
-
-- **Testing:**
-  - Edge case coverage expansion
-  - Performance testing
-
-### ⚠️ Experimental (Working, May Be Replaced)
-
-**Expect changes, document assumptions:**
-
-- **Database:**
-  - SQLite → PostgreSQL migration planned
-  - Alembic migrations (first migration blocking fresh installs - known issue in TECHNICAL_DEBTS.md)
-
-- **Session Management:**
-  - Background cleanup may move to separate worker/scheduler
-
-### 🔮 Planned (Not Yet Implemented)
-
-**Do NOT implement unless explicitly requested:**
+### 🔮 Planned (Not Implemented)
 
 - Phase 2: Model pipelines, batch processing, rate limiting
 - Phase 3: OwnCloud integration, video frame restoration
-- Phase 4: Production hardening, monitoring, security audit
+- Phase 4: Production hardening, monitoring
 
-**See:** `ROADMAP.md` for full timeline
+**See:** `ROADMAP.md`
 
 ---
 
 ## 8. AI Coding Rules and Behavioral Contracts
 
-**⚠️ CRITICAL: This document (ARCHITECTURE.md) does NOT define coding rules.**
-
-All AI assistants MUST locate and follow the authoritative AI rule files BEFORE making any changes.
+**⚠️ CRITICAL: This document does NOT define coding rules.**
 
 ### Authoritative AI Rule Files
 
-**Backend Rules:**
-- `AI.md` - General Python rules (PEP8, type hints, structure, environment variables)
-- `AI_FastAPI.md` - FastAPI-specific patterns
-- `AI-PYTHON-REST-API.md` - REST API conventions
-- `AI_SQLite.md` - Database patterns with SQLAlchemy
-- `AI_FLASK.md` - (Legacy, not used in current architecture)
+**Backend:** `AI.md`, `AI_FastAPI.md`, `AI-PYTHON-REST-API.md`, `AI_SQLite.md`
+**Frontend:** `AI_FRONTEND.md`, `AI_WEB_COMMON.md`, `tmp/AI_WEB_DESIGN_SQOWE.md`
+**Provider:** `AI_replicate_provider.md`
+**Workflow:** `CLAUDE.md` - Propose before implementing, check `docs/chats/`
 
-**Frontend Rules:**
-- `AI_FRONTEND.md` - Vite + React + TypeScript standards (strict mode, hooks, feature structure)
-- `AI_WEB_COMMON.md` - General web development rules
-- `tmp/AI_WEB_DESIGN_SQOWE.md` - sqowe brand design system (Material-inspired)
+**Reference:** `ROADMAP.md`, `TECHNICAL_DEBTS.md`, `tmp/Brand-Guidelines.pdf`
 
-**Provider-Specific Rules:**
-- `AI_replicate_provider.md` - Replicate API integration patterns
+### Rule Precedence
+1. Explicit user instructions
+2. Stack-specific `AI_*.md` files
+3. Global `AI.md`
+4. This ARCHITECTURE.md (constraints only)
+5. Implicit conventions
 
-**Project Workflow:**
-- `CLAUDE.md` - **CRITICAL:** Always propose before implementing, never auto-commit, check docs/chats/
-  - Use `/opt/homebrew/bin/python3.13` for Python
-  - Use Docker for Node.js: `docker run --rm -v "$(pwd)/frontend":/app -w /app node:22.12-alpine <cmd>`
-  - Use `backend/venv` for tests and apps
+### Key Architectural Decisions
 
-**Reference Documentation:**
-- `ROADMAP.md` - Development phases, feature timeline, test coverage
-- `TECHNICAL_DEBTS.md` - Known issues, future improvements
-- `docs/chats/` - 45+ previous implementation conversations (check before implementing similar features)
-- `tmp/Brand-Guidelines.pdf` - Official sqowe brand guidelines
+1. **External Reverse Proxy** - Frontend static-only, user provides proxy
+2. **JSON Configuration with Versioning** - `default.json` required (v1.0.0), hierarchical overrides, auto-migration
+3. **Async-First Backend** - All I/O uses async/await
+4. **JWT + DB Sessions** - Stateless JWT with database session records
+5. **Feature-Oriented Frontend** - Code by features, not layers
+6. **SQLite for MVP** - PostgreSQL migration planned
 
-### Rule Precedence (Highest → Lowest)
-
-1. **Explicit user instructions** in the current task
-2. **Stack-specific `AI_*.md`** (e.g., `AI_FRONTEND.md` for frontend work)
-3. **Global `AI.md`** (general Python rules)
-4. **This ARCHITECTURE.md** (architecture constraints only)
-5. **Implicit conventions** inferred from codebase
-
-### Conflict Resolution
-
-**If any rule conflicts or ambiguity is detected:**
-1. **STOP** - Do not proceed with implementation
-2. **ASK** - Present the conflict and request clarification
-3. **DOCUMENT** - Once resolved, suggest updating the relevant AI*.md file
-
-**Conservative Approach:**
-- When in doubt, prefer existing patterns over new approaches
-- Favor stability over cleverness
-- Propose changes before implementing (see `CLAUDE.md`)
-
-### Key Architectural Decisions (Do Not Violate)
-
-1. **External Reverse Proxy** - Frontend is static-only (serve npm package), user provides proxy
-2. **JSON Configuration** - `default.json` is REQUIRED, hierarchical overrides
-3. **Async-First Backend** - All I/O operations use async/await
-4. **JWT + DB Sessions** - Stateless JWT with database-backed session records for multi-device support
-5. **Feature-Oriented Frontend** - Code organized by features, not layers
-6. **SQLite for MVP** - Current DB, PostgreSQL migration planned
-
-**Rationale:** See `docs/chats/` for detailed decision discussions
+**Rationale:** See `docs/chats/` for decision discussions
 
 ---
 
 ## 9. Quick Start for AI Assistants
 
-**Before making ANY changes:**
+**Before ANY changes:**
+1. Read `CLAUDE.md` (workflow)
+2. Read relevant `AI_*.md` for your stack
+3. Check `docs/chats/` for similar implementations
+4. Understand stability zone (Section 7)
+5. Propose approach BEFORE implementing
 
-1. Read `CLAUDE.md` (project workflow)
-2. Read relevant `AI_*.md` files for the stack you're working on
-3. Check `docs/chats/` for similar previous implementations
-4. Understand which stability zone your changes affect (Section 7)
-5. Propose your approach BEFORE implementing
-
-**For new features:**
-- Check `ROADMAP.md` to ensure alignment with project phases
-- Check `TECHNICAL_DEBTS.md` for related known issues
-- Review similar features in `docs/chats/`
-
-**For bug fixes:**
-- Check `TECHNICAL_DEBTS.md` first (may already be documented)
-- Review related tests in `backend/tests/` or `frontend/src/__tests__/`
-
-**For architecture questions:**
-- This document (high-level structure)
-- `docs/implementation.md` (deployment details)
-- `docs/configuration.md` (config reference)
+**New features:** Check `ROADMAP.md`, `TECHNICAL_DEBTS.md`, review `docs/chats/`
+**Bug fixes:** Check `TECHNICAL_DEBTS.md`, review related tests
+**Architecture questions:** This doc, `docs/implementation.md`, `docs/configuration.md`
 
 ---
 

@@ -30,16 +30,21 @@ def get_backup_dir(config_path: Path) -> Path:
 
 def create_backup_filename(config_path: Path, version: str) -> str:
     """
-    Generate timestamped backup filename.
+    Generate timestamped backup filename with microsecond precision.
 
     Args:
         config_path: Original config file path
         version: Configuration version
 
     Returns:
-        Backup filename (e.g., "default.v1.0.0.20250131_143022.json")
+        Backup filename (e.g., "default.v1.0.0.20250131_143022_123456.json")
+
+    Note:
+        Uses microsecond precision to ensure unique filenames even when
+        multiple backups are created in rapid succession (e.g., scripts, CI/CD).
+        This prevents silent overwrites and ensures backup retention guarantees.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     stem = config_path.stem  # e.g., "default", "production"
     return f"{stem}.v{version}.{timestamp}.json"
 
@@ -142,11 +147,12 @@ def list_backups(config_path: Path) -> list[dict[str, Any]]:
 
     # Regex pattern to parse backup filename
     # Format: <stem>.v<major>.<minor>.<patch>.<timestamp>.json
-    # Example: default.v1.0.0.20250131_143022.json
+    # Example: default.v1.0.0.20250131_143022_123456.json (with microseconds)
+    # Legacy:  default.v1.0.0.20250131_143022.json (without microseconds)
     backup_pattern = re.compile(
         r"^(?P<stem>[^.]+)"  # Config name (stem)
         r"\.v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"  # Version: v<major>.<minor>.<patch>
-        r"\.(?P<timestamp>\d{8}_\d{6})"  # Timestamp: YYYYMMDD_HHMMSS
+        r"\.(?P<timestamp>\d{8}_\d{6}(?:_\d{6})?)"  # Timestamp: YYYYMMDD_HHMMSS or YYYYMMDD_HHMMSS_microseconds
         r"\.json$"  # Extension
     )
 
