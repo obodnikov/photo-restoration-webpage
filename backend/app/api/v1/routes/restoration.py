@@ -36,7 +36,7 @@ from app.api.v1.schemas.restoration import (
 from app.core.config import get_settings
 from app.core.security import get_current_user, get_current_user_validated
 from app.db.database import get_db
-from app.db.models import ProcessedImage
+from app.db.models import ProcessedImage, Session
 from app.services.hf_inference import (
     HFInferenceError,
     HFInferenceService,
@@ -102,6 +102,49 @@ async def release_concurrent_slot(session_id: str) -> None:
             _session_upload_counts[session_id] -= 1
             if _session_upload_counts[session_id] <= 0:
                 del _session_upload_counts[session_id]
+
+
+async def _get_image_for_user(
+    image_id: int,
+    user_id: int,
+    db: AsyncSession,
+) -> ProcessedImage:
+    """
+    Get a processed image belonging to the specified user.
+
+    Phase 2.4: Users can access images from ANY of their sessions (cross-session support).
+
+    Args:
+        image_id: Processed image ID
+        user_id: User ID
+        db: Database session
+
+    Returns:
+        ProcessedImage instance
+
+    Raises:
+        HTTPException 404: Image not found or not accessible
+    """
+    # Query image with user validation (Phase 2.4: cross-session support)
+    # Users can access images from ANY of their sessions, not just current session
+    stmt = (
+        select(ProcessedImage)
+        .join(ProcessedImage.session)
+        .where(
+            ProcessedImage.id == image_id,
+            Session.user_id == user_id,
+        )
+    )
+    result = await db.execute(stmt)
+    image = result.scalar_one_or_none()
+
+    if image is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Image {image_id} not found or not accessible",
+        )
+
+    return image
 
 
 @router.post(
@@ -590,6 +633,8 @@ async def get_image(
     """
     Get details of a specific processed image.
 
+    Phase 2.4: Users can access images from ANY of their sessions (cross-session support).
+
     Args:
         image_id: Processed image ID
         db: Database session
@@ -602,30 +647,14 @@ async def get_image(
         HTTPException 404: Image not found
         HTTPException 403: Not authorized to access this image
     """
-    session_id = user.get("session_id")
-    if not session_id:
+    user_id = user.get("user_id")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing session information",
+            detail="Invalid token: missing user information",
         )
 
-    # Query image with session validation
-    stmt = (
-        select(ProcessedImage)
-        .join(ProcessedImage.session)
-        .where(
-            ProcessedImage.id == image_id,
-            ProcessedImage.session.has(session_id=session_id),
-        )
-    )
-    result = await db.execute(stmt)
-    image = result.scalar_one_or_none()
-
-    if image is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Image {image_id} not found or not accessible",
-        )
+    image = await _get_image_for_user(image_id, user_id, db)
 
     return ImageDetailResponse(
         id=image.id,
@@ -655,6 +684,8 @@ async def download_image(
     """
     Download processed image.
 
+    Phase 2.4: Users can download images from ANY of their sessions (cross-session support).
+
     Args:
         image_id: Processed image ID
         db: Database session
@@ -667,30 +698,14 @@ async def download_image(
         HTTPException 404: Image not found or file missing
         HTTPException 403: Not authorized to access this image
     """
-    session_id = user.get("session_id")
-    if not session_id:
+    user_id = user.get("user_id")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing session information",
+            detail="Invalid token: missing user information",
         )
 
-    # Query image with session validation
-    stmt = (
-        select(ProcessedImage)
-        .join(ProcessedImage.session)
-        .where(
-            ProcessedImage.id == image_id,
-            ProcessedImage.session.has(session_id=session_id),
-        )
-    )
-    result = await db.execute(stmt)
-    image = result.scalar_one_or_none()
-
-    if image is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Image {image_id} not found or not accessible",
-        )
+    image = await _get_image_for_user(image_id, user_id, db)
 
     # Get file path
     settings = get_settings()
@@ -727,6 +742,7 @@ async def delete_image(
     """
     Delete a processed image.
 
+    Phase 2.4: Users can delete images from ANY of their sessions (cross-session support).
     Removes both database record and files.
 
     Args:
@@ -741,30 +757,14 @@ async def delete_image(
         HTTPException 404: Image not found
         HTTPException 403: Not authorized to delete this image
     """
-    session_id = user.get("session_id")
-    if not session_id:
+    user_id = user.get("user_id")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing session information",
+            detail="Invalid token: missing user information",
         )
 
-    # Query image with session validation
-    stmt = (
-        select(ProcessedImage)
-        .join(ProcessedImage.session)
-        .where(
-            ProcessedImage.id == image_id,
-            ProcessedImage.session.has(session_id=session_id),
-        )
-    )
-    result = await db.execute(stmt)
-    image = result.scalar_one_or_none()
-
-    if image is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Image {image_id} not found or not accessible",
-        )
+    image = await _get_image_for_user(image_id, user_id, db)
 
     # Delete files
     settings = get_settings()
