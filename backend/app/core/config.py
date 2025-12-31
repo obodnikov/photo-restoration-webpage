@@ -386,6 +386,8 @@ def load_and_migrate_config_file(config_path: Path, app_env: str = "development"
     2. Detects the version
     3. Checks if migration is needed
     4. If AUTO_MIGRATE_ENABLED and version is outdated:
+       - Special handling for local.json (only adds config_version, not full migration)
+       - For other files: full migration with all sections
        - Creates automatic backup (in config/backups/)
        - Applies migrations
        - Validates migrated config against schema
@@ -428,19 +430,36 @@ def load_and_migrate_config_file(config_path: Path, app_env: str = "development"
             logger.info(f"Auto-migrating config from {config_version} to {CURRENT_CONFIG_VERSION}")
 
             try:
-                # Apply migrations
-                migrated_config = apply_migrations(config, config_version, CURRENT_CONFIG_VERSION)
+                # Special handling for local.json: only add config_version, don't add empty sections
+                # This prevents "ignored keys" warnings since local.json is exclusively for models
+                is_local_config = config_path.name == "local.json"
 
-                # Validate migrated config against schema to ensure it's loadable
-                try:
-                    ConfigFile(**migrated_config)
-                    logger.debug(f"Migration validation passed: config conforms to schema")
-                except Exception as validation_error:
-                    raise ValueError(
-                        f"Migrated config failed schema validation: {validation_error}. "
-                        f"The migration may have produced an invalid configuration. "
-                        f"This is likely a bug in the migration logic."
-                    )
+                if is_local_config:
+                    logger.info("Detected local.json - applying minimal migration (config_version only)")
+                    # Only update the version field, preserve existing structure
+                    migrated_config = config.copy()
+                    migrated_config["config_version"] = CURRENT_CONFIG_VERSION
+
+                    # Ensure models array exists (local.json purpose)
+                    if "models" not in migrated_config:
+                        migrated_config["models"] = []
+
+                    # No schema validation for local.json (it's intentionally minimal)
+                    logger.debug("Skipping schema validation for local.json (models-only file)")
+                else:
+                    # Full migration for default.json, production.json, etc.
+                    migrated_config = apply_migrations(config, config_version, CURRENT_CONFIG_VERSION)
+
+                    # Validate migrated config against schema to ensure it's loadable
+                    try:
+                        ConfigFile(**migrated_config)
+                        logger.debug(f"Migration validation passed: config conforms to schema")
+                    except Exception as validation_error:
+                        raise ValueError(
+                            f"Migrated config failed schema validation: {validation_error}. "
+                            f"The migration may have produced an invalid configuration. "
+                            f"This is likely a bug in the migration logic."
+                        )
 
                 # Save with automatic backup
                 save_config_with_backup(config_path, migrated_config)

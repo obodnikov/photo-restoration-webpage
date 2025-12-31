@@ -142,6 +142,7 @@ class TestConfigBackup:
 
     def test_restore_from_backup(self, temp_config_dir, sample_config):
         """Test restoring configuration from backup."""
+        import copy
         config_path = temp_config_dir / "default.json"
 
         # Write original config
@@ -151,8 +152,8 @@ class TestConfigBackup:
         # Create backup
         backup_path = backup_config_file(config_path)
 
-        # Modify original
-        modified_config = sample_config.copy()
+        # Modify original (use deep copy to avoid modifying sample_config fixture)
+        modified_config = copy.deepcopy(sample_config)
         modified_config["application"]["name"] = "Modified"
         with open(config_path, "w") as f:
             json.dump(modified_config, f)
@@ -160,10 +161,11 @@ class TestConfigBackup:
         # Restore from backup
         restore_from_backup(backup_path, config_path)
 
-        # Verify restored content
+        # Verify restored content matches original (not the modified version)
         with open(config_path, "r") as f:
             restored_config = json.load(f)
         assert restored_config == sample_config
+        assert restored_config["application"]["name"] == "Test App"
 
     def test_save_config_with_backup(self, temp_config_dir, sample_config):
         """Test saving config with automatic backup."""
@@ -187,6 +189,48 @@ class TestConfigBackup:
         backups = list_backups(config_path)
         assert len(backups) == 1
         assert backups[0]["version"] == "1.0.0"
+
+    def test_backup_filenames_are_unique_in_rapid_succession(self, temp_config_dir, sample_config):
+        """
+        Test that multiple backups created rapidly have unique filenames.
+
+        Regression test for Issue #2: Backup filenames can silently overwrite each other.
+        Previously, backups created within the same second would have identical filenames,
+        causing silent overwrites. Now with microsecond precision, each backup gets a unique name.
+        """
+        config_path = temp_config_dir / "default.json"
+
+        # Write config file
+        with open(config_path, "w") as f:
+            json.dump(sample_config, f)
+
+        # Create multiple backups rapidly (no sleep between them)
+        backup1 = backup_config_file(config_path)
+        backup2 = backup_config_file(config_path)
+        backup3 = backup_config_file(config_path)
+
+        # All backups should have unique filenames
+        assert backup1.name != backup2.name, "Backup 1 and 2 have identical filenames"
+        assert backup2.name != backup3.name, "Backup 2 and 3 have identical filenames"
+        assert backup1.name != backup3.name, "Backup 1 and 3 have identical filenames"
+
+        # All backup files should exist (no silent overwrites)
+        assert backup1.exists(), f"Backup 1 was overwritten: {backup1}"
+        assert backup2.exists(), f"Backup 2 was overwritten: {backup2}"
+        assert backup3.exists(), f"Backup 3 was overwritten: {backup3}"
+
+        # Verify all backups are listed
+        backups = list_backups(config_path)
+        assert len(backups) >= 3, f"Expected at least 3 backups, found {len(backups)}"
+
+        # Verify filenames contain microsecond timestamps (format: YYYYMMDD_HHMMSS_microseconds)
+        for backup in [backup1, backup2, backup3]:
+            # Should have microsecond component in filename
+            # Format: default.v1.0.0.20250131_143022_123456.json
+            parts = backup.stem.split(".")
+            timestamp_part = parts[4]  # The timestamp part after version
+            # Should have 3 underscore-separated components (date, time, microseconds)
+            assert timestamp_part.count("_") == 2, f"Backup {backup.name} missing microsecond precision"
 
 
 class TestConfigMigrations:
@@ -439,3 +483,83 @@ class TestAutomaticMigrationIntegration:
         # A more comprehensive integration test would require refactoring load_config_from_files
         # to accept a config_dir parameter
         pytest.skip("Integration test requires config_dir parameter in load_config_from_files")
+
+    def test_local_json_migration_no_ignored_keys_warnings(self, tmp_path, caplog):
+        """
+        Test that auto-migrated local.json doesn't trigger ignored keys warnings.
+
+        Regression test for Issue #1: Auto-migrated local.json triggers persistent warnings.
+        Previously, migrating local.json would add all top-level sections (application, server, etc.),
+        which would then trigger "ignored keys" warnings on every startup since local.json should
+        only contain models and config_version. Now, local.json gets minimal migration (only
+        config_version is added), preventing these warnings.
+        """
+        from app.core.config import load_and_migrate_config_file, AUTO_MIGRATE_ENABLED
+        import logging
+
+        # Skip if auto-migrate is disabled
+        if not AUTO_MIGRATE_ENABLED:
+            pytest.skip("AUTO_MIGRATE_ENABLED is false, skipping migration test")
+
+        # Set up logging capture
+        caplog.set_level(logging.WARNING)
+
+        # Create legacy local.json (0.9.0 without config_version)
+        local_path = tmp_path / "local.json"
+        legacy_local = {
+            "models": [
+                {
+                    "id": "test-model",
+                    "name": "Test Model",
+                    "model": "test/model",
+                    "provider": "huggingface",
+                    "category": "test",
+                    "description": "Test",
+                    "enabled": True,
+                }
+            ]
+        }
+
+        with open(local_path, "w") as f:
+            json.dump(legacy_local, f)
+
+        # Migrate local.json
+        migrated = load_and_migrate_config_file(local_path)
+
+        # Verify migration added config_version
+        assert migrated["config_version"] == "1.0.0"
+
+        # Verify models are preserved
+        assert "models" in migrated
+        assert len(migrated["models"]) == 1
+
+        # Verify file was saved
+        with open(local_path) as f:
+            saved = json.load(f)
+
+        # Key assertion: local.json should NOT have empty sections added
+        # Only config_version and models should be present
+        unwanted_sections = ["application", "server", "cors", "security", "api_providers",
+                            "models_api", "database", "file_storage", "session", "processing"]
+
+        for section in unwanted_sections:
+            assert section not in saved, (
+                f"local.json should not contain '{section}' section after migration. "
+                f"Local.json is exclusively for models and config_version. Found: {list(saved.keys())}"
+            )
+
+        # Verify only expected keys are present
+        expected_keys = {"config_version", "models"}
+        actual_keys = set(saved.keys())
+        assert actual_keys == expected_keys, (
+            f"local.json should only have {expected_keys}, but found {actual_keys}"
+        )
+
+        # Verify no "ignored keys" warnings were logged during migration
+        warning_messages = [record.message for record in caplog.records if record.levelname == "WARNING"]
+        ignored_keys_warnings = [msg for msg in warning_messages if "ignored" in msg.lower() and "keys" in msg.lower()]
+
+        assert not ignored_keys_warnings, (
+            f"local.json migration should not generate 'ignored keys' warnings. "
+            f"Found warnings: {ignored_keys_warnings}"
+        )
