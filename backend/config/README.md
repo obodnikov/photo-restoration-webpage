@@ -110,22 +110,43 @@ docker logs retro-backend 2>&1 | grep "Configuration source"
 ## Validation
 
 Validate your configuration:
+
+**Local development:**
 ```bash
 python scripts/validate_config.py --env production
+```
+
+**Docker container:**
+```bash
+docker exec photo-restoration-backend python /app/scripts/validate_config.py --env production
 ```
 
 ## Migration from .env
 
 If you have an existing `.env` file with all configuration:
+
+**Local development:**
 ```bash
 python scripts/migrate_env_to_config.py --env-file backend/.env --output config/production.json
+```
+
+**Docker container:**
+```bash
+docker exec photo-restoration-backend python /app/scripts/migrate_env_to_config.py --env-file /app/.env --output /app/config/production.json
 ```
 
 ## Auto-Generated Documentation
 
 Generate complete configuration reference:
+
+**Local development:**
 ```bash
 python scripts/generate_config_docs.py --output docs/configuration.md
+```
+
+**Docker container:**
+```bash
+docker exec photo-restoration-backend python /app/scripts/generate_config_docs.py --output /app/docs/configuration.md
 ```
 
 ## Docker
@@ -137,3 +158,11 @@ volumes:
 ```
 
 This allows you to update configuration without rebuilding containers.
+
+**Note:** All utility scripts are included in the Docker image at `/app/scripts/`. You can run them using `docker exec` as shown in the examples above. Optionally, you can mount the scripts directory during development to test script changes without rebuilding:
+
+```yaml
+volumes:
+  - ./backend/config:/app/config
+  - ./backend/scripts:/app/scripts  # Optional: for development only
+```

@@ -71,7 +71,10 @@ photo-restoration-webpage/
 │   │   └── utils/             # Image processing, file handling
 │   ├── config/                # JSON configs + backups/
 │   ├── docs/                  # CONFIG_VERSIONING_TEST_COVERAGE.md, PERFORMANCE.md
-│   ├── scripts/               # migrate_config.py, backup_config.py, restore_config.py
+│   ├── scripts/               # Utility scripts (included in Docker at /app/scripts)
+│   │   ├── migrate_config.py, backup_config.py, restore_config.py
+│   │   ├── validate_config.py, generate_config_docs.py
+│   │   └── requirements.txt   # Minimal runtime dependencies for scripts
 │   ├── tests/                 # 338 tests (99% coverage)
 │   └── alembic/               # Database migrations
 ├── frontend/

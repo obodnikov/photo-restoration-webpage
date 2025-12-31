@@ -1,0 +1,21 @@
+# Runtime dependencies for utility scripts in backend/scripts/
+# Note: These scripts import from app.core, so the main backend requirements.txt
+# must be installed for these scripts to function properly.
+#
+# This file documents the minimum dependencies these scripts directly use:
+
+# Configuration and validation (used by all config scripts)
+pydantic[email]>=2.10.6
+pydantic-settings>=2.7.1
+python-dotenv>=1.0.0
+
+# JSON schema validation (used by validate_config.py, fetch_replicate_schema.py)
+httpx>=0.28.1
+
+# The scripts do NOT require:
+# - Testing dependencies (pytest, pytest-cov, etc.)
+# - Code quality tools (black, flake8, mypy)
+# - Database dependencies (if scripts don't access DB)
+# - AI provider dependencies (unless scripts interact with APIs)
+#
+# For full functionality, install from backend/requirements.txt instead.
