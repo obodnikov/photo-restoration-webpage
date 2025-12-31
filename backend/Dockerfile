@@ -33,6 +33,9 @@ ENV PATH=/root/.local/bin:$PATH
 # Copy application code
 COPY ./app ./app
 
+# Copy utility scripts
+COPY ./scripts ./scripts
+
 # Copy configuration files
 COPY ./config ./config
 

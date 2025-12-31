@@ -632,6 +632,32 @@ docker-compose up --build backend
 docker-compose down -v
 ```
 
+**Run utility scripts inside container:**
+```bash
+# Example: Run config migration script
+docker exec photo-restoration-backend python /app/scripts/migrate_config.py /app/config/default.json
+
+# Example: Validate configuration
+docker exec photo-restoration-backend python /app/scripts/validate_config.py --env production
+
+# Example: Backup configuration
+docker exec photo-restoration-backend python /app/scripts/backup_config.py /app/config/default.json
+
+# Example: Restore configuration from backup
+docker exec photo-restoration-backend python /app/scripts/restore_config.py /app/config/backups/default_20250101_120000.json
+
+# Available scripts in /app/scripts/:
+# - migrate_config.py - Migrate configuration files between versions
+# - backup_config.py - Backup configuration files
+# - restore_config.py - Restore configuration from backups
+# - validate_config.py - Validate configuration files
+# - generate_config_docs.py - Generate configuration documentation
+# - migrate_ui_parameters.py - Migrate UI parameter configurations
+# - migrate_env_to_config.py - Migrate from .env to JSON config
+# - fetch_replicate_schema.py - Fetch schema from Replicate API
+# - format_models_config.py - Format model configuration
+```
+
 > **Advanced Usage:** For individual Docker run commands, custom nginx configurations, SSL setup, and production deployment guides, see [docs/implementation.md](docs/implementation.md).
 
 ## API Documentation
