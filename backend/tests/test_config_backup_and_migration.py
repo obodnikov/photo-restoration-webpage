@@ -563,3 +563,142 @@ class TestAutomaticMigrationIntegration:
             f"local.json migration should not generate 'ignored keys' warnings. "
             f"Found warnings: {ignored_keys_warnings}"
         )
+
+
+class TestRuntimeConfigBackups:
+    """Test backup creation during runtime configuration changes (UI updates, API calls)."""
+
+    def test_save_config_with_backup_integration(self, tmp_path):
+        """Verify that save_config_with_backup creates backups when saving configs."""
+        from app.core.config import load_json_config, CURRENT_CONFIG_VERSION
+        from app.core.config_backup import save_config_with_backup
+
+        # Create config directory structure
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        backup_dir = config_dir / "backups"
+        backup_dir.mkdir()
+
+        # Setup local.json
+        local_path = config_dir / "local.json"
+        initial_config = {
+            "config_version": "1.0.0",
+            "models": [{"id": "test-model", "name": "Test Model", "enabled": True}],
+        }
+        with open(local_path, "w") as f:
+            json.dump(initial_config, f)
+
+        # Modify and save with backup
+        local_config = load_json_config(local_path)
+        local_config["models"].append({"id": "new-model", "name": "New Model", "enabled": False})
+        save_config_with_backup(local_path, local_config)
+
+        # Check backup was created
+        backups = list(backup_dir.glob("local.v*.json"))
+        assert len(backups) == 1, f"Expected 1 backup, found {len(backups)}"
+
+        # Verify backup contains original content
+        with open(backups[0]) as f:
+            backup_content = json.load(f)
+        assert len(backup_content["models"]) == 1
+        assert backup_content["models"][0]["id"] == "test-model"
+
+        # Verify new config was saved
+        with open(local_path) as f:
+            new_content = json.load(f)
+        assert len(new_content["models"]) == 2
+        assert any(m["id"] == "new-model" for m in new_content["models"])
+
+    def test_multiple_saves_create_unique_backups(self, tmp_path):
+        """Verify that multiple saves create backups with unique filenames."""
+        from app.core.config import load_json_config
+        from app.core.config_backup import save_config_with_backup
+        import time
+
+        # Create config directory structure
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        backup_dir = config_dir / "backups"
+        backup_dir.mkdir()
+
+        # Setup local.json
+        local_path = config_dir / "local.json"
+        initial_config = {"config_version": "1.0.0", "models": []}
+        with open(local_path, "w") as f:
+            json.dump(initial_config, f)
+
+        # Save multiple times rapidly
+        for i in range(3):
+            local_config = load_json_config(local_path)
+            local_config["models"].append({"id": f"model-{i}", "name": f"Model {i}"})
+            save_config_with_backup(local_path, local_config)
+            time.sleep(0.01)  # Small delay to ensure different microseconds
+
+        # Check multiple backups were created
+        backups = sorted(backup_dir.glob("local.v*.json"))
+        assert len(backups) >= 2, f"Expected at least 2 backups, found {len(backups)}"
+
+        # Verify all backups have unique filenames
+        backup_names = [b.name for b in backups]
+        assert len(backup_names) == len(set(backup_names)), "Backup filenames should be unique"
+
+    def test_save_preserves_config_version(self, tmp_path):
+        """Verify that config saves preserve config_version field."""
+        from app.core.config import load_json_config, CURRENT_CONFIG_VERSION
+        from app.core.config_backup import save_config_with_backup
+
+        # Create config directory structure
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        backup_dir = config_dir / "backups"
+        backup_dir.mkdir()
+
+        # Setup local.json without config_version
+        local_path = config_dir / "local.json"
+        initial_config = {"models": []}
+        with open(local_path, "w") as f:
+            json.dump(initial_config, f)
+
+        # Load, add version, and save
+        local_config = load_json_config(local_path)
+        local_config["config_version"] = CURRENT_CONFIG_VERSION
+        local_config["models"].append({"id": "test-model", "name": "Test Model"})
+        save_config_with_backup(local_path, local_config)
+
+        # Verify config_version was preserved
+        with open(local_path) as f:
+            saved_config = json.load(f)
+        assert "config_version" in saved_config
+        assert saved_config["config_version"] == "1.0.0"
+
+    def test_backup_retention_policy(self, tmp_path):
+        """Verify that old backups are cleaned up according to retention policy."""
+        from app.core.config import load_json_config
+        from app.core.config_backup import save_config_with_backup, MAX_BACKUPS_PER_FILE
+        import time
+
+        # Create config directory structure
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        backup_dir = config_dir / "backups"
+        backup_dir.mkdir()
+
+        # Setup local.json
+        local_path = config_dir / "local.json"
+        initial_config = {"config_version": "1.0.0", "models": []}
+        with open(local_path, "w") as f:
+            json.dump(initial_config, f)
+
+        # Create more backups than the retention limit
+        num_saves = MAX_BACKUPS_PER_FILE + 3
+        for i in range(num_saves):
+            local_config = load_json_config(local_path)
+            local_config["models"] = [{"id": f"model-{i}"}]
+            save_config_with_backup(local_path, local_config)
+            time.sleep(0.01)  # Ensure unique timestamps
+
+        # Check that only MAX_BACKUPS_PER_FILE backups remain
+        backups = list(backup_dir.glob("local.v*.json"))
+        assert len(backups) <= MAX_BACKUPS_PER_FILE, (
+            f"Expected at most {MAX_BACKUPS_PER_FILE} backups, found {len(backups)}"
+        )
