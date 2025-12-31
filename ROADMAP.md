@@ -99,12 +99,11 @@ A web application for restoring old scanned photos using multiple AI providers (
 
 ---
 
-## Current Phase
+### Phase 2.5: Admin Model Configuration ✅
 
-### Phase 2.5: Admin Model Configuration 🔄
-
-**Status:** 🔄 **IN PROGRESS**
-**Backend:** ✅ Complete | **Frontend:** 🔄 Planned
+**Status:** ✅ **COMPLETE**
+**Completion Date:** December 25, 2024
+**Backend:** ✅ Complete | **Frontend:** ✅ Complete
 
 #### Completed (Backend):
 
@@ -140,45 +139,61 @@ A web application for restoring old scanned photos using multiple AI providers (
 - ✅ Configuration migration guide: `docs/MIGRATION_MODEL_CONFIG.md`
 - ✅ Implementation conversations in `docs/chats/`
 
-#### Planned (Frontend):
+#### Completed (Frontend):
 
 **Admin Model Configuration Page** (`/admin/models`):
-- [ ] Model configuration list with filtering
-- [ ] Create model dialog with:
-  - [ ] Provider selection (HuggingFace/Replicate)
-  - [ ] Basic info (id, name, category, description)
-  - [ ] Replicate schema editor (JSON or form-based)
-  - [ ] Custom fields editor
-  - [ ] Tags selector
-- [ ] Edit model dialog (same as create)
-- [ ] Delete model confirmation
-- [ ] Validation feedback
-- [ ] Tag management UI
-- [ ] Mobile responsive design
-- [ ] sqowe brand styling
+- ✅ Model configuration list with filtering (search, provider, category, source)
+- ✅ Create model dialog with:
+  - ✅ Provider selection (HuggingFace/Replicate)
+  - ✅ Basic info (id, name, category, description, version, enabled)
+  - ✅ Replicate schema editor (JSON textarea with validation)
+  - ✅ Custom fields editor (JSON textarea)
+  - ✅ Parameters editor (JSON textarea)
+  - ✅ Tags selector (multi-select checkboxes)
+- ✅ Edit model dialog (same as create with pre-populated data)
+- ✅ Delete model confirmation (with source validation)
+- ✅ Validation feedback (real-time JSON parsing errors)
+- ✅ Tag management via backend API
+- ✅ Mobile responsive design
+- ✅ sqowe brand styling
 
 **User Experience:**
-- [ ] Real-time validation as user types
-- [ ] JSON schema editor with syntax highlighting
-- [ ] Provider-specific form fields
-- [ ] Clear error messages
-- [ ] Confirmation dialogs for destructive actions
+- ✅ Real-time validation as user types
+- ✅ JSON editor with live preview
+- ✅ Provider-specific form fields
+- ✅ Clear error messages
+- ✅ Confirmation dialogs for destructive actions
+- ✅ Source badges (local/default/production)
+- ✅ Only local configs can be deleted
+- ✅ Reload config button
+
+**Components:**
+- ✅ `AdminModelConfigPage.tsx` - Main page with filtering and CRUD operations
+- ✅ `ModelConfigDialog.tsx` - Create/Edit dialog with JSON editors
+- ✅ `DeleteModelConfigDialog.tsx` - Confirmation dialog
+- ✅ `JsonEditor.tsx` - Textarea with JSON validation
+- ✅ `JsonPreview.tsx` - Live preview with syntax highlighting
+- ✅ `TagSelector.tsx` - Multi-select checkboxes
+- ✅ `useModelConfig.ts` - Hook for state management
+- ✅ `modelConfigService.ts` - API client service
 
 **Testing:**
-- [ ] Frontend component tests
-- [ ] Integration tests for CRUD operations
-- [ ] Validation tests
+- ✅ Component tests for all dialogs
+- ✅ Service layer tests
+- ✅ Hook tests with mocked API
+- ✅ Integration tests for CRUD operations
 
-**Estimated Effort:** 6-8 hours (frontend implementation + tests)
+**Documentation:** See `docs/chats/frontend-implementation-of-admin-model-configuration-2025-12-25.md` for implementation details.
 
 ---
 
 ### Custom Model Parameters UI ✅
 
-**Status:** ✅ **COMPLETE** (Design & Planning)
-**Implementation Date:** Ready for Phase 2 implementation
+**Status:** ✅ **COMPLETE** (Full Implementation)
+**Completion Date:** December 29, 2024
+**Backend:** ✅ Complete (Dec 28) | **Frontend:** ✅ Complete (Dec 29)
 
-#### Design Complete:
+#### Implementation Complete:
 
 **Dynamic Parameter UI System:**
 - ✅ 8 UI control types supported:
@@ -219,16 +234,51 @@ A web application for restoring old scanned photos using multiple AI providers (
 }
 ```
 
-**Implementation Plan:**
-- ✅ Type definitions for UI controls
+**Backend Implementation:**
+- ✅ Type definitions for UI controls (`UIControlConfig`, `ModelCustomConfig`)
 - ✅ Auto-detection utilities
-- ✅ Component factory pattern
-- ✅ Integration with restoration workflow
-- ✅ Comprehensive documentation
+- ✅ Pydantic validation for `custom.ui_controls`
+- ✅ API endpoints updated to include `custom` field
+- ✅ Parameter passing via FormData to restoration endpoint
+- ✅ Comprehensive backend tests (44 passing)
 
-**Documentation:** See `docs/chats/custom-model-parameters-ui-implementation-2025-12-28.md` for complete specification.
+**Frontend Implementation:**
+- ✅ Type definitions (`UIControlType`, `ParameterSchema`, `ModelParameterValues`)
+- ✅ 7 parameter input components (TextInput, NumberInput, SliderInput, DropdownInput, RadioInput, ToggleInput, ParameterInput factory)
+- ✅ Component factory pattern for dynamic UI generation
+- ✅ Auto-detection logic (boolean→toggle, enum→radio/dropdown, range→slider)
+- ✅ Custom UI config override system
+- ✅ Integration with restoration workflow (ModelSelector, RestorationPage)
+- ✅ Parameter state management (useImageRestore hook)
+- ✅ sqowe brand styling with responsive design
+- ✅ Comprehensive frontend tests (72 passing)
 
-**Next Steps:** Awaiting approval to begin frontend implementation (estimated 3 hours).
+**Features:**
+- ✅ Dynamic parameter controls on restoration page
+- ✅ Parameters initialized from model schema defaults
+- ✅ User can modify parameters before processing
+- ✅ Parameters sent as JSON to backend API
+- ✅ Hidden parameters (`ui_hidden: true`) not displayed
+- ✅ Custom labels, help text, ordering, marks
+- ✅ All inputs disabled during processing
+- ✅ Number input clearing behavior (null handling)
+- ✅ Unique radio button names (conflict prevention)
+- ✅ Dropdown placeholder for optional enums
+- ✅ Error handling for malformed data
+
+**Documentation:**
+- Implementation plan: `docs/chats/custom-model-parameters-ui-implementation-2025-12-28.md`
+- Backend implementation: `docs/chats/custom-model-parameters-ui-feature-implementation-planning-2025-12-29.md`
+- Frontend implementation: `docs/chats/custom-model-parameters-ui-phase-2-frontend-implementation-2025-12-29.md`
+- Future enhancements: `TECHNICAL_DEBTS.md` (Item #27)
+
+---
+
+## Current Phase
+
+No active implementation phase. Phase 2.5 and Custom Model Parameters UI are complete.
+
+**Next Up:** Phase 2.1-2.3 (Pipeline Processing, Rate Limiting, Batch Processing) when prioritized.
 
 ---
 
@@ -751,11 +801,12 @@ A web application for restoring old scanned photos using multiple AI providers (
 - [ ] Rate limiting prevents abuse
 - [ ] Performance tests show acceptable speeds
 
-**Phase 2.5 (In Progress):**
+**Phase 2.5 (✅ COMPLETE):**
 - ✅ Admin model configuration API complete
-- [ ] Frontend model configuration UI complete
-- [ ] At least 5-7 models available
-- [ ] Custom model parameters UI functional
+- ✅ Frontend model configuration UI complete
+- ✅ Custom model parameters UI functional (72 tests passing)
+- ✅ Full CRUD operations for model configs via admin UI
+- ✅ Dynamic parameter controls on restoration page
 
 ---
 
@@ -804,9 +855,9 @@ See [TECHNICAL_DEBTS.md](TECHNICAL_DEBTS.md) for:
 
 ---
 
-**Last Updated:** 2025-12-30
-**Current Phase:** Phase 2.5 - Admin Model Configuration (Backend Complete, Frontend Planned)
+**Last Updated:** 2025-12-31
+**Current Phase:** Phase 2 - Enhanced Features (Moving to Phase 2.1-2.3, 2.6-2.7)
 **Status:**
-- **Complete:** Phase 1 (1.1-1.10) ✅ | Phase 2.4 ✅
-- **In Progress:** Phase 2.5 🔄 | Custom Model Parameters UI 🔄
-- **Upcoming:** Phase 2.1-2.3, 2.6-2.7, Phase 3+
+- **Complete:** Phase 1 (1.1-1.10) ✅ | Phase 2.4 ✅ | Phase 2.5 ✅ | Custom Model Parameters UI ✅
+- **In Progress:** None
+- **Upcoming:** Phase 2.1-2.3 (Pipeline, Rate Limiting, Batch Processing), Phase 2.6-2.7, Phase 3+
