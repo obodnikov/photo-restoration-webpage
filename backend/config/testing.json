@@ -1,4 +1,5 @@
 {
+  "config_version": "1.0.0",
   "application": {
     "name": "Photo Restoration API - Test",
     "version": "1.0.0-test",

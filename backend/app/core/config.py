@@ -13,6 +13,149 @@ from app.core.config_schema import ConfigFile
 
 logger = logging.getLogger(__name__)
 
+# Configuration version constants
+CURRENT_CONFIG_VERSION = "1.0.0"
+MIN_SUPPORTED_VERSION = "0.9.0"  # Support legacy configs without version field
+
+# Flag to enable/disable automatic migrations (can be controlled via env var)
+AUTO_MIGRATE_ENABLED = os.getenv("CONFIG_AUTO_MIGRATE", "true").lower() in ("true", "1", "yes", "on")
+
+
+def parse_version(version: str) -> tuple[int, int, int]:
+    """
+    Parse a semver version string into a tuple of integers.
+
+    Supports standard semver format (major.minor.patch) and strips
+    pre-release and build metadata if present (e.g., "1.2.3-alpha+001").
+
+    Note: Pre-release and build metadata are ignored for version comparison.
+    Config versions should use simple major.minor.patch format.
+
+    Args:
+        version: Semantic version string (e.g., "1.2.3" or "1.2.3-alpha+build")
+
+    Returns:
+        Tuple of (major, minor, patch) as integers
+
+    Raises:
+        ValueError: If version string is invalid
+    """
+    try:
+        # Strip pre-release metadata (after '-') and build metadata (after '+')
+        # Example: "1.2.3-alpha+build" -> "1.2.3"
+        core_version = version.split("-")[0].split("+")[0]
+
+        parts = core_version.split(".")
+        if len(parts) != 3:
+            raise ValueError(f"Invalid version format: {version}. Expected 'major.minor.patch'")
+
+        return (int(parts[0]), int(parts[1]), int(parts[2]))
+    except (ValueError, AttributeError, IndexError) as e:
+        raise ValueError(f"Invalid version string '{version}': {e}")
+
+
+def detect_config_version(config_dict: dict[str, Any]) -> str:
+    """
+    Detect configuration version from loaded JSON.
+
+    Args:
+        config_dict: Loaded configuration dictionary
+
+    Returns:
+        Version string. Returns "0.9.0" for legacy configs without version field.
+    """
+    version = config_dict.get("config_version", "0.9.0")
+
+    # Validate version format
+    try:
+        parse_version(version)
+    except ValueError as e:
+        logger.warning(f"Invalid config_version '{version}': {e}. Treating as legacy config (0.9.0)")
+        return "0.9.0"
+
+    return version
+
+
+def is_version_compatible(version: str, min_version: str = MIN_SUPPORTED_VERSION) -> bool:
+    """
+    Check if a configuration version is compatible with current application.
+
+    Compatibility rules:
+    - Version must be >= minimum supported version (0.9.0)
+    - Version must be <= current application version (no future configs)
+    - Major version must match current version (breaking changes across majors)
+    - Special case: 0.9.0 (legacy) is compatible with 1.x.x (can be migrated)
+
+    Args:
+        version: Configuration version to check
+        min_version: Minimum supported version
+
+    Returns:
+        True if version is compatible, False otherwise
+    """
+    try:
+        ver_tuple = parse_version(version)
+        min_tuple = parse_version(min_version)
+        current_tuple = parse_version(CURRENT_CONFIG_VERSION)
+
+        # Version must be >= minimum supported version
+        if ver_tuple < min_tuple:
+            return False
+
+        # Special case: 0.9.0 (legacy without version field) is compatible with 1.x.x
+        # This allows seamless migration from legacy configs
+        if ver_tuple == (0, 9, 0) and current_tuple[0] == 1:
+            return True
+
+        # Major version must match current version (no breaking changes across majors)
+        if ver_tuple[0] != current_tuple[0]:
+            return False
+
+        # Version must not be newer than current application version
+        # Newer configs may contain features the application doesn't support
+        if ver_tuple > current_tuple:
+            return False
+
+        return True
+    except ValueError:
+        # Invalid version strings are not compatible
+        return False
+
+
+def get_migration_suggestion(from_version: str) -> str:
+    """
+    Get migration suggestion message for a given version.
+
+    Args:
+        from_version: Current configuration version
+
+    Returns:
+        Human-readable migration suggestion
+    """
+    try:
+        from_tuple = parse_version(from_version)
+        current_tuple = parse_version(CURRENT_CONFIG_VERSION)
+
+        if from_tuple == current_tuple:
+            return "Configuration is up to date."
+
+        if from_tuple < current_tuple:
+            return (
+                f"Configuration version {from_version} is outdated. "
+                f"Current version is {CURRENT_CONFIG_VERSION}. "
+                f"Run migration: python backend/scripts/migrate_config.py"
+            )
+
+        if from_tuple > current_tuple:
+            return (
+                f"Configuration version {from_version} is newer than application version {CURRENT_CONFIG_VERSION}. "
+                f"Please update the application or downgrade the configuration."
+            )
+
+        return "Unknown version relationship."
+    except ValueError:
+        return f"Invalid configuration version '{from_version}'. Please fix or regenerate configuration."
+
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """
@@ -77,23 +220,73 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     """
     config_dir = Path(__file__).parent.parent.parent / "config"
 
-    # Load default config
+    # Load default config (with auto-migration if enabled)
     default_config_path = config_dir / "default.json"
     if not default_config_path.exists():
         logger.warning(f"Default config not found: {default_config_path}")
         return {}
 
-    config = load_json_config(default_config_path)
-    logger.info(f"Loaded default config from {default_config_path}")
+    if AUTO_MIGRATE_ENABLED:
+        config = load_and_migrate_config_file(default_config_path)
+        logger.info(f"Loaded and migrated default config from {default_config_path}")
+    else:
+        config = load_json_config(default_config_path)
+        logger.info(f"Loaded default config from {default_config_path}")
 
-    # Load environment-specific config
+    # Detect and validate version of default config
+    default_version = detect_config_version(config)
+    logger.info(f"Default config version: {default_version}")
+
+    # Load environment-specific config and validate version consistency
     env_config_path = config_dir / f"{app_env}.json"
     if env_config_path.exists():
-        env_config = load_json_config(env_config_path)
+        if AUTO_MIGRATE_ENABLED:
+            env_config = load_and_migrate_config_file(env_config_path)
+            logger.info(f"Loaded and migrated environment config from {env_config_path}")
+        else:
+            env_config = load_json_config(env_config_path)
+            logger.info(f"Loaded environment config from {env_config_path}")
+
+        env_version = detect_config_version(env_config)
+        logger.info(f"Environment config version: {env_version}")
+
+        # Ensure version consistency between default and environment configs
+        if default_version != env_version:
+            logger.error(f"Version mismatch: default.json has {default_version}, {app_env}.json has {env_version}")
+            logger.error("All config files must have the same config_version field")
+            raise ValueError(
+                f"Configuration version mismatch: default.json ({default_version}) != {app_env}.json ({env_version}). "
+                f"All configuration files must have the same version."
+            )
+
         config = deep_merge(config, env_config)
         logger.info(f"Loaded {app_env} config from {env_config_path}")
     else:
         logger.info(f"No environment-specific config found at {env_config_path}, using defaults only")
+
+    # Use the validated version (both files have same version at this point)
+    config_version = default_version
+    logger.info(f"Configuration version: {config_version}")
+
+    if not is_version_compatible(config_version):
+        logger.error(f"Incompatible configuration version: {config_version}")
+        logger.error(f"Supported versions: {MIN_SUPPORTED_VERSION} - {CURRENT_CONFIG_VERSION} (major version {CURRENT_CONFIG_VERSION.split('.')[0]})")
+        logger.error(get_migration_suggestion(config_version))
+        raise ValueError(
+            f"Configuration version {config_version} is incompatible with application version {CURRENT_CONFIG_VERSION}. "
+            f"{get_migration_suggestion(config_version)}"
+        )
+
+    # Warn if configuration is outdated (but compatible)
+    if config_version != CURRENT_CONFIG_VERSION:
+        try:
+            ver_tuple = parse_version(config_version)
+            current_tuple = parse_version(CURRENT_CONFIG_VERSION)
+            if ver_tuple < current_tuple:
+                logger.warning(f"Configuration version {config_version} is outdated (current: {CURRENT_CONFIG_VERSION})")
+                logger.warning(get_migration_suggestion(config_version))
+        except ValueError:
+            pass  # Already logged in detect_config_version
 
     # Load local config - MODELS ONLY (all other keys are ignored)
     # Note: local.json is exclusively for model configuration overrides.
@@ -101,10 +294,31 @@ def load_config_from_files(app_env: str = "development") -> dict[str, Any]:
     local_config_path = config_dir / "local.json"
     if local_config_path.exists():
         try:
-            local_config = load_json_config(local_config_path)
+            # Load local config (with auto-migration if enabled)
+            if AUTO_MIGRATE_ENABLED:
+                local_config = load_and_migrate_config_file(local_config_path)
+                logger.info(f"Loaded and migrated local config from {local_config_path}")
+            else:
+                local_config = load_json_config(local_config_path)
 
-            # Warn about ignored keys (anything other than 'models')
-            ignored_keys = [key for key in local_config.keys() if key != "models"]
+            # Check version consistency for local.json (warning only, not enforced)
+            # Rationale: local.json is optional and only affects 'models' array.
+            # Version mismatches are tolerable since:
+            # 1. local.json has limited scope (models only)
+            # 2. Model schema changes are rare and usually backward-compatible
+            # 3. Auto-migration will upgrade local.json when loaded
+            # 4. Enforcing strict version would break development workflows
+            local_version = detect_config_version(local_config)
+            if local_version != config_version:
+                logger.warning(
+                    f"local.json version ({local_version}) differs from main config ({config_version}). "
+                    f"This is acceptable but consider updating local.json to match version {config_version}. "
+                    f"Auto-migration will upgrade it if enabled."
+                )
+
+            # Warn about ignored keys (anything other than 'models' and 'config_version')
+            # Note: config_version is allowed but not used for merging
+            ignored_keys = [key for key in local_config.keys() if key not in ("models", "config_version")]
             if ignored_keys:
                 logger.warning(
                     f"local.json contains non-model keys that will be ignored: {ignored_keys}. "
@@ -148,6 +362,111 @@ def merge_model_configs(base_models: list[dict], local_models: list[dict]) -> li
             models_dict[model_id] = local_model
 
     return list(models_dict.values())
+
+
+def load_and_migrate_config_file(config_path: Path, app_env: str = "development") -> dict[str, Any]:
+    """
+    Load configuration file and apply automatic migrations if needed.
+
+    IMPORTANT: This function MODIFIES config files on disk when AUTO_MIGRATE_ENABLED=true.
+    This is intentional behavior to ensure config files stay up-to-date with the application.
+
+    Benefits of auto-migration:
+    - Eliminates manual migration steps during deployments
+    - Ensures configs are always compatible with current app version
+    - Creates automatic backups before any changes (safety net)
+    - One-time cost: migration only happens once per version upgrade
+
+    To disable auto-migration (e.g., for version-controlled shared configs):
+    - Set environment variable: CONFIG_AUTO_MIGRATE=false
+    - Use manual migration scripts in backend/scripts/
+
+    This function:
+    1. Loads the config file
+    2. Detects the version
+    3. Checks if migration is needed
+    4. If AUTO_MIGRATE_ENABLED and version is outdated:
+       - Creates automatic backup (in config/backups/)
+       - Applies migrations
+       - Validates migrated config against schema
+       - Saves migrated config to original file
+       - Returns migrated config
+    5. Otherwise, returns config as-is
+
+    Args:
+        config_path: Path to configuration file
+        app_env: Application environment (for backup naming)
+
+    Returns:
+        Configuration dictionary (possibly migrated)
+
+    Raises:
+        ValueError: If migration fails or validation fails
+    """
+    # Lazy import to avoid circular dependency
+    from app.core.config_backup import backup_config_file, save_config_with_backup
+    from app.core.config_migrations import apply_migrations
+
+    config = load_json_config(config_path)
+    config_version = detect_config_version(config)
+
+    # Check if migration is needed
+    if config_version == CURRENT_CONFIG_VERSION:
+        return config  # Already up to date
+
+    if not AUTO_MIGRATE_ENABLED:
+        logger.warning(f"Config version {config_version} is outdated, but auto-migration is disabled")
+        logger.warning("Set CONFIG_AUTO_MIGRATE=true to enable automatic migrations")
+        return config
+
+    # Check if outdated (but compatible)
+    try:
+        ver_tuple = parse_version(config_version)
+        current_tuple = parse_version(CURRENT_CONFIG_VERSION)
+
+        if ver_tuple < current_tuple:
+            logger.info(f"Auto-migrating config from {config_version} to {CURRENT_CONFIG_VERSION}")
+
+            try:
+                # Apply migrations
+                migrated_config = apply_migrations(config, config_version, CURRENT_CONFIG_VERSION)
+
+                # Validate migrated config against schema to ensure it's loadable
+                try:
+                    ConfigFile(**migrated_config)
+                    logger.debug(f"Migration validation passed: config conforms to schema")
+                except Exception as validation_error:
+                    raise ValueError(
+                        f"Migrated config failed schema validation: {validation_error}. "
+                        f"The migration may have produced an invalid configuration. "
+                        f"This is likely a bug in the migration logic."
+                    )
+
+                # Save with automatic backup
+                save_config_with_backup(config_path, migrated_config)
+
+                logger.info(f"✓ Successfully migrated {config_path} to version {CURRENT_CONFIG_VERSION}")
+                return migrated_config
+
+            except Exception as e:
+                logger.error(f"✗ Migration failed: {e}")
+                logger.error(f"Cannot load incompatible config version {config_version}")
+                logger.error("Options:")
+                logger.error("  1. Fix migration error and retry")
+                logger.error("  2. Restore from backup (see backend/config/backups/)")
+                logger.error("  3. Disable auto-migration: CONFIG_AUTO_MIGRATE=false")
+                raise ValueError(
+                    f"Failed to migrate configuration from {config_version} to {CURRENT_CONFIG_VERSION}: {e}. "
+                    f"Cannot continue with incompatible config. Check logs for details."
+                ) from e
+        else:
+            # Version is newer than current (shouldn't happen, but handle gracefully)
+            logger.warning(f"Config version {config_version} is newer than app version {CURRENT_CONFIG_VERSION}")
+            return config
+
+    except ValueError as e:
+        logger.warning(f"Could not parse versions for migration: {e}")
+        return config
 
 
 def validate_ui_parameters(models: list[dict]) -> dict[str, list[str]]:
