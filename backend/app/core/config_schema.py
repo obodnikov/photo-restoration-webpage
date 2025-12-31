@@ -238,6 +238,10 @@ class ProcessingConfig(BaseModel):
 class ConfigFile(BaseModel):
     """Complete configuration file schema."""
 
+    config_version: str = Field(
+        default="1.0.0",
+        description="Configuration file version (semver format). Used for automatic migrations.",
+    )
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     cors: CorsConfig = Field(default_factory=CorsConfig)
