@@ -914,13 +914,18 @@ class Settings(BaseSettings):
         """
         Save or update a model configuration in local.json.
 
+        This method creates automatic backups before saving changes, ensuring
+        you can rollback configuration mistakes using the restore script.
+
         Args:
             model_data: Model configuration dictionary
 
         Raises:
             ValueError: If model_data is invalid
-            IOError: If unable to write to local.json
+            IOError: If unable to write to local.json or create backup
         """
+        from app.core.config_backup import save_config_with_backup
+
         model_id = model_data.get("id")
         if not model_id:
             raise ValueError("Model configuration must have an 'id' field")
@@ -932,7 +937,11 @@ class Settings(BaseSettings):
         if local_config_path.exists():
             local_config = load_json_config(local_config_path)
         else:
-            local_config = {"models": []}
+            local_config = {"config_version": CURRENT_CONFIG_VERSION, "models": []}
+
+        # Ensure config_version exists
+        if "config_version" not in local_config:
+            local_config["config_version"] = CURRENT_CONFIG_VERSION
 
         # Ensure models array exists
         if "models" not in local_config:
@@ -950,15 +959,17 @@ class Settings(BaseSettings):
         if not found:
             models.append(model_data)
 
-        # Write back to file
-        with open(local_config_path, "w", encoding="utf-8") as f:
-            json.dump(local_config, f, indent=2, ensure_ascii=False)
+        # Save with automatic backup (creates backup of existing file before writing)
+        save_config_with_backup(local_config_path, local_config)
 
-        logger.info(f"Saved model '{model_id}' to local.json")
+        logger.info(f"Saved model '{model_id}' to local.json (backup created)")
 
     def delete_local_model_config(self, model_id: str) -> bool:
         """
         Delete a model configuration from local.json.
+
+        This method creates automatic backups before deleting, ensuring
+        you can restore accidentally deleted configurations.
 
         Args:
             model_id: Model identifier
@@ -967,8 +978,10 @@ class Settings(BaseSettings):
             True if model was deleted, False if not found in local.json
 
         Raises:
-            IOError: If unable to write to local.json
+            IOError: If unable to write to local.json or create backup
         """
+        from app.core.config_backup import save_config_with_backup
+
         config_dir = Path(__file__).parent.parent.parent / "config"
         local_config_path = config_dir / "local.json"
 
@@ -987,11 +1000,10 @@ class Settings(BaseSettings):
 
         local_config["models"] = models
 
-        # Write back to file
-        with open(local_config_path, "w", encoding="utf-8") as f:
-            json.dump(local_config, f, indent=2, ensure_ascii=False)
+        # Save with automatic backup (creates backup before deleting)
+        save_config_with_backup(local_config_path, local_config)
 
-        logger.info(f"Deleted model '{model_id}' from local.json")
+        logger.info(f"Deleted model '{model_id}' from local.json (backup created)")
         return True
 
     def _ensure_ui_validation(self) -> None:

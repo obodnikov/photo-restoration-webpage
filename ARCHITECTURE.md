@@ -188,9 +188,16 @@ All requests → Authorization: Bearer {JWT} → Verify JWT → Execute
 - Version compatibility: rejects future versions, supports legacy 0.9.0 → 1.x
 - Current version: 1.0.0
 
+**Version Control:**
+- Code constant: `CURRENT_CONFIG_VERSION` in `backend/app/core/config.py:17`
+- Current value: `"1.0.0"`
+- Developers update this when releasing schema changes
+- Application compares file `config_version` to `CURRENT_CONFIG_VERSION`
+- If file version < code version: auto-migration triggers
+
 **Sections:** `config_version`, `application`, `server`, `cors`, `models`, `database`, `file_storage`, `session`, `processing`
 
-**See:** `docs/configuration.md`, `docs/CONFIG_VERSIONING_PERFORMANCE.md`
+**See:** `docs/configuration.md`, `docs/CONFIG_VERSIONING_PERFORMANCE.md`, `docs/CONFIGURATION_VERSIONING_PRINCIPLES.md`
 
 ### Deployment
 
